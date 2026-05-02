@@ -1,9 +1,13 @@
-﻿// @ts-nocheck
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
+﻿const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 const EMAIL_VERIFY_TTL_SECONDS = 60 * 60 * 24;
 const PASSWORD_RESET_TTL_SECONDS = 60 * 60;
 const PBKDF2_ITERATIONS = 60000;
 const MIN_PASSWORD_LENGTH = 8;
+
+interface TurnstileVerifyResponse {
+  success: boolean;
+  action?: string;
+}
 
 export default {
   async fetch(request, env) {
@@ -530,7 +534,7 @@ async function sha256Hex(input) {
   return toHex(new Uint8Array(digest));
 }
 
-function toHex(bytes) {
+function toHex(bytes: Uint8Array) {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
@@ -540,7 +544,7 @@ function randomToken(byteLength = 32) {
   return toBase64Url(arr);
 }
 
-function toBase64Url(bytes) {
+function toBase64Url(bytes: Uint8Array) {
   let bin = "";
   for (const b of bytes) bin += String.fromCharCode(b);
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
@@ -693,7 +697,7 @@ async function ensureTurnstileRequired(env, request, body, expectedAction = null
   return null;
 }
 
-async function verifyTurnstileToken(secret, token, remoteIp) {
+async function verifyTurnstileToken(secret: string, token: string, remoteIp: string): Promise<TurnstileVerifyResponse> {
   try {
     const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
       method: "POST",
@@ -704,7 +708,11 @@ async function verifyTurnstileToken(secret, token, remoteIp) {
         remoteip: remoteIp || undefined,
       }),
     });
-    return await response.json();
+    const payload = (await response.json()) as Partial<TurnstileVerifyResponse> | null;
+    return {
+      success: Boolean(payload?.success),
+      action: payload?.action,
+    };
   } catch (error) {
     console.error("Turnstile doÄŸrulama hatasÄ±:", error);
     return { success: false };
@@ -754,4 +762,6 @@ function formatMoney(value) {
     maximumFractionDigits: 2,
   }).format(value);
 }
+
+
 
