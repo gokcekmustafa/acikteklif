@@ -78,7 +78,7 @@ async function handleApi(request, env, url) {
   if (method === "GET" && path === "/api/config") {
     return json({
       ok: true,
-      release: "2026-05-02-f9ace13",
+      release: "2026-05-02-login-primary-session",
       turnstileSiteKey: String(env.TURNSTILE_SITE_KEY || "").trim(),
       requireTurnstile: isTurnstileRequired(env),
       requireEmailVerification: isEmailVerificationRequired(env),
@@ -181,6 +181,7 @@ async function handleApi(request, env, url) {
   if (method === "POST" && path === "/api/auth/login") {
     const cfgError = requireSessionPepper(env);
     if (cfgError) return cfgError;
+    const db = env.DB.withSession("first-primary");
 
     const ip = getClientIp(request);
     const limited = await checkRateLimit(env, `login:${ip}`, 20, 10 * 60);
@@ -193,23 +194,23 @@ async function handleApi(request, env, url) {
 
     const bootstrapLogin = matchesBootstrapAdminCredentials(env, email, password);
     if (bootstrapLogin) {
-      await ensureSingleBootstrapAdminUser(env, email, password);
+      await ensureSingleBootstrapAdminUser(env, email, password, db);
     }
-    await ensureBootstrapAdminUser(env);
+    await ensureBootstrapAdminUser(env, db);
     if (!bootstrapLogin) {
       const turnstileError = await ensureTurnstileRequired(env, request, body, "login");
       if (turnstileError) return turnstileError;
     }
 
-    let user = await env.DB.prepare(
+    let user = await db.prepare(
       "SELECT id, email, name, password_hash, email_verified_at, disabled_at FROM users WHERE email = ?"
     )
       .bind(email)
       .first();
 
     if (!user && bootstrapLogin) {
-      await ensureBootstrapAdminUser(env);
-      user = await env.DB.prepare(
+      await ensureBootstrapAdminUser(env, db);
+      user = await db.prepare(
         "SELECT id, email, name, password_hash, email_verified_at, disabled_at FROM users WHERE email = ?"
       )
         .bind(email)
@@ -223,10 +224,10 @@ async function handleApi(request, env, url) {
       passOk = true;
     }
     if (!passOk) return json({ ok: false, error: "E-posta veya şifre hatalı." }, 401);
-    await ensureUserRole(env, user.id, user.email);
-    const access = await getUserAccess(env, user.id, user.email);
+    await ensureUserRole(env, user.id, user.email, db);
+    const access = await getUserAccess(env, user.id, user.email, db);
 
-    const { cookie, expiresAt } = await createSession(env, request, user.id);
+    const { cookie, expiresAt } = await createSession(env, request, user.id, db);
     const headers = new Headers({ "content-type": "application/json; charset=utf-8" });
     headers.append("set-cookie", cookie);
 
@@ -699,7 +700,7 @@ async function handleApi(request, env, url) {
   return json({ ok: false, error: "Endpoint bulunamadı." }, 404);
 }
 
-async function createSession(env, request, userId) {
+async function createSession(env, request, userId, db = env.DB) {
   const sessionId = randomToken(18);
   const sessionSecret = randomToken(32);
   const secretHash = await hashSessionSecret(sessionSecret, env.SESSION_PEPPER);
@@ -707,7 +708,7 @@ async function createSession(env, request, userId) {
   const userAgent = request.headers.get("user-agent") || "";
   const ipHash = await sha256Hex(`${env.SESSION_PEPPER}:${getClientIp(request)}`);
 
-  await env.DB.prepare(
+  await db.prepare(
     `INSERT INTO sessions (
       id, user_id, secret_hash, user_agent, ip_hash, expires_at, created_at
     ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
@@ -725,11 +726,12 @@ async function getSession(request, env) {
   const cookieHeader = request.headers.get("cookie") || "";
   const token = readCookie(cookieHeader, "session");
   if (!token) return null;
+  const db = typeof env.DB?.withSession === "function" ? env.DB.withSession("first-primary") : env.DB;
 
   const [sessionId, sessionSecret] = token.split(".");
   if (!sessionId || !sessionSecret) return null;
 
-  const row = await env.DB.prepare(
+  const row = await db.prepare(
     `SELECT
       s.id as session_id, s.user_id as session_user_id, s.secret_hash, s.expires_at, s.revoked_at,
       u.id, u.email, u.name, u.email_verified_at, u.disabled_at
@@ -763,12 +765,12 @@ async function getSession(request, env) {
   };
 }
 
-async function ensureUserRole(env, userId, email) {
+async function ensureUserRole(env, userId, email, db = env.DB) {
   const bootstrapRole = getBootstrapRoleForEmail(env, email);
   try {
-    const existing = await env.DB.prepare("SELECT role FROM user_roles WHERE user_id = ?").bind(userId).first();
+    const existing = await db.prepare("SELECT role FROM user_roles WHERE user_id = ?").bind(userId).first();
     if (!existing) {
-      await env.DB.prepare(
+      await db.prepare(
         "INSERT INTO user_roles (user_id, role, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
       )
         .bind(userId, bootstrapRole)
@@ -778,7 +780,7 @@ async function ensureUserRole(env, userId, email) {
 
     const currentRole = normalizeRole(existing.role);
     if (bootstrapRole === USER_ROLES.ADMIN && currentRole !== USER_ROLES.ADMIN) {
-      await env.DB.prepare("UPDATE user_roles SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?")
+      await db.prepare("UPDATE user_roles SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?")
         .bind(USER_ROLES.ADMIN, userId)
         .run();
       return USER_ROLES.ADMIN;
@@ -815,19 +817,19 @@ function matchesBootstrapAdminCredentials(env, email, password) {
   return list.some((creds) => creds.email === normalizedEmail && creds.password === rawPassword);
 }
 
-async function ensureBootstrapAdminUser(env) {
+async function ensureBootstrapAdminUser(env, db = env.DB) {
   const list = getBootstrapAdminCredentialsList(env);
   for (const creds of list) {
     if (!isValidEmail(creds.email) || !creds.password) continue;
-    await ensureSingleBootstrapAdminUser(env, creds.email, creds.password);
+    await ensureSingleBootstrapAdminUser(env, creds.email, creds.password, db);
   }
 }
 
-async function ensureSingleBootstrapAdminUser(env, adminEmail, adminPassword) {
+async function ensureSingleBootstrapAdminUser(env, adminEmail, adminPassword, db = env.DB) {
   if (!isValidEmail(adminEmail) || !adminPassword) return;
 
   try {
-    const existing = await env.DB.prepare(
+    const existing = await db.prepare(
       "SELECT id, email, password_hash FROM users WHERE email = ?"
     )
       .bind(adminEmail)
@@ -836,14 +838,14 @@ async function ensureSingleBootstrapAdminUser(env, adminEmail, adminPassword) {
     if (!existing) {
       const userId = crypto.randomUUID();
       const passwordHash = await hashPassword(adminPassword);
-      await env.DB.prepare(
+      await db.prepare(
         "INSERT INTO users (id, email, name, password_hash, email_verified_at, created_at, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
       )
         .bind(userId, adminEmail, "Platform Yoneticisi", passwordHash)
         .run();
 
       try {
-        await env.DB.prepare(
+        await db.prepare(
           "INSERT INTO user_roles (user_id, role, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT(user_id) DO UPDATE SET role = excluded.role, updated_at = CURRENT_TIMESTAMP"
         )
           .bind(userId, USER_ROLES.ADMIN)
@@ -854,7 +856,7 @@ async function ensureSingleBootstrapAdminUser(env, adminEmail, adminPassword) {
       return;
     }
 
-    await env.DB.prepare(
+    await db.prepare(
       "UPDATE users SET email_verified_at = COALESCE(email_verified_at, CURRENT_TIMESTAMP), disabled_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
     )
       .bind(existing.id)
@@ -863,13 +865,13 @@ async function ensureSingleBootstrapAdminUser(env, adminEmail, adminPassword) {
     const passOk = await verifyPassword(adminPassword, existing.password_hash);
     if (!passOk) {
       const passwordHash = await hashPassword(adminPassword);
-      await env.DB.prepare("UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+      await db.prepare("UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
         .bind(passwordHash, existing.id)
         .run();
     }
 
     try {
-      await env.DB.prepare(
+      await db.prepare(
         "INSERT INTO user_roles (user_id, role, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT(user_id) DO UPDATE SET role = excluded.role, updated_at = CURRENT_TIMESTAMP"
       )
         .bind(existing.id, USER_ROLES.ADMIN)
@@ -882,11 +884,11 @@ async function ensureSingleBootstrapAdminUser(env, adminEmail, adminPassword) {
   }
 }
 
-async function getUserAccess(env, userId, email = "") {
-  const role = await ensureUserRole(env, userId, email);
+async function getUserAccess(env, userId, email = "", db = env.DB) {
+  const role = await ensureUserRole(env, userId, email, db);
   const overrides: Record<string, boolean> = {};
   try {
-    const overrideRows = await env.DB.prepare(
+    const overrideRows = await db.prepare(
       "SELECT permission_key, is_enabled FROM user_permission_overrides WHERE user_id = ?"
     )
       .bind(userId)
