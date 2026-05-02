@@ -15,3 +15,4 @@ migrations_dir = "migrations"
 [vars]
 ENVIRONMENT = "production"
 REQUIRE_EMAIL_VERIFICATION = "false"
+ADMIN_EMAILS = ""

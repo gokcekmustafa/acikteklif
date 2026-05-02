@@ -12,13 +12,20 @@ Bu proje statik arayuzun yaninda Cloudflare Worker + D1 ile calisan uyelik ve te
 - E-posta dogrulama zorunlulugu ayarlanabilir (`REQUIRE_EMAIL_VERIFICATION`)
 - Basit rate limiting (D1 tabanli)
 - Turnstile captcha korumasi (register/login icin zorunlu)
+- Admin paneli (`/admin.html`)
+- Rol + yetki yonetimi (ac/kapat)
+- Kullanici pasife alma / aktif etme
+- Kullanici oturum sonlandirma
 
 ## Dizin Yapisi
 
-- `public/index.html`, `public/styles.css`, `public/script.js`: Yayina cikan statik dosyalar
+- `public/index.html`, `public/styles.css`, `public/script.js`: Ana sayfa statik dosyalari
+- `public/admin.html`, `public/admin.css`, `public/admin.js`: Admin paneli statik dosyalari
 - `src/client.ts`: Frontend TypeScript kaynagi (`npm run build` ile `public/script.js` uretilir)
+- `src/admin.ts`: Admin paneli TypeScript kaynagi (`npm run build` ile `public/admin.js` uretilir)
 - `src/worker.ts`: API ve auth mantigi (TypeScript)
 - `migrations/0001_initial.sql`: D1 sema + ornek ihale verisi
+- `migrations/0002_admin_permissions.sql`: Rol/yetki tablolari
 - `wrangler.toml`: Worker konfigurasyonu
 
 ## Kurulum
@@ -64,17 +71,24 @@ npx wrangler secret put TURNSTILE_SITE_KEY
 ```
 `wrangler.toml` icindeki `REQUIRE_EMAIL_VERIFICATION` degerini ihtiyaca gore guncelleyin.
 
-9. Frontend TS derle:
+9. Ilk admin kullanicilarini tanimla (opsiyonel ama onerilir):
+```toml
+[vars]
+ADMIN_EMAILS = "admin@ornek.com, ikinciadmin@ornek.com"
+```
+Bu listedeki e-postalar ilk giriste otomatik `admin` rolu alir.
+
+10. Frontend TS derle:
 ```bash
 npm run build
 ```
 
-10. Lokal calistir:
+11. Lokal calistir:
 ```bash
 npx wrangler dev
 ```
 
-11. Deploy:
+12. Deploy:
 ```bash
 npm run deploy
 ```

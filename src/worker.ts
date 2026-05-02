@@ -4,6 +4,36 @@ const PASSWORD_RESET_TTL_SECONDS = 60 * 60;
 const PBKDF2_ITERATIONS = 210000;
 const MIN_PASSWORD_LENGTH = 8;
 
+const USER_ROLES = {
+  MEMBER: "member",
+  MANAGER: "manager",
+  ADMIN: "admin",
+} as const;
+
+const PERMISSIONS = {
+  ADMIN_PANEL_ACCESS: "admin.panel.access",
+  BIDS_PLACE: "bids.place",
+  USERS_VIEW: "users.view",
+  USERS_BLOCK: "users.block",
+  USERS_PERMISSIONS: "users.permissions",
+  USERS_SESSIONS_REVOKE: "users.sessions.revoke",
+  AUCTIONS_CREATE: "auctions.create",
+  AUCTIONS_EDIT: "auctions.edit",
+  AUCTIONS_CLOSE: "auctions.close",
+  REPORTS_VIEW: "reports.view",
+  DATA_EXPORT: "data.export",
+  SETTINGS_MANAGE: "settings.manage",
+} as const;
+
+const ALL_PERMISSION_KEYS: string[] = Object.values(PERMISSIONS);
+const MANAGER_DEFAULT_PERMISSIONS = new Set<string>([
+  PERMISSIONS.ADMIN_PANEL_ACCESS,
+  PERMISSIONS.BIDS_PLACE,
+  PERMISSIONS.USERS_VIEW,
+  PERMISSIONS.REPORTS_VIEW,
+]);
+const ADMIN_DEFAULT_PERMISSIONS = new Set<string>(ALL_PERMISSION_KEYS);
+
 interface TurnstileVerifyResponse {
   success: boolean;
   action?: string;
@@ -59,6 +89,8 @@ async function handleApi(request, env, url) {
 
     const session = await getSession(request, env);
     if (!session) return json({ ok: true, authenticated: false, user: null });
+    await ensureUserRole(env, session.user.id, session.user.email);
+    const access = await getUserAccess(env, session.user.id, session.user.email);
     return json({
       ok: true,
       authenticated: true,
@@ -67,6 +99,8 @@ async function handleApi(request, env, url) {
         email: session.user.email,
         name: session.user.name,
         emailVerified: !!session.user.email_verified_at,
+        role: access.role,
+        permissions: access.permissions,
       },
     });
   }
@@ -104,6 +138,7 @@ async function handleApi(request, env, url) {
     )
       .bind(userId, email, name, passwordHash)
       .run();
+    await ensureUserRole(env, userId, email);
 
     const verifyToken = requireEmailVerification ? await createEmailVerifyToken(env, userId) : null;
     if (requireEmailVerification && verifyToken) {
@@ -168,6 +203,8 @@ async function handleApi(request, env, url) {
 
     const passOk = await verifyPassword(password, user.password_hash);
     if (!passOk) return json({ ok: false, error: "E-posta veya şifre hatalı." }, 401);
+    await ensureUserRole(env, user.id, user.email);
+    const access = await getUserAccess(env, user.id, user.email);
 
     const { cookie, expiresAt } = await createSession(env, request, user.id);
     const headers = new Headers({ "content-type": "application/json; charset=utf-8" });
@@ -183,6 +220,8 @@ async function handleApi(request, env, url) {
           email: user.email,
           name: user.name,
           emailVerified: !!user.email_verified_at,
+          role: access.role,
+          permissions: access.permissions,
         },
       }),
       { status: 200, headers }
@@ -340,6 +379,10 @@ async function handleApi(request, env, url) {
 
     const session = await getSession(request, env);
     if (!session) return json({ ok: false, error: "Teklif verebilmek için giriş yapmalısınız." }, 401);
+    const access = await getUserAccess(env, session.user.id, session.user.email);
+    if (!access.permissions[PERMISSIONS.BIDS_PLACE]) {
+      return json({ ok: false, error: "Teklif verme yetkiniz kapatılmış. Lütfen yöneticiyle iletişime geçin." }, 403);
+    }
     if (isEmailVerificationRequired(env) && !session.user.email_verified_at) {
       return json({ ok: false, error: "Teklif verebilmek için önce e-posta adresinizi doğrulayın." }, 403);
     }
@@ -394,6 +437,243 @@ async function handleApi(request, env, url) {
       lotNo,
       amount,
     });
+  }
+
+  if (path.startsWith("/api/admin/")) {
+    const cfgError = requireSessionPepper(env);
+    if (cfgError) return cfgError;
+
+    const session = await getSession(request, env);
+    if (!session) return json({ ok: false, error: "Yönetim paneli için giriş yapmalısınız." }, 401);
+
+    await ensureUserRole(env, session.user.id, session.user.email);
+    const actorAccess = await getUserAccess(env, session.user.id, session.user.email);
+    if (!actorAccess.permissions[PERMISSIONS.ADMIN_PANEL_ACCESS]) {
+      return json({ ok: false, error: "Yönetim paneline erişim yetkiniz yok." }, 403);
+    }
+
+    if (method === "GET" && path === "/api/admin/me") {
+      return json({
+        ok: true,
+        user: {
+          id: session.user.id,
+          email: session.user.email,
+          name: session.user.name,
+          role: actorAccess.role,
+          permissions: actorAccess.permissions,
+        },
+      });
+    }
+
+    if (method === "GET" && path === "/api/admin/permission-keys") {
+      return json({
+        ok: true,
+        items: ALL_PERMISSION_KEYS.map((key) => ({
+          key,
+          label: permissionLabel(key),
+        })),
+      });
+    }
+
+    if (method === "GET" && path === "/api/admin/users") {
+      if (!actorAccess.permissions[PERMISSIONS.USERS_VIEW]) {
+        return json({ ok: false, error: "Kullanıcıları görüntüleme yetkiniz yok." }, 403);
+      }
+
+      const usersResult = await env.DB.prepare(
+        `SELECT
+          u.id, u.email, u.name, u.email_verified_at, u.disabled_at, u.created_at,
+          COALESCE(r.role, ?) AS role
+         FROM users u
+         LEFT JOIN user_roles r ON r.user_id = u.id
+         ORDER BY u.created_at DESC`
+      )
+        .bind(USER_ROLES.MEMBER)
+        .all();
+
+      const overrideRows = await env.DB.prepare(
+        "SELECT user_id, permission_key, is_enabled FROM user_permission_overrides"
+      ).all();
+
+      const overridesByUser = new Map<string, Record<string, boolean>>();
+      for (const row of overrideRows.results || []) {
+        const userId = String(row.user_id || "");
+        const permissionKey = String(row.permission_key || "");
+        if (!userId || !permissionKey) continue;
+        if (!isKnownPermission(permissionKey)) continue;
+        const forUser = overridesByUser.get(userId) || {};
+        forUser[permissionKey] = Number(row.is_enabled || 0) === 1;
+        overridesByUser.set(userId, forUser);
+      }
+
+      const items = (usersResult.results || []).map((row) => {
+        const role = normalizeRole(row.role);
+        const permissions = buildRolePermissions(role, overridesByUser.get(String(row.id || "")) || {});
+        return {
+          id: row.id,
+          email: row.email,
+          name: row.name,
+          role,
+          emailVerified: !!row.email_verified_at,
+          isDisabled: !!row.disabled_at,
+          createdAt: row.created_at,
+          permissions,
+        };
+      });
+
+      return json({ ok: true, items });
+    }
+
+    const roleMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/role$/);
+    if (method === "POST" && roleMatch) {
+      if (!actorAccess.permissions[PERMISSIONS.USERS_PERMISSIONS]) {
+        return json({ ok: false, error: "Rol güncelleme yetkiniz yok." }, 403);
+      }
+
+      const targetUserId = decodeURIComponent(String(roleMatch[1] || ""));
+      const body = await readJson(request);
+      const nextRole = normalizeRole(body.role);
+
+      if (!isValidRole(nextRole)) {
+        return json({ ok: false, error: "Geçersiz rol seçimi." }, 400);
+      }
+
+      const targetUser = await env.DB.prepare("SELECT id, email FROM users WHERE id = ?").bind(targetUserId).first();
+      if (!targetUser) return json({ ok: false, error: "Kullanıcı bulunamadı." }, 404);
+
+      if (targetUserId === session.user.id && nextRole === USER_ROLES.MEMBER) {
+        return json({ ok: false, error: "Kendi rolünüzü standart kullanıcıya düşüremezsiniz." }, 400);
+      }
+
+      await env.DB.prepare(
+        `INSERT INTO user_roles (user_id, role, created_at, updated_at)
+         VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         ON CONFLICT(user_id) DO UPDATE SET role = excluded.role, updated_at = CURRENT_TIMESTAMP`
+      )
+        .bind(targetUserId, nextRole)
+        .run();
+
+      await writeAdminAuditLog(env, session.user.id, targetUserId, "user.role.update", {
+        role: nextRole,
+      });
+
+      const targetAccess = await getUserAccess(env, targetUserId, targetUser.email);
+      return json({
+        ok: true,
+        message: "Kullanıcı rolü güncellendi.",
+        role: targetAccess.role,
+        permissions: targetAccess.permissions,
+      });
+    }
+
+    const permissionMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/permissions$/);
+    if (method === "POST" && permissionMatch) {
+      if (!actorAccess.permissions[PERMISSIONS.USERS_PERMISSIONS]) {
+        return json({ ok: false, error: "Yetki güncelleme yetkiniz yok." }, 403);
+      }
+
+      const targetUserId = decodeURIComponent(String(permissionMatch[1] || ""));
+      const body = await readJson(request);
+      const permissionKey = String(body.permissionKey || "").trim();
+      const enabled = body.enabled === true;
+      if (!isKnownPermission(permissionKey)) {
+        return json({ ok: false, error: "Geçersiz yetki anahtarı." }, 400);
+      }
+
+      const targetUser = await env.DB.prepare("SELECT id, email FROM users WHERE id = ?").bind(targetUserId).first();
+      if (!targetUser) return json({ ok: false, error: "Kullanıcı bulunamadı." }, 404);
+
+      if (
+        targetUserId === session.user.id &&
+        !enabled &&
+        (permissionKey === PERMISSIONS.ADMIN_PANEL_ACCESS || permissionKey === PERMISSIONS.USERS_PERMISSIONS)
+      ) {
+        return json({ ok: false, error: "Kendi kritik yetkinizi kapatamazsınız." }, 400);
+      }
+
+      await env.DB.prepare(
+        `INSERT INTO user_permission_overrides (user_id, permission_key, is_enabled, updated_at, updated_by)
+         VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?)
+         ON CONFLICT(user_id, permission_key)
+         DO UPDATE SET is_enabled = excluded.is_enabled, updated_at = CURRENT_TIMESTAMP, updated_by = excluded.updated_by`
+      )
+        .bind(targetUserId, permissionKey, enabled ? 1 : 0, session.user.id)
+        .run();
+
+      await writeAdminAuditLog(env, session.user.id, targetUserId, "user.permission.update", {
+        permissionKey,
+        enabled,
+      });
+
+      const targetAccess = await getUserAccess(env, targetUserId, targetUser.email);
+      return json({
+        ok: true,
+        message: "Kullanıcı yetkisi güncellendi.",
+        permissions: targetAccess.permissions,
+      });
+    }
+
+    const statusMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/status$/);
+    if (method === "POST" && statusMatch) {
+      if (!actorAccess.permissions[PERMISSIONS.USERS_BLOCK]) {
+        return json({ ok: false, error: "Kullanıcı durumunu değiştirme yetkiniz yok." }, 403);
+      }
+
+      const targetUserId = decodeURIComponent(String(statusMatch[1] || ""));
+      if (targetUserId === session.user.id) {
+        return json({ ok: false, error: "Kendi hesabınızı pasife alamazsınız." }, 400);
+      }
+
+      const body = await readJson(request);
+      const disabled = body.disabled === true;
+
+      const targetUser = await env.DB.prepare("SELECT id, email FROM users WHERE id = ?").bind(targetUserId).first();
+      if (!targetUser) return json({ ok: false, error: "Kullanıcı bulunamadı." }, 404);
+
+      if (disabled) {
+        await env.DB.batch([
+          env.DB.prepare(
+            "UPDATE users SET disabled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+          ).bind(targetUserId),
+          env.DB.prepare("UPDATE sessions SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ? AND revoked_at IS NULL").bind(
+            targetUserId
+          ),
+        ]);
+      } else {
+        await env.DB.prepare("UPDATE users SET disabled_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+          .bind(targetUserId)
+          .run();
+      }
+
+      await writeAdminAuditLog(env, session.user.id, targetUserId, "user.status.update", {
+        disabled,
+      });
+
+      return json({
+        ok: true,
+        message: disabled ? "Kullanıcı pasife alındı." : "Kullanıcı tekrar aktifleştirildi.",
+      });
+    }
+
+    const revokeMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/revoke-sessions$/);
+    if (method === "POST" && revokeMatch) {
+      if (!actorAccess.permissions[PERMISSIONS.USERS_SESSIONS_REVOKE]) {
+        return json({ ok: false, error: "Oturum sonlandırma yetkiniz yok." }, 403);
+      }
+
+      const targetUserId = decodeURIComponent(String(revokeMatch[1] || ""));
+      const targetUser = await env.DB.prepare("SELECT id, email FROM users WHERE id = ?").bind(targetUserId).first();
+      if (!targetUser) return json({ ok: false, error: "Kullanıcı bulunamadı." }, 404);
+
+      await env.DB.prepare("UPDATE sessions SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ? AND revoked_at IS NULL")
+        .bind(targetUserId)
+        .run();
+
+      await writeAdminAuditLog(env, session.user.id, targetUserId, "user.sessions.revoke", {});
+      return json({ ok: true, message: "Aktif oturumlar sonlandırıldı." });
+    }
+
+    return json({ ok: false, error: "Admin endpoint bulunamadı." }, 404);
   }
 
   return json({ ok: false, error: "Endpoint bulunamadı." }, 404);
@@ -461,6 +741,143 @@ async function getSession(request, env) {
       email_verified_at: row.email_verified_at,
     },
   };
+}
+
+async function ensureUserRole(env, userId, email) {
+  const bootstrapRole = getBootstrapRoleForEmail(env, email);
+  try {
+    const existing = await env.DB.prepare("SELECT role FROM user_roles WHERE user_id = ?").bind(userId).first();
+    if (!existing) {
+      await env.DB.prepare(
+        "INSERT INTO user_roles (user_id, role, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+      )
+        .bind(userId, bootstrapRole)
+        .run();
+      return bootstrapRole;
+    }
+
+    const currentRole = normalizeRole(existing.role);
+    if (bootstrapRole === USER_ROLES.ADMIN && currentRole !== USER_ROLES.ADMIN) {
+      await env.DB.prepare("UPDATE user_roles SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?")
+        .bind(USER_ROLES.ADMIN, userId)
+        .run();
+      return USER_ROLES.ADMIN;
+    }
+
+    return currentRole;
+  } catch (error) {
+    console.warn("user_roles tablosu hazir degil, varsayilan rol kullanildi:", error);
+    return bootstrapRole;
+  }
+}
+
+async function getUserAccess(env, userId, email = "") {
+  const role = await ensureUserRole(env, userId, email);
+  const overrides: Record<string, boolean> = {};
+  try {
+    const overrideRows = await env.DB.prepare(
+      "SELECT permission_key, is_enabled FROM user_permission_overrides WHERE user_id = ?"
+    )
+      .bind(userId)
+      .all();
+
+    for (const row of overrideRows.results || []) {
+      const key = String(row.permission_key || "");
+      if (!isKnownPermission(key)) continue;
+      overrides[key] = Number(row.is_enabled || 0) === 1;
+    }
+  } catch (error) {
+    console.warn("user_permission_overrides tablosu hazir degil, rol bazli yetkiler kullaniliyor:", error);
+  }
+
+  return {
+    role,
+    permissions: buildRolePermissions(role, overrides),
+  };
+}
+
+function buildRolePermissions(role, overrides: Record<string, boolean> = {}) {
+  const normalizedRole = normalizeRole(role);
+  const permissions: Record<string, boolean> = {};
+
+  for (const key of ALL_PERMISSION_KEYS) {
+    let value = false;
+    if (normalizedRole === USER_ROLES.ADMIN) {
+      value = ADMIN_DEFAULT_PERMISSIONS.has(key);
+    } else if (normalizedRole === USER_ROLES.MANAGER) {
+      value = MANAGER_DEFAULT_PERMISSIONS.has(key);
+    } else {
+      value = key === PERMISSIONS.BIDS_PLACE;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(overrides, key)) {
+      value = overrides[key] === true;
+    }
+
+    permissions[key] = value;
+  }
+
+  return permissions;
+}
+
+function isKnownPermission(permissionKey) {
+  return ALL_PERMISSION_KEYS.includes(String(permissionKey || ""));
+}
+
+function permissionLabel(permissionKey) {
+  const labels: Record<string, string> = {
+    [PERMISSIONS.ADMIN_PANEL_ACCESS]: "Admin panel erişimi",
+    [PERMISSIONS.BIDS_PLACE]: "Teklif verebilir",
+    [PERMISSIONS.USERS_VIEW]: "Kullanıcıları görüntüleyebilir",
+    [PERMISSIONS.USERS_BLOCK]: "Kullanıcıyı pasife alabilir",
+    [PERMISSIONS.USERS_PERMISSIONS]: "Rol/yetki düzenleyebilir",
+    [PERMISSIONS.USERS_SESSIONS_REVOKE]: "Oturum sonlandırabilir",
+    [PERMISSIONS.AUCTIONS_CREATE]: "İhale oluşturabilir",
+    [PERMISSIONS.AUCTIONS_EDIT]: "İhale düzenleyebilir",
+    [PERMISSIONS.AUCTIONS_CLOSE]: "İhale kapatabilir",
+    [PERMISSIONS.REPORTS_VIEW]: "Raporları görüntüleyebilir",
+    [PERMISSIONS.DATA_EXPORT]: "Veri dışa aktarabilir",
+    [PERMISSIONS.SETTINGS_MANAGE]: "Sistem ayarı yönetebilir",
+  };
+  return labels[permissionKey] || permissionKey;
+}
+
+function normalizeRole(role) {
+  const value = String(role || "").trim().toLowerCase();
+  if (value === USER_ROLES.ADMIN) return USER_ROLES.ADMIN;
+  if (value === USER_ROLES.MANAGER) return USER_ROLES.MANAGER;
+  return USER_ROLES.MEMBER;
+}
+
+function isValidRole(role) {
+  const normalized = normalizeRole(role);
+  return normalized === USER_ROLES.ADMIN || normalized === USER_ROLES.MANAGER || normalized === USER_ROLES.MEMBER;
+}
+
+function getBootstrapRoleForEmail(env, email) {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return USER_ROLES.MEMBER;
+  const raw = String(env.ADMIN_EMAILS || "");
+  if (!raw.trim()) return USER_ROLES.MEMBER;
+
+  const adminEmails = raw
+    .split(/[,\n;]+/)
+    .map((x) => normalizeEmail(x))
+    .filter(Boolean);
+
+  return adminEmails.includes(normalized) ? USER_ROLES.ADMIN : USER_ROLES.MEMBER;
+}
+
+async function writeAdminAuditLog(env, actorUserId, targetUserId, action, details) {
+  try {
+    await env.DB.prepare(
+      "INSERT INTO admin_audit_logs (id, actor_user_id, target_user_id, action, details_json, created_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)"
+    )
+      .bind(crypto.randomUUID(), actorUserId, targetUserId || null, action, JSON.stringify(details || {}))
+      .run();
+  } catch (error) {
+    console.error("Admin audit log yazılamadı:", error);
+  }
 }
 
 async function createEmailVerifyToken(env, userId) {

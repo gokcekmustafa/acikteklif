@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AçıkTeklif | Yönetim Paneli</title>
+  <meta name="description" content="AçıkTeklif yönetim paneli: kullanıcı ve yetki yönetimi">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="./admin.css">
+  <script src="./admin.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brandMark"><i class="fas fa-shield-halved"></i></span>
+        <div>
+          <div class="brandTitle">Yönetim Paneli</div>
+          <div class="brandSub">Kullanıcı ve Yetki Operasyonları</div>
+        </div>
+      </div>
+      <div class="topActions">
+        <a href="/" class="ghostBtn"><i class="fas fa-arrow-left"></i> Siteye Dön</a>
+        <button class="solidBtn" id="refreshBtn"><i class="fas fa-rotate"></i> Yenile</button>
+      </div>
+    </header>
+
+    <section class="summary" id="summaryCards">
+      <div class="card">
+        <div class="label">Toplam Kullanıcı</div>
+        <div class="value" id="statTotal">0</div>
+      </div>
+      <div class="card">
+        <div class="label">Admin / Yönetici</div>
+        <div class="value" id="statAdmin">0</div>
+      </div>
+      <div class="card">
+        <div class="label">Pasif Kullanıcı</div>
+        <div class="value" id="statDisabled">0</div>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <div class="inputWrap">
+        <i class="fas fa-magnifying-glass"></i>
+        <input type="search" id="searchInput" placeholder="E-posta veya ad ile kullanıcı ara">
+      </div>
+      <div class="sessionBox" id="sessionBox">Yükleniyor...</div>
+    </section>
+
+    <div class="statusLine" id="statusLine"></div>
+
+    <main class="userList" id="userList"></main>
+  </div>
+</body>
+</html>

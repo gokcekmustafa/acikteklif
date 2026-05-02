@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2021",
+    "module": "none",
+    "lib": ["ES2021", "DOM", "DOM.Iterable"],
+    "strict": false,
+    "skipLibCheck": true,
+    "noEmitOnError": true,
+    "rootDir": "src",
+    "ignoreDeprecations": "6.0",
+    "outFile": "public/admin.js"
+  },
+  "include": ["src/admin.ts"]
+}

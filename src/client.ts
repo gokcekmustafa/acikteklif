@@ -9,6 +9,8 @@ interface Window {
 }
 
 const API_BASE = "";
+const PERMISSION_ADMIN_PANEL_ACCESS = "admin.panel.access";
+const PERMISSION_BIDS_PLACE = "bids.place";
 const META_TURNSTILE_SITE_KEY = document
   .querySelector('meta[name="turnstile-site-key"]')
   ?.getAttribute("content")
@@ -240,6 +242,7 @@ const elements = {
   menuCloseBtn: document.getElementById("menuCloseBtn"),
   mainMenu: document.getElementById("mainMenu"),
   authStatus: document.getElementById("authStatus"),
+  adminPanelLink: document.getElementById("adminPanelLink"),
   logoutBtn: document.getElementById("logoutBtn"),
 };
 
@@ -465,6 +468,7 @@ function updateAuthUi() {
   if (!user) {
     elements.authStatus.textContent = "Misafir";
     elements.openSignInModal.classList.remove("hide");
+    elements.adminPanelLink.classList.add("hide");
     elements.logoutBtn.classList.add("hide");
     return;
   }
@@ -474,6 +478,8 @@ function updateAuthUi() {
     : "doğrulama kapalı";
   elements.authStatus.textContent = `${user.name} (${verifiedText})`;
   elements.openSignInModal.classList.add("hide");
+  const canOpenAdmin = user.permissions?.[PERMISSION_ADMIN_PANEL_ACCESS] === true;
+  elements.adminPanelLink.classList.toggle("hide", !canOpenAdmin);
   elements.logoutBtn.classList.remove("hide");
 }
 
@@ -792,6 +798,11 @@ async function handleBid(button) {
     setHint(elements.loginFormHint, "Teklif verebilmek için giriş yapmalısınız.", "error");
     elements.signInModal.classList.add("open");
     elements.signInModal.setAttribute("aria-hidden", "false");
+    return;
+  }
+
+  if (state.auth.user.permissions?.[PERMISSION_BIDS_PLACE] === false) {
+    alert("Teklif verme yetkiniz pasif. Lütfen yöneticiyle iletişime geçin.");
     return;
   }
 
