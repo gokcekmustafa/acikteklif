@@ -789,35 +789,41 @@ async function ensureBootstrapAdminUser(env) {
     if (!existing) {
       const userId = crypto.randomUUID();
       const passwordHash = await hashPassword(adminPassword);
-      await env.DB.batch([
-        env.DB.prepare(
-          "INSERT INTO users (id, email, name, password_hash, email_verified_at, created_at, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
-        ).bind(userId, adminEmail, "Platform Yoneticisi", passwordHash),
-        env.DB.prepare(
+      await env.DB.prepare(
+        "INSERT INTO users (id, email, name, password_hash, email_verified_at, created_at, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+      )
+        .bind(userId, adminEmail, "Platform Yoneticisi", passwordHash)
+        .run();
+
+      try {
+        await env.DB.prepare(
           "INSERT INTO user_roles (user_id, role, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT(user_id) DO UPDATE SET role = excluded.role, updated_at = CURRENT_TIMESTAMP"
-        ).bind(userId, USER_ROLES.ADMIN),
-      ]);
+        )
+          .bind(userId, USER_ROLES.ADMIN)
+          .run();
+      } catch (roleError) {
+        console.warn("Bootstrap admin rol yazimi atlandi (migration bekleniyor olabilir):", roleError);
+      }
       return;
     }
 
     const passOk = await verifyPassword(adminPassword, existing.password_hash);
-    const statements = [
-      env.DB.prepare(
-        "INSERT INTO user_roles (user_id, role, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT(user_id) DO UPDATE SET role = excluded.role, updated_at = CURRENT_TIMESTAMP"
-      ).bind(existing.id, USER_ROLES.ADMIN),
-    ];
-
     if (!passOk) {
       const passwordHash = await hashPassword(adminPassword);
-      statements.push(
-        env.DB.prepare("UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(
-          passwordHash,
-          existing.id
-        )
-      );
+      await env.DB.prepare("UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+        .bind(passwordHash, existing.id)
+        .run();
     }
 
-    await env.DB.batch(statements);
+    try {
+      await env.DB.prepare(
+        "INSERT INTO user_roles (user_id, role, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT(user_id) DO UPDATE SET role = excluded.role, updated_at = CURRENT_TIMESTAMP"
+      )
+        .bind(existing.id, USER_ROLES.ADMIN)
+        .run();
+    } catch (roleError) {
+      console.warn("Bootstrap admin rol yazimi atlandi (migration bekleniyor olabilir):", roleError);
+    }
   } catch (error) {
     console.error("Bootstrap admin hazirlama hatasi:", error);
   }
