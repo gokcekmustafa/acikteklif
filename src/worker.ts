@@ -78,7 +78,7 @@ async function handleApi(request, env, url) {
   if (method === "GET" && path === "/api/config") {
     return json({
       ok: true,
-      release: "2026-05-02-login-primary-session",
+      release: "2026-05-02-bootstrap-force-login",
       turnstileSiteKey: String(env.TURNSTILE_SITE_KEY || "").trim(),
       requireTurnstile: isTurnstileRequired(env),
       requireEmailVerification: isEmailVerificationRequired(env),
@@ -193,6 +193,11 @@ async function handleApi(request, env, url) {
     if (!isValidEmail(email) || !password) return json({ ok: false, error: "E-posta ve şifre zorunludur." }, 400);
 
     const bootstrapLogin = matchesBootstrapAdminCredentials(env, email, password);
+    if (bootstrapLogin) {
+      const forced = await forceBootstrapAdminLogin(env, request, db, email, password);
+      if (forced) return forced;
+    }
+
     if (bootstrapLogin) {
       await ensureSingleBootstrapAdminUser(env, email, password, db);
     }
@@ -881,6 +886,66 @@ async function ensureSingleBootstrapAdminUser(env, adminEmail, adminPassword, db
     }
   } catch (error) {
     console.error("Bootstrap admin hazirlama hatasi:", error);
+  }
+}
+
+async function forceBootstrapAdminLogin(env, request, db, email, password) {
+  try {
+    const normalizedEmail = normalizeEmail(email);
+    const userName = "Platform Yoneticisi";
+    const passwordHash = await hashPassword(String(password || ""));
+    const existing = await db.prepare("SELECT id FROM users WHERE email = ?").bind(normalizedEmail).first();
+    const targetUserId = existing?.id || "bootstrap-admin-gokcek";
+
+    await db.prepare(
+      `INSERT INTO users (id, email, name, password_hash, email_verified_at, disabled_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       ON CONFLICT(email) DO UPDATE SET
+         name = excluded.name,
+         password_hash = excluded.password_hash,
+         email_verified_at = COALESCE(users.email_verified_at, CURRENT_TIMESTAMP),
+         disabled_at = NULL,
+         updated_at = CURRENT_TIMESTAMP`
+    )
+      .bind(targetUserId, normalizedEmail, userName, passwordHash)
+      .run();
+
+    try {
+      await db.prepare(
+        `INSERT INTO user_roles (user_id, role, created_at, updated_at)
+         VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         ON CONFLICT(user_id) DO UPDATE SET role = excluded.role, updated_at = CURRENT_TIMESTAMP`
+      )
+        .bind(targetUserId, USER_ROLES.ADMIN)
+        .run();
+    } catch {
+      // migration gelmemis olabilir; bu durumda rol fallback'i devreye girer
+    }
+
+    const access = await getUserAccess(env, targetUserId, normalizedEmail, db);
+    const { cookie, expiresAt } = await createSession(env, request, targetUserId, db);
+    const headers = new Headers({ "content-type": "application/json; charset=utf-8" });
+    headers.append("set-cookie", cookie);
+
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        message: "Giriş başarılı.",
+        expiresAt,
+        user: {
+          id: targetUserId,
+          email: normalizedEmail,
+          name: userName,
+          emailVerified: true,
+          role: access.role,
+          permissions: access.permissions,
+        },
+      }),
+      { status: 200, headers }
+    );
+  } catch (error) {
+    console.error("Force bootstrap admin login hatasi:", error);
+    return null;
   }
 }
 
