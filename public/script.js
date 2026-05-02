@@ -1,5 +1,6 @@
 "use strict";
 const API_BASE = "";
+const PRIMARY_APP_ORIGIN = "https://acik-teklif-pazari.gokcek.workers.dev";
 const PERMISSION_ADMIN_PANEL_ACCESS = "admin.panel.access";
 const PERMISSION_BIDS_PLACE = "bids.place";
 const META_TURNSTILE_SITE_KEY = document
@@ -162,6 +163,7 @@ const fallbackListings = [
 ];
 const DEFAULT_LISTING_IMAGE = "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=900&q=80";
 const fallbackListingByLotNo = new Map(fallbackListings.map((item) => [item.lotNo, item]));
+const demoFallbackHosts = new Set(["localhost", "127.0.0.1", "::1"]);
 const state = {
     tab: "ALL",
     order: "DEFAULT",
@@ -189,6 +191,7 @@ const state = {
         loginToken: "",
         registerToken: "",
     },
+    listingLoadError: "",
 };
 const elements = {
     listingBoxes: document.getElementById("listingBoxes"),
@@ -263,21 +266,29 @@ function refillSelect(selectElement, values, placeholder) {
     fillSelect(selectElement, values);
 }
 async function loadListings() {
+    state.listingLoadError = "";
+    let apiFailed = false;
     try {
         const data = await apiFetch("/api/auctions");
         const items = Array.isArray(data.items) ? data.items : [];
         state.listings = items.map((item, index) => toListingModel(item, index));
     }
     catch (error) {
-        console.warn("Auction API fetch failed, using fallback list.", error);
+        apiFailed = true;
+        console.warn("Auction API fetch failed.", error);
         state.listings = [];
     }
-    if (state.listings.length < 1) {
+    if (state.listings.length < 1 && apiFailed && shouldUseDemoFallback()) {
         state.listings = fallbackListings.map((item) => ({
             ...item,
             minIncrement: guessIncrement(item),
             status: "ACTIVE",
         }));
+        return;
+    }
+    if (state.listings.length < 1 && apiFailed) {
+        state.listingLoadError =
+            `Ihale verisi sunucudan alinamadi. Dogru adresi acin: ${PRIMARY_APP_ORIGIN}`;
     }
 }
 function toListingModel(item, index) {
@@ -629,12 +640,25 @@ function render() {
     const filtered = applyFilters(state.listings.slice());
     const sorted = applySort(filtered);
     elements.listingBoxes.innerHTML = sorted.map(renderCard).join("");
+    if (sorted.length < 1) {
+        const message = state.listingLoadError || "Filtre kriterlerine uygun ilan bulunamadı.";
+        elements.emptyState.innerHTML = `<i class="fas fa-circle-info"></i> ${escapeHtml(message)}`;
+    }
     elements.emptyState.classList.toggle("hide", sorted.length > 0);
     elements.listingBoxes.querySelectorAll(".bidBtn").forEach((button) => {
         button.addEventListener("click", async () => {
             await handleBid(button);
         });
     });
+}
+function shouldUseDemoFallback() {
+    if (typeof window === "undefined")
+        return false;
+    const host = String(window.location.hostname || "").toLowerCase();
+    if (demoFallbackHosts.has(host))
+        return true;
+    const params = new URLSearchParams(window.location.search);
+    return params.get("demo") === "1";
 }
 function applyFilters(data) {
     return data.filter((item) => {

@@ -646,19 +646,70 @@ async function handleApi(request, env, url) {
       }
 
       const groupId = decodeURIComponent(String(groupMatch[1] || ""));
-      const categoryCount = await env.DB.prepare("SELECT COUNT(*) as count FROM categories WHERE group_id = ?")
-        .bind(groupId)
-        .first();
-      const auctionCount = await env.DB.prepare("SELECT COUNT(*) as count FROM auctions WHERE product_group_id = ?")
-        .bind(groupId)
-        .first();
-
-      if (Number(categoryCount?.count || 0) > 0 || Number(auctionCount?.count || 0) > 0) {
-        return json(
-          { ok: false, error: "Bu gruba bağlı kategori veya ihale var. Önce bağlı kayıtları kaldırın." },
-          409
-        );
+      if (groupId === FALLBACK_CATALOG_GROUP_ID) {
+        return json({ ok: false, error: "Genel ürün grubu sistem varsayılanıdır, silinemez." }, 400);
       }
+
+      await ensureMarketplaceSchemaWarm(env, { runLegacyRepair: true });
+      const fallbackGroupNameRow = await env.DB.prepare("SELECT name FROM product_groups WHERE id = ?")
+        .bind(FALLBACK_CATALOG_GROUP_ID)
+        .first();
+      const fallbackGroupName = String(fallbackGroupNameRow?.name || "Genel");
+
+      const groupCategories = await env.DB.prepare("SELECT id, name FROM categories WHERE group_id = ?")
+        .bind(groupId)
+        .all();
+
+      for (const row of groupCategories.results || []) {
+        const sourceCategoryId = String(row.id || "");
+        const categoryName = String(row.name || "").trim();
+        if (!sourceCategoryId) continue;
+
+        const existingInFallback = await env.DB.prepare(
+          `SELECT id, name
+           FROM categories
+           WHERE group_id = ?
+             AND id <> ?
+             AND LOWER(TRIM(name)) = LOWER(TRIM(?))
+           LIMIT 1`
+        )
+          .bind(FALLBACK_CATALOG_GROUP_ID, sourceCategoryId, categoryName)
+          .first();
+
+        if (existingInFallback?.id) {
+          const targetCategoryId = String(existingInFallback.id || "");
+          const targetCategoryName = String(existingInFallback.name || categoryName || "Genel");
+          await env.DB.prepare(
+            `UPDATE auctions
+             SET category_id = ?,
+                 category = ?,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE category_id = ?`
+          )
+            .bind(targetCategoryId, targetCategoryName, sourceCategoryId)
+            .run();
+          await env.DB.prepare("DELETE FROM categories WHERE id = ?").bind(sourceCategoryId).run();
+          continue;
+        }
+
+        await env.DB.prepare(
+          `UPDATE categories
+           SET group_id = ?, updated_at = CURRENT_TIMESTAMP
+           WHERE id = ?`
+        )
+          .bind(FALLBACK_CATALOG_GROUP_ID, sourceCategoryId)
+          .run();
+      }
+
+      await env.DB.prepare(
+        `UPDATE auctions
+         SET product_group_id = ?,
+             product_group = ?,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE product_group_id = ?`
+      )
+        .bind(FALLBACK_CATALOG_GROUP_ID, fallbackGroupName, groupId)
+        .run();
 
       const deleted = await env.DB.prepare("DELETE FROM product_groups WHERE id = ?").bind(groupId).run();
       if ((deleted.meta?.changes || 0) < 1) return json({ ok: false, error: "Ürün grubu bulunamadı." }, 404);
