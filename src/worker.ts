@@ -1,7 +1,7 @@
 ﻿const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 const EMAIL_VERIFY_TTL_SECONDS = 60 * 60 * 24;
 const PASSWORD_RESET_TTL_SECONDS = 60 * 60;
-const PBKDF2_ITERATIONS = 210000;
+const PBKDF2_ITERATIONS = 100000;
 const MIN_PASSWORD_LENGTH = 8;
 
 const USER_ROLES = {
@@ -78,7 +78,7 @@ async function handleApi(request, env, url) {
   if (method === "GET" && path === "/api/config") {
     return json({
       ok: true,
-      release: "2026-05-02-bootstrap-debug",
+      release: "2026-05-02-pbkdf2-fix",
       turnstileSiteKey: String(env.TURNSTILE_SITE_KEY || "").trim(),
       requireTurnstile: isTurnstileRequired(env),
       requireEmailVerification: isEmailVerificationRequired(env),
@@ -196,7 +196,6 @@ async function handleApi(request, env, url) {
     if (bootstrapLogin) {
       const forced = await forceBootstrapAdminLogin(env, request, db, email, password);
       if (forced?.ok) return forced.response;
-      return json({ ok: false, error: forced?.error || "Bootstrap admin girişi başarısız." }, 500);
     }
 
     if (bootstrapLogin) {
@@ -1103,9 +1102,14 @@ async function verifyPassword(password, encoded) {
   const iterations = Number(iterStr);
   if (!Number.isFinite(iterations) || iterations < 1000) return false;
 
-  const derived = await pbkdf2(password, salt, iterations, hashHex.length / 2);
-  const derivedHex = toHex(derived);
-  return safeEqual(derivedHex, hashHex);
+  try {
+    const derived = await pbkdf2(password, salt, iterations, hashHex.length / 2);
+    const derivedHex = toHex(derived);
+    return safeEqual(derivedHex, hashHex);
+  } catch (error) {
+    console.warn("Password verify pbkdf2 hatasi:", error);
+    return false;
+  }
 }
 
 async function pbkdf2(password, salt, iterations, bytesLen) {
