@@ -78,7 +78,7 @@ async function handleApi(request, env, url) {
   if (method === "GET" && path === "/api/config") {
     return json({
       ok: true,
-      release: "2026-05-02-bootstrap-force-login",
+      release: "2026-05-02-bootstrap-debug",
       turnstileSiteKey: String(env.TURNSTILE_SITE_KEY || "").trim(),
       requireTurnstile: isTurnstileRequired(env),
       requireEmailVerification: isEmailVerificationRequired(env),
@@ -195,7 +195,8 @@ async function handleApi(request, env, url) {
     const bootstrapLogin = matchesBootstrapAdminCredentials(env, email, password);
     if (bootstrapLogin) {
       const forced = await forceBootstrapAdminLogin(env, request, db, email, password);
-      if (forced) return forced;
+      if (forced?.ok) return forced.response;
+      return json({ ok: false, error: forced?.error || "Bootstrap admin girişi başarısız." }, 500);
     }
 
     if (bootstrapLogin) {
@@ -927,7 +928,7 @@ async function forceBootstrapAdminLogin(env, request, db, email, password) {
     const headers = new Headers({ "content-type": "application/json; charset=utf-8" });
     headers.append("set-cookie", cookie);
 
-    return new Response(
+    const response = new Response(
       JSON.stringify({
         ok: true,
         message: "Giriş başarılı.",
@@ -943,9 +944,13 @@ async function forceBootstrapAdminLogin(env, request, db, email, password) {
       }),
       { status: 200, headers }
     );
+    return { ok: true, response };
   } catch (error) {
     console.error("Force bootstrap admin login hatasi:", error);
-    return null;
+    return {
+      ok: false,
+      error: `Force bootstrap admin login hatasi: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 }
 
