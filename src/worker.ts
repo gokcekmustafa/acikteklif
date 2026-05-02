@@ -65,7 +65,17 @@ export default {
         );
       }
 
-      return env.ASSETS.fetch(request);
+      if (url.pathname === "/admin") {
+        const rewrittenRequest = new Request(new URL("/admin.html", url).toString(), request);
+        const adminResponse = await env.ASSETS.fetch(rewrittenRequest);
+        return withNoStoreHeaders(adminResponse);
+      }
+
+      const assetResponse = await env.ASSETS.fetch(request);
+      if (isAdminAssetPath(url.pathname)) {
+        return withNoStoreHeaders(assetResponse);
+      }
+      return assetResponse;
     } catch (error) {
       console.error("Unhandled error:", error);
       return json({ ok: false, error: "Sunucu hatası oluştu." }, 500);
@@ -2130,6 +2140,23 @@ async function readJson(request) {
   } catch {
     return {};
   }
+}
+
+function isAdminAssetPath(pathname: string) {
+  const path = String(pathname || "").toLowerCase();
+  return path === "/admin.html" || path === "/admin.js" || path === "/admin.css";
+}
+
+function withNoStoreHeaders(response: Response) {
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", "no-store, max-age=0, must-revalidate");
+  headers.set("pragma", "no-cache");
+  headers.set("expires", "0");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
 
 function json(data, status = 200) {
