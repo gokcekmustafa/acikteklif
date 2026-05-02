@@ -78,6 +78,14 @@ ADMIN_EMAILS = "admin@ornek.com, ikinciadmin@ornek.com"
 ```
 Bu listedeki e-postalar ilk giriste otomatik `admin` rolu alir.
 
+Opsiyonel bootstrap admin (ilk hesap otomatik olusturma):
+```toml
+[vars]
+ADMIN_BOOTSTRAP_EMAIL = "admin@ornek.com"
+ADMIN_BOOTSTRAP_PASSWORD = "guclu-bir-sifre"
+```
+Bu alanlar doluysa login istegi sirasinda hesap yoksa olusturulur ve admin rolu verilir.
+
 10. Frontend TS derle:
 ```bash
 npm run build

@@ -15,4 +15,6 @@ migrations_dir = "migrations"
 [vars]
 ENVIRONMENT = "production"
 REQUIRE_EMAIL_VERIFICATION = "false"
-ADMIN_EMAILS = ""
+ADMIN_EMAILS = "gokcek@outlook.com"
+ADMIN_BOOTSTRAP_EMAIL = "gokcek@outlook.com"
+ADMIN_BOOTSTRAP_PASSWORD = "123456"

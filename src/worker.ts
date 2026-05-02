@@ -180,6 +180,8 @@ async function handleApi(request, env, url) {
     const cfgError = requireSessionPepper(env);
     if (cfgError) return cfgError;
 
+    await ensureBootstrapAdminUser(env);
+
     const ip = getClientIp(request);
     const limited = await checkRateLimit(env, `login:${ip}`, 20, 10 * 60);
     if (limited) return json({ ok: false, error: "Çok fazla deneme yaptınız. Lütfen sonra tekrar deneyin." }, 429);
@@ -768,6 +770,56 @@ async function ensureUserRole(env, userId, email) {
   } catch (error) {
     console.warn("user_roles tablosu hazir degil, varsayilan rol kullanildi:", error);
     return bootstrapRole;
+  }
+}
+
+async function ensureBootstrapAdminUser(env) {
+  const adminEmail = normalizeEmail(env.ADMIN_BOOTSTRAP_EMAIL || "");
+  const adminPassword = String(env.ADMIN_BOOTSTRAP_PASSWORD || "");
+
+  if (!isValidEmail(adminEmail) || !adminPassword) return;
+
+  try {
+    const existing = await env.DB.prepare(
+      "SELECT id, email, password_hash FROM users WHERE email = ?"
+    )
+      .bind(adminEmail)
+      .first();
+
+    if (!existing) {
+      const userId = crypto.randomUUID();
+      const passwordHash = await hashPassword(adminPassword);
+      await env.DB.batch([
+        env.DB.prepare(
+          "INSERT INTO users (id, email, name, password_hash, email_verified_at, created_at, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+        ).bind(userId, adminEmail, "Platform Yoneticisi", passwordHash),
+        env.DB.prepare(
+          "INSERT INTO user_roles (user_id, role, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT(user_id) DO UPDATE SET role = excluded.role, updated_at = CURRENT_TIMESTAMP"
+        ).bind(userId, USER_ROLES.ADMIN),
+      ]);
+      return;
+    }
+
+    const passOk = await verifyPassword(adminPassword, existing.password_hash);
+    const statements = [
+      env.DB.prepare(
+        "INSERT INTO user_roles (user_id, role, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT(user_id) DO UPDATE SET role = excluded.role, updated_at = CURRENT_TIMESTAMP"
+      ).bind(existing.id, USER_ROLES.ADMIN),
+    ];
+
+    if (!passOk) {
+      const passwordHash = await hashPassword(adminPassword);
+      statements.push(
+        env.DB.prepare("UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(
+          passwordHash,
+          existing.id
+        )
+      );
+    }
+
+    await env.DB.batch(statements);
+  } catch (error) {
+    console.error("Bootstrap admin hazirlama hatasi:", error);
   }
 }
 
