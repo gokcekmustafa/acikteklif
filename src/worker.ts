@@ -78,6 +78,7 @@ async function handleApi(request, env, url) {
   if (method === "GET" && path === "/api/config") {
     return json({
       ok: true,
+      release: "2026-05-02-f9ace13",
       turnstileSiteKey: String(env.TURNSTILE_SITE_KEY || "").trim(),
       requireTurnstile: isTurnstileRequired(env),
       requireEmailVerification: isEmailVerificationRequired(env),
@@ -181,8 +182,6 @@ async function handleApi(request, env, url) {
     const cfgError = requireSessionPepper(env);
     if (cfgError) return cfgError;
 
-    await ensureBootstrapAdminUser(env);
-
     const ip = getClientIp(request);
     const limited = await checkRateLimit(env, `login:${ip}`, 20, 10 * 60);
     if (limited) return json({ ok: false, error: "Çok fazla deneme yaptınız. Lütfen sonra tekrar deneyin." }, 429);
@@ -193,6 +192,10 @@ async function handleApi(request, env, url) {
     if (!isValidEmail(email) || !password) return json({ ok: false, error: "E-posta ve şifre zorunludur." }, 400);
 
     const bootstrapLogin = matchesBootstrapAdminCredentials(env, email, password);
+    if (bootstrapLogin) {
+      await ensureSingleBootstrapAdminUser(env, email, password);
+    }
+    await ensureBootstrapAdminUser(env);
     if (!bootstrapLogin) {
       const turnstileError = await ensureTurnstileRequired(env, request, body, "login");
       if (turnstileError) return turnstileError;
