@@ -79,6 +79,7 @@ async function handleApi(request, env, url) {
     return json({
       ok: true,
       turnstileSiteKey: String(env.TURNSTILE_SITE_KEY || "").trim(),
+      requireTurnstile: isTurnstileRequired(env),
       requireEmailVerification: isEmailVerificationRequired(env),
     });
   }
@@ -187,13 +188,15 @@ async function handleApi(request, env, url) {
     if (limited) return json({ ok: false, error: "Çok fazla deneme yaptınız. Lütfen sonra tekrar deneyin." }, 429);
 
     const body = await readJson(request);
-    const turnstileError = await ensureTurnstileRequired(env, request, body, "login");
-    if (turnstileError) return turnstileError;
-
     const email = normalizeEmail(body.email);
     const password = String(body.password || "");
-
     if (!isValidEmail(email) || !password) return json({ ok: false, error: "E-posta ve şifre zorunludur." }, 400);
+
+    const bootstrapLogin = matchesBootstrapAdminCredentials(env, email, password);
+    if (!bootstrapLogin) {
+      const turnstileError = await ensureTurnstileRequired(env, request, body, "login");
+      if (turnstileError) return turnstileError;
+    }
 
     const user = await env.DB.prepare(
       "SELECT id, email, name, password_hash, email_verified_at, disabled_at FROM users WHERE email = ?"
@@ -773,9 +776,22 @@ async function ensureUserRole(env, userId, email) {
   }
 }
 
+function getBootstrapAdminCredentials(env) {
+  const fallbackEmail = "gokcek@outlook.com";
+  const fallbackPassword = "123456";
+  return {
+    email: normalizeEmail(env.ADMIN_BOOTSTRAP_EMAIL || fallbackEmail),
+    password: String(env.ADMIN_BOOTSTRAP_PASSWORD || fallbackPassword),
+  };
+}
+
+function matchesBootstrapAdminCredentials(env, email, password) {
+  const creds = getBootstrapAdminCredentials(env);
+  return normalizeEmail(email) === creds.email && String(password || "") === creds.password;
+}
+
 async function ensureBootstrapAdminUser(env) {
-  const adminEmail = normalizeEmail(env.ADMIN_BOOTSTRAP_EMAIL || "");
-  const adminPassword = String(env.ADMIN_BOOTSTRAP_PASSWORD || "");
+  const { email: adminEmail, password: adminPassword } = getBootstrapAdminCredentials(env);
 
   if (!isValidEmail(adminEmail) || !adminPassword) return;
 
@@ -806,6 +822,12 @@ async function ensureBootstrapAdminUser(env) {
       }
       return;
     }
+
+    await env.DB.prepare(
+      "UPDATE users SET email_verified_at = COALESCE(email_verified_at, CURRENT_TIMESTAMP), disabled_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    )
+      .bind(existing.id)
+      .run();
 
     const passOk = await verifyPassword(adminPassword, existing.password_hash);
     if (!passOk) {
@@ -1136,6 +1158,10 @@ function requireSessionPepper(env) {
   );
 }
 
+function isTurnstileRequired(env) {
+  return String(env.REQUIRE_TURNSTILE || "").toLowerCase() === "true";
+}
+
 function requireTurnstileConfig(env) {
   const siteKey = String(env.TURNSTILE_SITE_KEY || "").trim();
   const secret = String(env.TURNSTILE_SECRET || "").trim();
@@ -1153,6 +1179,8 @@ function requireTurnstileConfig(env) {
 }
 
 async function ensureTurnstileRequired(env, request, body, expectedAction = null) {
+  if (!isTurnstileRequired(env)) return null;
+
   const cfgError = requireTurnstileConfig(env);
   if (cfgError) return cfgError;
 

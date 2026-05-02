@@ -196,6 +196,7 @@ const state = {
   },
   turnstile: {
     siteKey: META_TURNSTILE_SITE_KEY || "",
+    required: false,
     enabled: false,
     loginWidgetId: null,
     registerWidgetId: null,
@@ -342,6 +343,7 @@ async function hydrateTurnstileConfig() {
     const data = await apiFetch("/api/config");
     const runtimeKey = String(data.turnstileSiteKey || "").trim();
     state.auth.requireEmailVerification = data.requireEmailVerification === true;
+    state.turnstile.required = data.requireTurnstile === true;
     if (runtimeKey) {
       state.turnstile.siteKey = runtimeKey;
     }
@@ -493,7 +495,7 @@ async function handleLogin() {
   }
 
   try {
-    const turnstileToken = await getTurnstileToken("login");
+    const turnstileToken = await getTurnstileToken("login", state.turnstile.required);
     const data = await apiFetch("/api/auth/login", {
       method: "POST",
       body: { email, password, turnstileToken },
@@ -522,7 +524,7 @@ async function handleRegister() {
   }
 
   try {
-    const turnstileToken = await getTurnstileToken("register");
+    const turnstileToken = await getTurnstileToken("register", state.turnstile.required);
     const data = await apiFetch("/api/auth/register", {
       method: "POST",
       body: { name, email, password, turnstileToken },
