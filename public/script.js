@@ -1,4 +1,4 @@
-const API_BASE = "";
+﻿const API_BASE = "";
 const META_TURNSTILE_SITE_KEY = document
   .querySelector('meta[name="turnstile-site-key"]')
   ?.getAttribute("content")
@@ -1038,3 +1038,4 @@ function resetTurnstile(kind) {
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
