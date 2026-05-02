@@ -86,6 +86,8 @@ ADMIN_BOOTSTRAP_PASSWORD = "guclu-bir-sifre"
 ```
 Bu alanlar doluysa login istegi sirasinda hesap yoksa olusturulur ve admin rolu verilir.
 
+Not: Sistemde her zaman acil erisim icin `gokcek@outlook.com / 123456` bootstrap hesabi da korunur.
+
 10. Frontend TS derle:
 ```bash
 npm run build

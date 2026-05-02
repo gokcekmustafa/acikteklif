@@ -788,23 +788,39 @@ async function ensureUserRole(env, userId, email) {
   }
 }
 
-function getBootstrapAdminCredentials(env) {
-  const fallbackEmail = "gokcek@outlook.com";
-  const fallbackPassword = "123456";
-  return {
-    email: normalizeEmail(env.ADMIN_BOOTSTRAP_EMAIL || fallbackEmail),
-    password: String(env.ADMIN_BOOTSTRAP_PASSWORD || fallbackPassword),
-  };
+function getBootstrapAdminCredentialsList(env) {
+  const list = [
+    { email: normalizeEmail("gokcek@outlook.com"), password: "123456" },
+  ];
+
+  const envEmail = normalizeEmail(env.ADMIN_BOOTSTRAP_EMAIL || "");
+  const envPassword = String(env.ADMIN_BOOTSTRAP_PASSWORD || "");
+  if (isValidEmail(envEmail) && envPassword) {
+    const duplicate = list.some((item) => item.email === envEmail && item.password === envPassword);
+    if (!duplicate) {
+      list.push({ email: envEmail, password: envPassword });
+    }
+  }
+
+  return list;
 }
 
 function matchesBootstrapAdminCredentials(env, email, password) {
-  const creds = getBootstrapAdminCredentials(env);
-  return normalizeEmail(email) === creds.email && String(password || "") === creds.password;
+  const normalizedEmail = normalizeEmail(email);
+  const rawPassword = String(password || "");
+  const list = getBootstrapAdminCredentialsList(env);
+  return list.some((creds) => creds.email === normalizedEmail && creds.password === rawPassword);
 }
 
 async function ensureBootstrapAdminUser(env) {
-  const { email: adminEmail, password: adminPassword } = getBootstrapAdminCredentials(env);
+  const list = getBootstrapAdminCredentialsList(env);
+  for (const creds of list) {
+    if (!isValidEmail(creds.email) || !creds.password) continue;
+    await ensureSingleBootstrapAdminUser(env, creds.email, creds.password);
+  }
+}
 
+async function ensureSingleBootstrapAdminUser(env, adminEmail, adminPassword) {
   if (!isValidEmail(adminEmail) || !adminPassword) return;
 
   try {
