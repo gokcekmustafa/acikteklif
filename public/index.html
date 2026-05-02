@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Açık Teklif Pazarı</title>
+  <meta name="description" content="Açık teklif ile araç, ekipman ve gayrimenkul ilanlarını filtreleyin, sıralayın ve teklif verin.">
+  <meta name="turnstile-site-key" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script src="./script.js" defer></script>
+</head>
+<body>
+  <a href="#" id="backToTop" aria-label="Yukarı çık"><i class="fas fa-chevron-up"></i></a>
+
+  <div class="cookiePermission" id="cookieBanner">
+    Bu platformda güvenli kullanım için gerekli çerezler kullanılmaktadır.
+    <a href="#" aria-label="Çerez politikası">Çerez politikası</a>
+    <a href="#" class="cookieAccept" id="cookieAccept">OKUDUM</a>
+  </div>
+
+  <div class="modalWrap signIn" id="signInModal" aria-hidden="true">
+    <div class="ifContent">
+      <a href="#" class="modalCloseBtn" id="closeSignInModal"><i class="far fa-times-circle"></i></a>
+      <div class="ifHead">
+        <div class="headLeft"><i class="fas fa-sign-in-alt"></i> Sisteme Giriş</div>
+      </div>
+      <div class="ifMiddleWrap">
+        <form class="formWrap" id="loginForm">
+          <div class="fpLine">
+            <div class="form-group">
+              <input id="loginIdentity" name="identity" type="text" required>
+              <label for="loginIdentity" class="control-label">E-posta</label><i class="bar"></i>
+            </div>
+          </div>
+          <div class="fpLine">
+            <div class="form-group">
+              <input id="loginPassword" name="password" type="password" required>
+              <label for="loginPassword" class="control-label">Şifre</label><i class="bar"></i>
+            </div>
+          </div>
+          <div class="ifBottom">
+            <div class="signInBtns">
+              <button type="submit" class="button"><span>Giriş</span></button>
+              <a href="#" class="forgotPassBtn" id="forgotPassBtn"><i class="fas fa-unlock-alt"></i> Şifremi Unuttum?</a>
+            </div>
+            <div id="loginTurnstile" class="turnstileSlot"></div>
+            <div class="formHint" id="loginFormHint"></div>
+          </div>
+        </form>
+        <div class="newAccountWrap">
+          <div class="naHead"><i class="fas fa-user-plus"></i> Yeni Kullanıcı</div>
+          <div class="naText">Teklif vermek ve daha fazlası için kayıt olun.</div>
+          <form id="registerForm" class="registerForm">
+            <input id="registerName" type="text" placeholder="Ad Soyad" required>
+            <input id="registerEmail" type="email" placeholder="E-posta" required>
+            <input id="registerPassword" type="password" placeholder="Şifre (min 8 karakter)" minlength="8" required>
+            <div id="registerTurnstile" class="turnstileSlot"></div>
+            <button class="naBtn" type="submit">Kayıt Oluştur</button>
+          </form>
+          <div class="formHint" id="registerFormHint"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="containerAll">
+    <header>
+      <div class="container header">
+        <div class="headerLeft">
+          <a href="#" class="logo" aria-label="Ana sayfa">
+            <span class="logoBadge">AT</span>
+            <span class="logoText">Açık Teklif Pazarı</span>
+          </a>
+        </div>
+        <div class="headerRight">
+          <a href="#" class="menuOpenBtn" id="menuOpenBtn"><i class="fas fa-bars"></i></a>
+          <div class="menu" id="mainMenu">
+            <a href="#" class="menuCloseBtn" id="menuCloseBtn"><i class="far fa-times-circle"></i></a>
+            <a href="#"><i class="fas fa-home"></i> Anasayfa</a>
+            <span class="authStatus" id="authStatus">Misafir</span>
+            <a href="#" class="signInModalBtn" id="openSignInModal"><i class="fas fa-sign-in-alt"></i> Giriş</a>
+            <a href="#" class="signOutBtn hide" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Çıkış</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="banner listing detail">
+      <div class="container listingContent">
+        <h1 class="headline"></h1>
+        <ul class="breadcrumb">
+          <li><a href="#">Açık Teklif Pazarı</a></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="sPad" id="results">
+      <div class="container">
+        <div class="colLeft listingRightCol" id="searchModule">
+          <div class="searchBox">
+            <h2 class="rcsHeadline">DETAYLI ARAMA</h2>
+            <a href="#" class="SearchClearAll" id="clearFilters"><i class="fas fa-times"></i> Tümünü Temizle</a>
+            <div class="searchBoxWrap">
+              <div class="searchBoxRow">
+                <div class="sLine">
+                  <select class="defaultSelect" id="productGroup">
+                    <option value="">Ürün Grubu Seçiniz</option>
+                  </select>
+                </div>
+                <div class="sLine">
+                  <select class="defaultSelect" id="category">
+                    <option value="">Kategori Seçiniz</option>
+                  </select>
+                </div>
+                <div class="sLine">
+                  <select class="defaultSelect" id="city">
+                    <option value="">İl Seçiniz</option>
+                  </select>
+                </div>
+                <div class="sLine">
+                  <select class="defaultSelect" id="district">
+                    <option value="">İlçe Seçiniz</option>
+                  </select>
+                </div>
+                <div class="sLine">
+                  <select class="defaultSelect" id="neighborhood">
+                    <option value="">Mahalle Seçiniz</option>
+                  </select>
+                </div>
+                <div class="sLine priceMin input">
+                  <input id="minPrice" type="number" min="0" placeholder="Min Fiyat">
+                </div>
+                <div class="sLine priceMax input">
+                  <input id="maxPrice" type="number" min="0" placeholder="Max Fiyat">
+                </div>
+                <div class="sLine input">
+                  <input id="lotNo" type="text" placeholder="İhale No">
+                </div>
+              </div>
+              <div class="searchBoxRow">
+                <a href="#" id="searchBtn" class="searchBtn"><i class="fas fa-search"></i> Arama</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="colRight">
+          <div class="listingSortBy">
+            <ul class="sortList" id="sortTabs">
+              <li><a href="#" data-sort-type="ALL" class="active">TÜMÜ</a></li>
+              <li><a href="#" data-sort-type="HAVE_OFFER">TEKLİF GELENLER</a></li>
+              <li><a href="#" data-sort-type="ADDED_NEW">YENİ EKLENENLER (30 Gün)</a></li>
+              <li><a href="#" data-sort-type="OPPORTUNITIES">FIRSATLAR</a></li>
+              <li><a href="#" data-sort-type="FALL_IN_PRICE">FİYATI DÜŞENLER</a></li>
+            </ul>
+            <select id="selectOrder" class="priceOrder">
+              <option value="DEFAULT">Gelişmiş Sıralama</option>
+              <option value="PRICE_ASC">Önce En Düşük</option>
+              <option value="PRICE_DESC">Önce En Yüksek</option>
+            </select>
+            <div class="switchView">
+              <a href="#" class="changeViewListBtn active" title="Liste"><i class="fas fa-bars"></i></a>
+              <a href="#" class="changeViewTableBtn" title="Galeri"><i class="fas fa-border-all"></i></a>
+            </div>
+            <a class="searchModuleLinkMobile" title="Detaylı arama" href="#searchModule">DETAYLI ARAMA <i class="fas fa-search"></i></a>
+            <select class="sortListMobile" id="selectedSortTypeId">
+              <option value="ALL">TÜMÜ</option>
+              <option value="HAVE_OFFER">TEKLİF GELENLER</option>
+              <option value="ADDED_NEW">YENİ EKLENENLER (30 Gün)</option>
+              <option value="OPPORTUNITIES">FIRSATLAR</option>
+              <option value="FALL_IN_PRICE">FİYATI DÜŞENLER</option>
+            </select>
+          </div>
+
+          <div id="search_list" class="sContent listingResults">
+            <div class="listingBoxes" id="listingBoxes"></div>
+            <div class="emptyState hide" id="emptyState">
+              <i class="fas fa-circle-info"></i> Filtre kriterlerine uygun ilan bulunamadı.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="fInfoTextLine">
+        <div class="container">
+          <div class="fInfoText">
+            Bu ekran referans bir ihale sayfasına benzer görsel ve akışla hazırlanmış markasız bir örnek şablondur.
+          </div>
+        </div>
+      </div>
+      <div class="container footer">
+        <div class="footerLeft">
+          <a href="#" class="logo">
+            <span class="logoBadge">AT</span>
+            <span class="logoText">Açık Teklif Pazarı</span>
+          </a>
+          <div class="copyright">© 2026 Açık Teklif Pazarı</div>
+        </div>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

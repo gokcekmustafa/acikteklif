@@ -1,0 +1,6 @@
+ENVIRONMENT=development
+PUBLIC_BASE_URL=http://127.0.0.1:8787
+SESSION_PEPPER=replace_with_long_random_secret
+# EMAIL_FROM=noreply@example.com
+# EMAIL_WEBHOOK_URL=https://your-mail-webhook.example/send
+# TURNSTILE_SECRET=0x0000000000000000000000000000000AA
