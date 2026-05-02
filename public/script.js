@@ -291,15 +291,21 @@ function toListingModel(item, index) {
     const endAt = String(item?.ends_at || item?.endAt || fallback.endAt || addTime(0, 1, 0, 0));
     const status = String(item?.status || fallback.status || "ACTIVE").toUpperCase();
     const createdAt = String(item?.created_at || item?.createdAt || fallback.createdAt || new Date().toISOString());
+    const productGroup = String(item?.product_group || item?.productGroup || fallback.productGroup || "Genel");
+    const category = String(item?.category || fallback.category || "Genel");
+    const city = String(item?.city || fallback.city || "Belirtilmemis");
+    const district = String(item?.district || fallback.district || "-");
+    const neighborhood = String(item?.neighborhood || fallback.neighborhood || "-");
+    const image = String(item?.image_url || item?.imageUrl || fallback.image || DEFAULT_LISTING_IMAGE);
     return {
         id: item?.id || fallback.id || lotNo || String(index + 1),
         lotNo: lotNo || fallback.lotNo || `LOT${String(index + 1).padStart(3, "0")}`,
         title: String(item?.title || fallback.title || "Ihale"),
-        productGroup: fallback.productGroup || "Genel",
-        category: fallback.category || "Genel",
-        city: fallback.city || "Belirtilmemis",
-        district: fallback.district || "-",
-        neighborhood: fallback.neighborhood || "-",
+        productGroup,
+        category,
+        city,
+        district,
+        neighborhood,
         startPrice: Number.isFinite(startPrice) ? startPrice : 0,
         lastBid: Number.isFinite(currentBid) ? currentBid : null,
         hasOffer: Number.isFinite(currentBid) && currentBid > 0,
@@ -307,7 +313,7 @@ function toListingModel(item, index) {
         isOpportunity: fallback.isOpportunity ?? false,
         priceDropped: fallback.priceDropped ?? false,
         endAt,
-        image: fallback.image || DEFAULT_LISTING_IMAGE,
+        image,
         createdAt,
         status,
         minIncrement,

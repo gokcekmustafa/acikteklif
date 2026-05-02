@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AçıkTeklif | Yönetim Paneli</title>
-  <meta name="description" content="AçıkTeklif yönetim paneli: kullanıcı ve yetki yönetimi">
+  <title>AcikTeklif | Yonetim Paneli</title>
+  <meta name="description" content="AcikTeklif yonetim paneli">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -19,42 +19,143 @@
       <div class="brand">
         <span class="brandMark"><i class="fas fa-shield-halved"></i></span>
         <div>
-          <div class="brandTitle">Yönetim Paneli</div>
-          <div class="brandSub">Kullanıcı ve Yetki Operasyonları</div>
+          <div class="brandTitle">Yonetim Paneli</div>
+          <div class="brandSub">Kullanici, Katalog ve Ihale Yonetimi</div>
         </div>
       </div>
       <div class="topActions">
-        <a href="/" class="ghostBtn"><i class="fas fa-arrow-left"></i> Siteye Dön</a>
+        <a href="/" class="ghostBtn"><i class="fas fa-arrow-left"></i> Siteye Don</a>
         <button class="solidBtn" id="refreshBtn"><i class="fas fa-rotate"></i> Yenile</button>
       </div>
     </header>
 
-    <section class="summary" id="summaryCards">
-      <div class="card">
-        <div class="label">Toplam Kullanıcı</div>
-        <div class="value" id="statTotal">0</div>
-      </div>
-      <div class="card">
-        <div class="label">Admin / Yönetici</div>
-        <div class="value" id="statAdmin">0</div>
-      </div>
-      <div class="card">
-        <div class="label">Pasif Kullanıcı</div>
-        <div class="value" id="statDisabled">0</div>
-      </div>
+    <section class="summary">
+      <div class="card"><div class="label">Toplam Kullanici</div><div class="value" id="statTotalUsers">0</div></div>
+      <div class="card"><div class="label">Admin / Yonetici</div><div class="value" id="statManagers">0</div></div>
+      <div class="card"><div class="label">Pasif Kullanici</div><div class="value" id="statDisabledUsers">0</div></div>
+      <div class="card"><div class="label">Urun Grubu</div><div class="value" id="statGroups">0</div></div>
+      <div class="card"><div class="label">Kategori</div><div class="value" id="statCategories">0</div></div>
+      <div class="card"><div class="label">Ihale</div><div class="value" id="statAuctions">0</div></div>
     </section>
 
     <section class="toolbar">
       <div class="inputWrap">
         <i class="fas fa-magnifying-glass"></i>
-        <input type="search" id="searchInput" placeholder="E-posta veya ad ile kullanıcı ara">
+        <input type="search" id="searchInput" placeholder="Kullanici ara (e-posta / ad)">
       </div>
-      <div class="sessionBox" id="sessionBox">Yükleniyor...</div>
+      <div class="sessionBox" id="sessionBox">Yukleniyor...</div>
     </section>
+
+    <nav class="tabs" id="tabs">
+      <button class="tabBtn active" data-tab="users">Kullanicilar</button>
+      <button class="tabBtn" data-tab="catalog">Urun/Kategori</button>
+      <button class="tabBtn" data-tab="auctions">Ihale Yonetimi</button>
+    </nav>
 
     <div class="statusLine" id="statusLine"></div>
 
-    <main class="userList" id="userList"></main>
+    <section class="panel" id="panelUsers">
+      <main class="userList" id="userList"></main>
+    </section>
+
+    <section class="panel hide" id="panelCatalog">
+      <div class="grid2">
+        <article class="panelCard">
+          <h3>Urun Gruplari</h3>
+          <form id="groupForm" class="stackForm">
+            <input type="hidden" id="groupIdInput">
+            <input id="groupNameInput" type="text" placeholder="Urun grubu adi" required>
+            <div class="row2">
+              <input id="groupSortInput" type="number" placeholder="Sira" value="0">
+              <label class="checkWrap"><input id="groupActiveInput" type="checkbox" checked> Aktif</label>
+            </div>
+            <div class="row2">
+              <button class="miniBtn success" type="submit" id="groupSaveBtn">Kaydet</button>
+              <button class="miniBtn" type="button" id="groupResetBtn">Temizle</button>
+            </div>
+          </form>
+          <div class="tableWrap">
+            <table>
+              <thead><tr><th>Ad</th><th>Durum</th><th>Islem</th></tr></thead>
+              <tbody id="groupRows"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panelCard">
+          <h3>Kategoriler</h3>
+          <form id="categoryForm" class="stackForm">
+            <input type="hidden" id="categoryIdInput">
+            <select id="categoryGroupSelect" required></select>
+            <input id="categoryNameInput" type="text" placeholder="Kategori adi" required>
+            <div class="row2">
+              <input id="categorySortInput" type="number" placeholder="Sira" value="0">
+              <label class="checkWrap"><input id="categoryActiveInput" type="checkbox" checked> Aktif</label>
+            </div>
+            <div class="row2">
+              <button class="miniBtn success" type="submit" id="categorySaveBtn">Kaydet</button>
+              <button class="miniBtn" type="button" id="categoryResetBtn">Temizle</button>
+            </div>
+          </form>
+          <div class="tableWrap">
+            <table>
+              <thead><tr><th>Kategori</th><th>Grup</th><th>Durum</th><th>Islem</th></tr></thead>
+              <tbody id="categoryRows"></tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel hide" id="panelAuctions">
+      <article class="panelCard">
+        <h3>Ihale Kayit Formu</h3>
+        <form id="auctionForm" class="stackForm">
+          <input type="hidden" id="auctionIdInput">
+          <div class="row2">
+            <input id="auctionLotNoInput" type="text" placeholder="Ihale No (or: 34AT999)" required>
+            <input id="auctionTitleInput" type="text" placeholder="Ihale basligi" required>
+          </div>
+          <div class="row2">
+            <select id="auctionGroupSelect" required></select>
+            <select id="auctionCategorySelect" required></select>
+          </div>
+          <div class="row3">
+            <input id="auctionStartPriceInput" type="number" min="0" step="0.01" placeholder="Baslangic bedeli" required>
+            <input id="auctionMinIncrementInput" type="number" min="0" step="0.01" placeholder="Min artis" required>
+            <select id="auctionStatusInput">
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="ENDED">ENDED</option>
+            </select>
+          </div>
+          <div class="row2">
+            <input id="auctionEndsAtInput" type="datetime-local" required>
+            <input id="auctionImageUrlInput" type="url" placeholder="Gorsel URL (opsiyonel)">
+          </div>
+          <div class="row3">
+            <input id="auctionCityInput" type="text" placeholder="Il">
+            <input id="auctionDistrictInput" type="text" placeholder="Ilce">
+            <input id="auctionNeighborhoodInput" type="text" placeholder="Mahalle">
+          </div>
+          <div class="row2">
+            <button class="miniBtn success" type="submit" id="auctionSaveBtn">Kaydet</button>
+            <button class="miniBtn" type="button" id="auctionResetBtn">Temizle</button>
+          </div>
+        </form>
+      </article>
+
+      <article class="panelCard">
+        <h3>Ihale Listesi</h3>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr><th>No</th><th>Baslik</th><th>Grup/Kategori</th><th>Fiyat</th><th>Bitis</th><th>Durum</th><th>Islem</th></tr>
+            </thead>
+            <tbody id="auctionRows"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
   </div>
 </body>
 </html>

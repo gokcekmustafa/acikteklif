@@ -78,7 +78,7 @@ async function handleApi(request, env, url) {
   if (method === "GET" && path === "/api/config") {
     return json({
       ok: true,
-      release: "2026-05-02-admin-schema-fix",
+      release: "2026-05-02-admin-crud",
       turnstileSiteKey: String(env.TURNSTILE_SITE_KEY || "").trim(),
       requireTurnstile: isTurnstileRequired(env),
       requireEmailVerification: isEmailVerificationRequired(env),
@@ -393,8 +393,16 @@ async function handleApi(request, env, url) {
   }
 
   if (method === "GET" && path === "/api/auctions") {
+    await ensureMarketplaceSchema(env);
     const data = await env.DB.prepare(
-      "SELECT id, lot_no, title, start_price, current_bid, min_increment, ends_at, status, created_at FROM auctions ORDER BY created_at DESC"
+      `SELECT
+        a.id, a.lot_no, a.title, a.start_price, a.current_bid, a.min_increment, a.ends_at, a.status, a.created_at, a.updated_at,
+        a.bid_count, a.product_group_id, a.category_id, a.city, a.district, a.neighborhood, a.image_url,
+        pg.name AS product_group, c.name AS category
+       FROM auctions a
+       LEFT JOIN product_groups pg ON pg.id = a.product_group_id
+       LEFT JOIN categories c ON c.id = a.category_id
+       ORDER BY a.created_at DESC`
     ).all();
     return json({ ok: true, items: data.results || [] });
   }
@@ -470,6 +478,7 @@ async function handleApi(request, env, url) {
     if (cfgError) return cfgError;
 
     await ensureAdminSchema(env);
+    await ensureMarketplaceSchema(env);
 
     const session = await getSession(request, env);
     if (!session) return json({ ok: false, error: "Yönetim paneli için giriş yapmalısınız." }, 401);
@@ -501,6 +510,353 @@ async function handleApi(request, env, url) {
           label: permissionLabel(key),
         })),
       });
+    }
+
+    const canManageCatalog =
+      actorAccess.permissions[PERMISSIONS.AUCTIONS_EDIT] || actorAccess.permissions[PERMISSIONS.AUCTIONS_CREATE];
+
+    if (method === "GET" && path === "/api/admin/catalog") {
+      if (!canManageCatalog) {
+        return json({ ok: false, error: "Katalog yönetim yetkiniz yok." }, 403);
+      }
+
+      const groupsResult = await env.DB.prepare(
+        `SELECT id, name, sort_order, is_active, created_at
+         FROM product_groups
+         ORDER BY sort_order ASC, name ASC`
+      ).all();
+
+      const categoriesResult = await env.DB.prepare(
+        `SELECT id, group_id, name, sort_order, is_active, created_at
+         FROM categories
+         ORDER BY sort_order ASC, name ASC`
+      ).all();
+
+      return json({
+        ok: true,
+        groups: groupsResult.results || [],
+        categories: categoriesResult.results || [],
+      });
+    }
+
+    if (method === "POST" && path === "/api/admin/product-groups") {
+      if (!canManageCatalog) {
+        return json({ ok: false, error: "Ürün grubu ekleme yetkiniz yok." }, 403);
+      }
+
+      const body = await readJson(request);
+      const name = String(body.name || "").trim();
+      if (!name) return json({ ok: false, error: "Ürün grubu adı zorunludur." }, 400);
+
+      const id = crypto.randomUUID();
+      const sortOrder = Number.isFinite(Number(body.sortOrder)) ? Number(body.sortOrder) : 0;
+      const isActive = body.isActive === false ? 0 : 1;
+
+      try {
+        await env.DB.prepare(
+          `INSERT INTO product_groups (id, name, sort_order, is_active, created_at, updated_at)
+           VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+        )
+          .bind(id, name.slice(0, 120), sortOrder, isActive)
+          .run();
+      } catch {
+        return json({ ok: false, error: "Bu isimde ürün grubu zaten var." }, 409);
+      }
+
+      await writeAdminAuditLog(env, session.user.id, null, "product_group.create", { id, name });
+      return json({ ok: true, message: "Ürün grubu eklendi.", id });
+    }
+
+    const groupMatch = path.match(/^\/api\/admin\/product-groups\/([^/]+)$/);
+    if (groupMatch && method === "PUT") {
+      if (!canManageCatalog) {
+        return json({ ok: false, error: "Ürün grubu güncelleme yetkiniz yok." }, 403);
+      }
+
+      const groupId = decodeURIComponent(String(groupMatch[1] || ""));
+      const body = await readJson(request);
+      const updates: string[] = [];
+      const values: unknown[] = [];
+
+      if (typeof body.name === "string") {
+        const name = String(body.name || "").trim();
+        if (!name) return json({ ok: false, error: "Ürün grubu adı boş olamaz." }, 400);
+        updates.push("name = ?");
+        values.push(name.slice(0, 120));
+      }
+      if (body.sortOrder !== undefined) {
+        const sortOrder = Number.isFinite(Number(body.sortOrder)) ? Number(body.sortOrder) : 0;
+        updates.push("sort_order = ?");
+        values.push(sortOrder);
+      }
+      if (body.isActive !== undefined) {
+        updates.push("is_active = ?");
+        values.push(body.isActive === true ? 1 : 0);
+      }
+
+      if (updates.length < 1) return json({ ok: false, error: "Güncellenecek alan yok." }, 400);
+      updates.push("updated_at = CURRENT_TIMESTAMP");
+      values.push(groupId);
+
+      try {
+        const result = await env.DB.prepare(`UPDATE product_groups SET ${updates.join(", ")} WHERE id = ?`)
+          .bind(...values)
+          .run();
+        if ((result.meta?.changes || 0) < 1) return json({ ok: false, error: "Ürün grubu bulunamadı." }, 404);
+      } catch {
+        return json({ ok: false, error: "Ürün grubu güncellenemedi. Aynı isimde kayıt olabilir." }, 409);
+      }
+
+      await writeAdminAuditLog(env, session.user.id, null, "product_group.update", { groupId });
+      return json({ ok: true, message: "Ürün grubu güncellendi." });
+    }
+
+    if (groupMatch && method === "DELETE") {
+      if (!canManageCatalog) {
+        return json({ ok: false, error: "Ürün grubu silme yetkiniz yok." }, 403);
+      }
+
+      const groupId = decodeURIComponent(String(groupMatch[1] || ""));
+      const categoryCount = await env.DB.prepare("SELECT COUNT(*) as count FROM categories WHERE group_id = ?")
+        .bind(groupId)
+        .first();
+      const auctionCount = await env.DB.prepare("SELECT COUNT(*) as count FROM auctions WHERE product_group_id = ?")
+        .bind(groupId)
+        .first();
+
+      if (Number(categoryCount?.count || 0) > 0 || Number(auctionCount?.count || 0) > 0) {
+        return json(
+          { ok: false, error: "Bu gruba bağlı kategori veya ihale var. Önce bağlı kayıtları kaldırın." },
+          409
+        );
+      }
+
+      const deleted = await env.DB.prepare("DELETE FROM product_groups WHERE id = ?").bind(groupId).run();
+      if ((deleted.meta?.changes || 0) < 1) return json({ ok: false, error: "Ürün grubu bulunamadı." }, 404);
+
+      await writeAdminAuditLog(env, session.user.id, null, "product_group.delete", { groupId });
+      return json({ ok: true, message: "Ürün grubu silindi." });
+    }
+
+    if (method === "POST" && path === "/api/admin/categories") {
+      if (!canManageCatalog) {
+        return json({ ok: false, error: "Kategori ekleme yetkiniz yok." }, 403);
+      }
+
+      const body = await readJson(request);
+      const groupId = String(body.groupId || "").trim();
+      const name = String(body.name || "").trim();
+      if (!groupId) return json({ ok: false, error: "Ürün grubu seçmelisiniz." }, 400);
+      if (!name) return json({ ok: false, error: "Kategori adı zorunludur." }, 400);
+
+      const group = await env.DB.prepare("SELECT id FROM product_groups WHERE id = ?").bind(groupId).first();
+      if (!group) return json({ ok: false, error: "Seçilen ürün grubu bulunamadı." }, 404);
+
+      const id = crypto.randomUUID();
+      const sortOrder = Number.isFinite(Number(body.sortOrder)) ? Number(body.sortOrder) : 0;
+      const isActive = body.isActive === false ? 0 : 1;
+
+      try {
+        await env.DB.prepare(
+          `INSERT INTO categories (id, group_id, name, sort_order, is_active, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+        )
+          .bind(id, groupId, name.slice(0, 120), sortOrder, isActive)
+          .run();
+      } catch {
+        return json({ ok: false, error: "Bu kategori adı aynı grupta zaten var." }, 409);
+      }
+
+      await writeAdminAuditLog(env, session.user.id, null, "category.create", { id, groupId, name });
+      return json({ ok: true, message: "Kategori eklendi.", id });
+    }
+
+    const categoryMatch = path.match(/^\/api\/admin\/categories\/([^/]+)$/);
+    if (categoryMatch && method === "PUT") {
+      if (!canManageCatalog) {
+        return json({ ok: false, error: "Kategori güncelleme yetkiniz yok." }, 403);
+      }
+
+      const categoryId = decodeURIComponent(String(categoryMatch[1] || ""));
+      const body = await readJson(request);
+      const updates: string[] = [];
+      const values: unknown[] = [];
+
+      if (body.groupId !== undefined) {
+        const groupId = String(body.groupId || "").trim();
+        if (!groupId) return json({ ok: false, error: "Geçerli ürün grubu seçin." }, 400);
+        const group = await env.DB.prepare("SELECT id FROM product_groups WHERE id = ?").bind(groupId).first();
+        if (!group) return json({ ok: false, error: "Seçilen ürün grubu bulunamadı." }, 404);
+        updates.push("group_id = ?");
+        values.push(groupId);
+      }
+
+      if (typeof body.name === "string") {
+        const name = String(body.name || "").trim();
+        if (!name) return json({ ok: false, error: "Kategori adı boş olamaz." }, 400);
+        updates.push("name = ?");
+        values.push(name.slice(0, 120));
+      }
+      if (body.sortOrder !== undefined) {
+        const sortOrder = Number.isFinite(Number(body.sortOrder)) ? Number(body.sortOrder) : 0;
+        updates.push("sort_order = ?");
+        values.push(sortOrder);
+      }
+      if (body.isActive !== undefined) {
+        updates.push("is_active = ?");
+        values.push(body.isActive === true ? 1 : 0);
+      }
+
+      if (updates.length < 1) return json({ ok: false, error: "Güncellenecek alan yok." }, 400);
+      updates.push("updated_at = CURRENT_TIMESTAMP");
+      values.push(categoryId);
+
+      try {
+        const result = await env.DB.prepare(`UPDATE categories SET ${updates.join(", ")} WHERE id = ?`).bind(...values).run();
+        if ((result.meta?.changes || 0) < 1) return json({ ok: false, error: "Kategori bulunamadı." }, 404);
+      } catch {
+        return json({ ok: false, error: "Kategori güncellenemedi. Aynı isimde kayıt olabilir." }, 409);
+      }
+
+      await writeAdminAuditLog(env, session.user.id, null, "category.update", { categoryId });
+      return json({ ok: true, message: "Kategori güncellendi." });
+    }
+
+    if (categoryMatch && method === "DELETE") {
+      if (!canManageCatalog) {
+        return json({ ok: false, error: "Kategori silme yetkiniz yok." }, 403);
+      }
+
+      const categoryId = decodeURIComponent(String(categoryMatch[1] || ""));
+      const auctionCount = await env.DB.prepare("SELECT COUNT(*) as count FROM auctions WHERE category_id = ?")
+        .bind(categoryId)
+        .first();
+      if (Number(auctionCount?.count || 0) > 0) {
+        return json({ ok: false, error: "Bu kategoriye bağlı ihaleler var. Önce ihaleleri güncelleyin." }, 409);
+      }
+
+      const deleted = await env.DB.prepare("DELETE FROM categories WHERE id = ?").bind(categoryId).run();
+      if ((deleted.meta?.changes || 0) < 1) return json({ ok: false, error: "Kategori bulunamadı." }, 404);
+
+      await writeAdminAuditLog(env, session.user.id, null, "category.delete", { categoryId });
+      return json({ ok: true, message: "Kategori silindi." });
+    }
+
+    if (method === "GET" && path === "/api/admin/auctions") {
+      if (!canManageCatalog) {
+        return json({ ok: false, error: "İhale görüntüleme yetkiniz yok." }, 403);
+      }
+
+      const data = await env.DB.prepare(
+        `SELECT
+          a.id, a.lot_no, a.title, a.start_price, a.current_bid, a.min_increment, a.bid_count, a.ends_at, a.status,
+          a.created_at, a.updated_at, a.product_group_id, a.category_id, a.city, a.district, a.neighborhood, a.image_url,
+          pg.name AS product_group, c.name AS category
+         FROM auctions a
+         LEFT JOIN product_groups pg ON pg.id = a.product_group_id
+         LEFT JOIN categories c ON c.id = a.category_id
+         ORDER BY a.created_at DESC`
+      ).all();
+      return json({ ok: true, items: data.results || [] });
+    }
+
+    if (method === "POST" && path === "/api/admin/auctions") {
+      if (!actorAccess.permissions[PERMISSIONS.AUCTIONS_CREATE] && !actorAccess.permissions[PERMISSIONS.AUCTIONS_EDIT]) {
+        return json({ ok: false, error: "İhale ekleme yetkiniz yok." }, 403);
+      }
+
+      const body = await readJson(request);
+      const validation = await validateAuctionPayload(env, body);
+      if (validation.error) return json({ ok: false, error: validation.error }, 400);
+
+      try {
+        await env.DB.prepare(
+          `INSERT INTO auctions (
+            id, lot_no, title, start_price, current_bid, current_bid_user_id, min_increment, bid_count, ends_at, status,
+            product_group_id, category_id, city, district, neighborhood, image_url, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, NULL, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+        )
+          .bind(
+            crypto.randomUUID(),
+            validation.lotNo,
+            validation.title,
+            validation.startPrice,
+            null,
+            validation.minIncrement,
+            validation.endsAt,
+            validation.status,
+            validation.groupId,
+            validation.categoryId,
+            validation.city,
+            validation.district,
+            validation.neighborhood,
+            validation.imageUrl
+          )
+          .run();
+      } catch {
+        return json({ ok: false, error: "İhale oluşturulamadı. İhale no benzersiz olmalıdır." }, 409);
+      }
+
+      await writeAdminAuditLog(env, session.user.id, null, "auction.create", { lotNo: validation.lotNo });
+      return json({ ok: true, message: "İhale eklendi." });
+    }
+
+    const auctionMatch = path.match(/^\/api\/admin\/auctions\/([^/]+)$/);
+    if (auctionMatch && method === "PUT") {
+      if (!actorAccess.permissions[PERMISSIONS.AUCTIONS_EDIT]) {
+        return json({ ok: false, error: "İhale düzenleme yetkiniz yok." }, 403);
+      }
+
+      const auctionId = decodeURIComponent(String(auctionMatch[1] || ""));
+      const body = await readJson(request);
+      const validation = await validateAuctionPayload(env, body);
+      if (validation.error) return json({ ok: false, error: validation.error }, 400);
+
+      try {
+        const result = await env.DB.prepare(
+          `UPDATE auctions
+           SET lot_no = ?, title = ?, start_price = ?, min_increment = ?, ends_at = ?, status = ?,
+               product_group_id = ?, category_id = ?, city = ?, district = ?, neighborhood = ?, image_url = ?,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = ?`
+        )
+          .bind(
+            validation.lotNo,
+            validation.title,
+            validation.startPrice,
+            validation.minIncrement,
+            validation.endsAt,
+            validation.status,
+            validation.groupId,
+            validation.categoryId,
+            validation.city,
+            validation.district,
+            validation.neighborhood,
+            validation.imageUrl,
+            auctionId
+          )
+          .run();
+
+        if ((result.meta?.changes || 0) < 1) return json({ ok: false, error: "İhale bulunamadı." }, 404);
+      } catch {
+        return json({ ok: false, error: "İhale güncellenemedi. İhale no benzersiz olmalıdır." }, 409);
+      }
+
+      await writeAdminAuditLog(env, session.user.id, null, "auction.update", { auctionId });
+      return json({ ok: true, message: "İhale güncellendi." });
+    }
+
+    if (auctionMatch && method === "DELETE") {
+      if (!actorAccess.permissions[PERMISSIONS.AUCTIONS_EDIT]) {
+        return json({ ok: false, error: "İhale silme yetkiniz yok." }, 403);
+      }
+
+      const auctionId = decodeURIComponent(String(auctionMatch[1] || ""));
+      const result = await env.DB.prepare("DELETE FROM auctions WHERE id = ?").bind(auctionId).run();
+      if ((result.meta?.changes || 0) < 1) return json({ ok: false, error: "İhale bulunamadı." }, 404);
+
+      await writeAdminAuditLog(env, session.user.id, null, "auction.delete", { auctionId });
+      return json({ ok: true, message: "İhale silindi." });
     }
 
     if (method === "GET" && path === "/api/admin/users") {
@@ -1110,6 +1466,129 @@ async function ensureAdminSchema(env) {
       console.warn("Admin schema statement hatasi:", error);
     }
   }
+}
+
+async function ensureMarketplaceSchema(env) {
+  const baseStatements = [
+    `CREATE TABLE IF NOT EXISTS product_groups (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS categories (
+      id TEXT PRIMARY KEY,
+      group_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(group_id, name),
+      FOREIGN KEY (group_id) REFERENCES product_groups(id) ON DELETE RESTRICT
+    )`,
+    "CREATE INDEX IF NOT EXISTS idx_categories_group_id ON categories(group_id)",
+  ];
+
+  const alterStatements = [
+    "ALTER TABLE auctions ADD COLUMN product_group_id TEXT",
+    "ALTER TABLE auctions ADD COLUMN category_id TEXT",
+    "ALTER TABLE auctions ADD COLUMN city TEXT",
+    "ALTER TABLE auctions ADD COLUMN district TEXT",
+    "ALTER TABLE auctions ADD COLUMN neighborhood TEXT",
+    "ALTER TABLE auctions ADD COLUMN image_url TEXT",
+  ];
+
+  for (const sql of baseStatements) {
+    try {
+      await env.DB.prepare(sql).run();
+    } catch (error) {
+      console.warn("Marketplace schema statement hatasi:", error);
+    }
+  }
+
+  for (const sql of alterStatements) {
+    try {
+      await env.DB.prepare(sql).run();
+    } catch {
+      // duplicate column is expected on subsequent requests
+    }
+  }
+
+  const indexStatements = [
+    "CREATE INDEX IF NOT EXISTS idx_auctions_product_group_id ON auctions(product_group_id)",
+    "CREATE INDEX IF NOT EXISTS idx_auctions_category_id ON auctions(category_id)",
+  ];
+
+  for (const sql of indexStatements) {
+    try {
+      await env.DB.prepare(sql).run();
+    } catch (error) {
+      console.warn("Marketplace index statement hatasi:", error);
+    }
+  }
+}
+
+async function validateAuctionPayload(env, body) {
+  const lotNo = String(body.lotNo || "").trim().toUpperCase();
+  const title = String(body.title || "").trim();
+  const startPrice = Number(body.startPrice || 0);
+  const minIncrement = Number(body.minIncrement || 0);
+  const endsAt = String(body.endsAt || "").trim();
+  const statusRaw = String(body.status || "ACTIVE").trim().toUpperCase();
+  const allowedStatus = ["ACTIVE", "ENDED"];
+  const status = allowedStatus.includes(statusRaw) ? statusRaw : "ACTIVE";
+  const groupIdRaw = String(body.groupId || "").trim();
+  const categoryIdRaw = String(body.categoryId || "").trim();
+  const city = String(body.city || "").trim().slice(0, 120);
+  const district = String(body.district || "").trim().slice(0, 120);
+  const neighborhood = String(body.neighborhood || "").trim().slice(0, 120);
+  const imageUrl = String(body.imageUrl || "").trim().slice(0, 500);
+
+  if (!lotNo) return { error: "İhale no zorunludur." };
+  if (!title) return { error: "İhale başlığı zorunludur." };
+  if (!Number.isFinite(startPrice) || startPrice <= 0) return { error: "Başlangıç bedeli geçersiz." };
+  if (!Number.isFinite(minIncrement) || minIncrement <= 0) return { error: "Min artış tutarı geçersiz." };
+
+  const endTime = new Date(endsAt).getTime();
+  if (!endsAt || Number.isNaN(endTime)) return { error: "Bitiş tarihi geçersiz." };
+
+  let groupId = groupIdRaw;
+  let categoryId = categoryIdRaw;
+
+  if (groupId) {
+    const group = await env.DB.prepare("SELECT id FROM product_groups WHERE id = ?").bind(groupId).first();
+    if (!group) return { error: "Seçilen ürün grubu bulunamadı." };
+  }
+
+  if (categoryId) {
+    const category = await env.DB.prepare("SELECT id, group_id FROM categories WHERE id = ?").bind(categoryId).first();
+    if (!category) return { error: "Seçilen kategori bulunamadı." };
+    if (groupId && String(category.group_id) !== groupId) {
+      return { error: "Kategori seçilen ürün grubuna ait değil." };
+    }
+    if (!groupId) groupId = String(category.group_id || "");
+  }
+
+  if (!groupId || !categoryId) return { error: "Ürün grubu ve kategori seçimi zorunludur." };
+
+  return {
+    lotNo: lotNo.slice(0, 64),
+    title: title.slice(0, 220),
+    startPrice,
+    minIncrement,
+    endsAt: new Date(endTime).toISOString(),
+    status,
+    groupId,
+    categoryId,
+    city,
+    district,
+    neighborhood,
+    imageUrl,
+    error: null,
+  };
 }
 
 async function createEmailVerifyToken(env, userId) {
