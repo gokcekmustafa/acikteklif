@@ -23,9 +23,9 @@ Bu proje statik arayuzun yaninda Cloudflare Worker + D1 ile calisan uyelik ve te
 
 ## Kurulum
 
-1. Wrangler kur:
+1. Bagimliliklari kur (wrangler proje icinde kurulu gelir):
 ```bash
-npm install --save-dev wrangler@4
+npm install
 ```
 
 2. Cloudflare login:
@@ -78,6 +78,15 @@ npx wrangler dev
 ```bash
 npm run deploy
 ```
+
+## Gercek Calisma Kontrol Listesi
+
+- `SESSION_PEPPER` tanimli olmali (`wrangler secret put SESSION_PEPPER`)
+- `TURNSTILE_SITE_KEY` ve `TURNSTILE_SECRET` tanimli olmali
+- D1 migration'lari remote ortama uygulanmis olmali
+- `ENVIRONMENT=production` olmali
+- `EMAIL_WEBHOOK_URL` (ve opsiyonel `EMAIL_FROM`) tanimli olmali
+- Cloudflare Workers Builds, `main` pushlarinda deploy edecek sekilde bagli olmali
 
 ## Turnstile Notu
 
