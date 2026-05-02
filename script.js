@@ -1,5 +1,5 @@
-﻿const API_BASE = "";
-const TURNSTILE_SITE_KEY = document
+const API_BASE = "";
+const META_TURNSTILE_SITE_KEY = document
   .querySelector('meta[name="turnstile-site-key"]')
   ?.getAttribute("content")
   ?.trim();
@@ -177,6 +177,7 @@ const state = {
     user: null,
   },
   turnstile: {
+    siteKey: META_TURNSTILE_SITE_KEY || "",
     enabled: false,
     loginWidgetId: null,
     registerWidgetId: null,
@@ -238,6 +239,7 @@ async function init() {
   fillSelect(elements.district, uniqueValues("district"));
   fillSelect(elements.neighborhood, uniqueValues("neighborhood"));
 
+  await hydrateTurnstileConfig();
   await initTurnstile();
   bindEvents();
   await hydrateAuth();
@@ -247,6 +249,19 @@ async function init() {
   setInterval(updateCountdowns, 1000);
 }
 
+async function hydrateTurnstileConfig() {
+  try {
+    const data = await apiFetch("/api/config");
+    const runtimeKey = String(data.turnstileSiteKey || "").trim();
+    if (runtimeKey) {
+      state.turnstile.siteKey = runtimeKey;
+      return;
+    }
+  } catch {
+    // ignore and fallback to meta value
+  }
+  state.turnstile.siteKey = state.turnstile.siteKey || "";
+}
 function bindEvents() {
   elements.sortTabs.addEventListener("click", (event) => {
     const link = event.target.closest("a[data-sort-type]");
@@ -850,14 +865,15 @@ async function apiFetch(path, options = {}) {
 
 
 async function initTurnstile() {
-  if (!TURNSTILE_SITE_KEY) return;
+  const siteKey = String(state.turnstile.siteKey || "").trim();
+  if (!siteKey) return;
   if (!elements.loginTurnstile || !elements.registerTurnstile) return;
 
   const turnstile = await waitForTurnstile(6000);
   if (!turnstile) return;
 
   state.turnstile.loginWidgetId = turnstile.render("#loginTurnstile", {
-    sitekey: TURNSTILE_SITE_KEY,
+    sitekey: siteKey,
     action: "login",
     theme: "auto",
     size: "flexible",
@@ -873,7 +889,7 @@ async function initTurnstile() {
   });
 
   state.turnstile.registerWidgetId = turnstile.render("#registerTurnstile", {
-    sitekey: TURNSTILE_SITE_KEY,
+    sitekey: siteKey,
     action: "register",
     theme: "auto",
     size: "flexible",
@@ -903,7 +919,12 @@ async function waitForTurnstile(timeoutMs) {
 }
 
 async function getTurnstileToken(kind, required = true) {
-  if (!state.turnstile.enabled) return "";
+  if (!state.turnstile.enabled) {
+    if (required) {
+      throw new Error("Güvenlik doğrulaması yüklenemedi. Lütfen sayfayı yenileyip tekrar deneyin.");
+    }
+    return "";
+  }
 
   if (kind === "login") {
     if (state.turnstile.loginToken) return state.turnstile.loginToken;

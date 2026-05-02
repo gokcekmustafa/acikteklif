@@ -40,6 +40,13 @@ async function handleApi(request, env, url) {
     return json({ ok: true, service: "acik-teklif-api" });
   }
 
+  if (method === "GET" && path === "/api/config") {
+    return json({
+      ok: true,
+      turnstileSiteKey: String(env.TURNSTILE_SITE_KEY || "").trim(),
+    });
+  }
+
   if (method === "GET" && path === "/api/auth/me") {
     const cfgError = requireSessionPepper(env);
     if (cfgError) return cfgError;
@@ -67,7 +74,7 @@ async function handleApi(request, env, url) {
     if (limited) return json({ ok: false, error: "Çok fazla deneme yaptınız. Lütfen sonra tekrar deneyin." }, 429);
 
     const body = await readJson(request);
-    const turnstileError = await ensureTurnstileIfEnabled(env, request, body, "register");
+    const turnstileError = await ensureTurnstileRequired(env, request, body, "register");
     if (turnstileError) return turnstileError;
 
     const email = normalizeEmail(body.email);
@@ -124,7 +131,7 @@ async function handleApi(request, env, url) {
     if (limited) return json({ ok: false, error: "Çok fazla deneme yaptınız. Lütfen sonra tekrar deneyin." }, 429);
 
     const body = await readJson(request);
-    const turnstileError = await ensureTurnstileIfEnabled(env, request, body, "login");
+    const turnstileError = await ensureTurnstileRequired(env, request, body, "login");
     if (turnstileError) return turnstileError;
 
     const email = normalizeEmail(body.email);
@@ -244,8 +251,6 @@ async function handleApi(request, env, url) {
 
   if (method === "POST" && path === "/api/auth/password/forgot") {
     const body = await readJson(request);
-    const turnstileError = await ensureTurnstileIfEnabled(env, request, body, null);
-    if (turnstileError) return turnstileError;
 
     const email = normalizeEmail(body.email);
     if (!isValidEmail(email)) return json({ ok: true, message: "Eğer hesap varsa sıfırlama e-postası gönderilecektir." });
@@ -271,8 +276,6 @@ async function handleApi(request, env, url) {
 
   if (method === "POST" && path === "/api/auth/password/reset") {
     const body = await readJson(request);
-    const turnstileError = await ensureTurnstileIfEnabled(env, request, body, null);
-    if (turnstileError) return turnstileError;
 
     const token = String(body.token || "");
     const newPassword = String(body.newPassword || "");
@@ -635,19 +638,36 @@ function requireSessionPepper(env) {
   );
 }
 
-async function ensureTurnstileIfEnabled(env, request, body, expectedAction = null) {
-  if (!env.TURNSTILE_SECRET) return null;
+function requireTurnstileConfig(env) {
+  const siteKey = String(env.TURNSTILE_SITE_KEY || "").trim();
+  const secret = String(env.TURNSTILE_SECRET || "").trim();
+  const missing = [];
+  if (!siteKey) missing.push("TURNSTILE_SITE_KEY");
+  if (!secret) missing.push("TURNSTILE_SECRET");
+  if (missing.length < 1) return null;
+  return json(
+    {
+      ok: false,
+      error: `Turnstile yapilandirmasi eksik (${missing.join(", ")}).`,
+    },
+    500
+  );
+}
+
+async function ensureTurnstileRequired(env, request, body, expectedAction = null) {
+  const cfgError = requireTurnstileConfig(env);
+  if (cfgError) return cfgError;
 
   const token = String(body?.turnstileToken || body?.["cf-turnstile-response"] || "").trim();
   if (!token) return json({ ok: false, error: "Güvenlik doğrulaması tamamlanmadı. Lütfen tekrar deneyin." }, 400);
 
   const remoteIp = getClientIp(request);
-  const verify = await verifyTurnstileToken(env.TURNSTILE_SECRET, token, remoteIp);
+  const verify = await verifyTurnstileToken(String(env.TURNSTILE_SECRET || ""), token, remoteIp);
   if (!verify.success) {
     return json({ ok: false, error: "Güvenlik doğrulaması başarısız. Lütfen tekrar deneyin." }, 400);
   }
 
-  if (expectedAction && verify.action && verify.action !== expectedAction) {
+  if (expectedAction && verify.action !== expectedAction) {
     return json({ ok: false, error: "Güvenlik doğrulaması geçersiz." }, 400);
   }
 

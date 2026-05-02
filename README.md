@@ -1,97 +1,78 @@
-# Açık Teklif Pazarı (Cloudflare + D1)
+# Acik Teklif Pazari (Cloudflare + D1)
 
-Bu proje artık sadece statik arayüz değil; `Cloudflare Worker + D1` ile gerçek üyelik ve teklif API'si içerir.
+Bu proje statik arayuzun yaninda Cloudflare Worker + D1 ile calisan uyelik ve teklif API'si icerir.
 
-## Eklenen Özellikler
+## Ozellikler
 
-- Üyelik (`/api/auth/register`)
-- Giriş/çıkış (`/api/auth/login`, `/api/auth/logout`)
-- Oturum yönetimi (`HttpOnly + Secure cookie`)
-- E-posta doğrulama akışı
-- Şifre sıfırlama akışı
-- Sadece doğrulanmış üyelerin teklif verebilmesi (`/api/bids`)
-- Basit rate limiting (D1 tabanlı)
-- Turnstile desteği (register/login ve hassas endpoint koruması)
-- E-posta outbox kaydı (`email_outbox`)
+- Uyelik: `/api/auth/register`
+- Giris/Cikis: `/api/auth/login`, `/api/auth/logout`
+- Oturum yonetimi: `HttpOnly + Secure cookie`
+- E-posta dogrulama akisi
+- Sifre sifirlama akisi
+- Sadece dogrulanmis uyelerin teklif verebilmesi: `/api/bids`
+- Basit rate limiting (D1 tabanli)
+- Turnstile captcha korumasi (register/login icin zorunlu)
 
-## Dizin Yapısı
+## Dizin Yapisi
 
-- `public/index.html`, `public/styles.css`, `public/script.js`: Frontend (yayınlanan statik dosyalar)
-- `src/worker.js`: API ve auth mantığı
-- `migrations/0001_initial.sql`: D1 şema + örnek ihale verisi
-- `wrangler.toml`: Worker konfigürasyonu
+- `public/index.html`, `public/styles.css`, `public/script.js`: Frontend (yayinda kullanilan statik dosyalar)
+- `src/worker.js`: API ve auth mantigi
+- `migrations/0001_initial.sql`: D1 sema + ornek ihale verisi
+- `wrangler.toml`: Worker konfigurasyonu
 
 ## Kurulum
 
 1. Wrangler kur:
 ```bash
-npm install -g wrangler@3.112.0
+npm install --save-dev wrangler@4
 ```
 
 2. Cloudflare login:
 ```bash
-wrangler login
+npx wrangler login
 ```
 
-3. D1 veritabanı oluştur:
+3. D1 veritabani olustur:
 ```bash
-wrangler d1 create acik-teklif-pazari-db
+npx wrangler d1 create acik-teklif-pazari-db
 ```
 
-4. Çıkan `database_id` değerini `wrangler.toml` içine yaz:
-```toml
-[[d1_databases]]
-binding = "DB"
-database_name = "acik-teklif-pazari-db"
-database_id = "BURAYA_D1_ID"
-```
+4. Olusan `database_id` degerini `wrangler.toml` icine yaz.
 
-5. Migration çalıştır:
+5. Migration calistir:
 ```bash
-wrangler d1 migrations apply acik-teklif-pazari-db --local
-wrangler d1 migrations apply acik-teklif-pazari-db --remote
+npx wrangler d1 migrations apply acik-teklif-pazari-db --local
+npx wrangler d1 migrations apply acik-teklif-pazari-db --remote
 ```
 
-Node 20 + Wrangler v3 ile stabil lokal D1 geliştirme için:
+6. Session secret ekle:
 ```bash
-wrangler d1 migrations apply acik-teklif-pazari-db --local --persist-to %TEMP%\\wrangler-persist
+npx wrangler secret put SESSION_PEPPER
 ```
 
-6. Session secret gir:
+7. Turnstile degerlerini ekle (register/login icin zorunlu):
 ```bash
-wrangler secret put SESSION_PEPPER
+npx wrangler secret put TURNSTILE_SECRET
+npx wrangler secret put TURNSTILE_SITE_KEY
 ```
 
-7. (Opsiyonel) E-posta webhook:
+8. Lokal calistir:
 ```bash
-wrangler secret put EMAIL_WEBHOOK_URL
+npx wrangler dev
 ```
 
-8. (Opsiyonel ama önerilen) Turnstile secret ekle:
+9. Deploy:
 ```bash
-wrangler secret put TURNSTILE_SECRET
+npx wrangler deploy
 ```
 
-9. `index.html` içindeki `<meta name="turnstile-site-key" ...>` alanına Turnstile site key yaz.
+## Turnstile Notu
 
-10. Lokal geliştirme:
-```bash
-wrangler dev
-```
+- Frontend site key degerini `/api/config` endpointinden alir.
+- `TURNSTILE_SECRET` veya `TURNSTILE_SITE_KEY` eksikse register/login endpointleri 500 doner.
+- Lokal test icin `.dev.vars` ve `.dev.vars.example` icinde Cloudflare test key'leri bulunur.
 
-Node 20 + Wrangler v3 kullanıyorsanız şu komut daha stabil çalışır:
-```bash
-wrangler dev --local --persist-to %TEMP%\\wrangler-persist
-```
+## Uretim Notlari
 
-11. Deploy:
-```bash
-wrangler deploy
-```
-
-## Önemli Notlar
-
-- `ENVIRONMENT=production` olmadığı sürece doğrulama/reset tokenları debug amaçlı API cevabında döner.
-- Production'da `ENVIRONMENT=production` tanımlayın.
-- Production'da mutlaka gerçek e-posta servisiniz için `EMAIL_WEBHOOK_URL` ekleyin.
-- Turnstile zorunluluğu, yalnızca `TURNSTILE_SECRET` tanımlıysa aktif olur.
+- `ENVIRONMENT=production` disinda dogrulama/reset tokenlari debug amacli API cevabinda donebilir.
+- Uretimde mutlaka gercek e-posta servisi (`EMAIL_WEBHOOK_URL`) baglayin.
