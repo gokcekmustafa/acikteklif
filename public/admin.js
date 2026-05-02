@@ -38,6 +38,9 @@ const elements = {
     panelUsers: byId("panelUsers"),
     panelCatalog: byId("panelCatalog"),
     panelAuctions: byId("panelAuctions"),
+    panelReports: byId("panelReports"),
+    panelSettings: byId("panelSettings"),
+    panelLogs: byId("panelLogs"),
     catalogSearchInput: byId("catalogSearchInput"),
     auctionSearchInput: byId("auctionSearchInput"),
     userList: byId("userList"),
@@ -435,6 +438,9 @@ function renderTabs() {
     elements.panelUsers.classList.toggle("hide", state.activeTab !== "users");
     elements.panelCatalog.classList.toggle("hide", state.activeTab !== "catalog");
     elements.panelAuctions.classList.toggle("hide", state.activeTab !== "auctions");
+    elements.panelReports.classList.toggle("hide", state.activeTab !== "reports");
+    elements.panelSettings.classList.toggle("hide", state.activeTab !== "settings");
+    elements.panelLogs.classList.toggle("hide", state.activeTab !== "logs");
     elements.searchInput.parentElement?.classList.toggle("hide", state.activeTab !== "users");
 }
 function renderStats() {
@@ -504,7 +510,8 @@ function renderUserCard(user) {
 }
 function renderCatalog() {
     fillGroupSelect(elements.categoryGroupSelect, true);
-    fillGroupSelect(elements.auctionGroupSelect, true);
+    fillGroupSelect(elements.auctionGroupSelect, false);
+    ensureAuctionSelectionDefaults();
     fillAuctionCategorySelect();
     const q = String(state.catalogQuery || "").trim().toLowerCase();
     const groupNameById = new Map(state.groups.map((g) => [g.id, g.name]));
@@ -570,7 +577,8 @@ function renderCatalog() {
     }
 }
 function renderAuctions() {
-    fillGroupSelect(elements.auctionGroupSelect, true);
+    fillGroupSelect(elements.auctionGroupSelect, false);
+    ensureAuctionSelectionDefaults();
     fillAuctionCategorySelect();
     const q = String(state.auctionQuery || "").trim().toLowerCase();
     const auctions = state.auctions.filter((auction) => {
@@ -650,6 +658,12 @@ function fillAuctionCategorySelect() {
     }
     if (currentValue)
         elements.auctionCategorySelect.value = currentValue;
+    if (!elements.auctionCategorySelect.value) {
+        const options = Array.from(elements.auctionCategorySelect.options);
+        const first = options.find((opt) => String(opt.value || "").trim().length > 0);
+        if (first)
+            elements.auctionCategorySelect.value = String(first.value || "");
+    }
 }
 function fillAuctionForm(auction) {
     elements.auctionIdInput.value = String(auction.id || "");
@@ -706,9 +720,12 @@ function resetAuctionForm() {
     elements.auctionIdInput.value = "";
     elements.auctionLotNoInput.value = "";
     elements.auctionTitleInput.value = "";
-    elements.auctionGroupSelect.value = "";
+    const firstGroup = state.groups.find((x) => Number(x.is_active || 0) === 1) || state.groups[0] || null;
+    elements.auctionGroupSelect.value = firstGroup ? String(firstGroup.id || "") : "";
     fillAuctionCategorySelect();
-    elements.auctionCategorySelect.value = "";
+    const categoryOptions = Array.from(elements.auctionCategorySelect.options);
+    const firstCategory = categoryOptions.find((opt) => String(opt.value || "").trim().length > 0);
+    elements.auctionCategorySelect.value = firstCategory ? String(firstCategory.value || "") : "";
     elements.auctionStartPriceInput.value = "";
     elements.auctionMinIncrementInput.value = "1000";
     elements.auctionStatusInput.value = "ACTIVE";
@@ -718,6 +735,13 @@ function resetAuctionForm() {
     elements.auctionDistrictInput.value = "";
     elements.auctionNeighborhoodInput.value = "";
     updateFormHeadings();
+}
+function ensureAuctionSelectionDefaults() {
+    if (!elements.auctionGroupSelect.value) {
+        const firstGroup = state.groups.find((x) => Number(x.is_active || 0) === 1) || state.groups[0] || null;
+        if (firstGroup)
+            elements.auctionGroupSelect.value = String(firstGroup.id || "");
+    }
 }
 function filterUsers(users, query) {
     if (!query)

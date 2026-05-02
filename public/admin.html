@@ -29,36 +29,44 @@
       </div>
     </header>
 
-    <section class="summary">
-      <div class="card"><div class="label">Toplam Kullanici</div><div class="value" id="statTotalUsers">0</div></div>
-      <div class="card"><div class="label">Admin / Yonetici</div><div class="value" id="statManagers">0</div></div>
-      <div class="card"><div class="label">Pasif Kullanici</div><div class="value" id="statDisabledUsers">0</div></div>
-      <div class="card"><div class="label">Urun Grubu</div><div class="value" id="statGroups">0</div></div>
-      <div class="card"><div class="label">Kategori</div><div class="value" id="statCategories">0</div></div>
-      <div class="card"><div class="label">Ihale</div><div class="value" id="statAuctions">0</div></div>
-    </section>
+    <section class="workspace">
+      <aside class="sideNav">
+        <div class="sideTitle">Yonetim Basliklari</div>
+        <nav class="tabs vertical" id="tabs">
+          <button class="tabBtn active" data-tab="users"><i class="fas fa-users"></i> Kullanici Yonetimi</button>
+          <button class="tabBtn" data-tab="catalog"><i class="fas fa-layer-group"></i> Urun Kategori</button>
+          <button class="tabBtn" data-tab="auctions"><i class="fas fa-gavel"></i> Ihale Yonetimi</button>
+          <button class="tabBtn" data-tab="reports"><i class="fas fa-chart-column"></i> Raporlar</button>
+          <button class="tabBtn" data-tab="settings"><i class="fas fa-sliders"></i> Sistem Ayarlari</button>
+          <button class="tabBtn" data-tab="logs"><i class="fas fa-clipboard-list"></i> Denetim Kayitlari</button>
+        </nav>
+        <div class="sessionBox" id="sessionBox">Yukleniyor...</div>
+      </aside>
 
-    <section class="toolbar">
-      <div class="inputWrap">
-        <i class="fas fa-magnifying-glass"></i>
-        <input type="search" id="searchInput" placeholder="Kullanici ara (e-posta / ad)">
-      </div>
-      <div class="sessionBox" id="sessionBox">Yukleniyor...</div>
-    </section>
+      <div class="mainArea">
+        <section class="summary">
+          <div class="card"><div class="label">Toplam Kullanici</div><div class="value" id="statTotalUsers">0</div></div>
+          <div class="card"><div class="label">Admin / Yonetici</div><div class="value" id="statManagers">0</div></div>
+          <div class="card"><div class="label">Pasif Kullanici</div><div class="value" id="statDisabledUsers">0</div></div>
+          <div class="card"><div class="label">Urun Grubu</div><div class="value" id="statGroups">0</div></div>
+          <div class="card"><div class="label">Kategori</div><div class="value" id="statCategories">0</div></div>
+          <div class="card"><div class="label">Ihale</div><div class="value" id="statAuctions">0</div></div>
+        </section>
 
-    <nav class="tabs" id="tabs">
-      <button class="tabBtn active" data-tab="users">Kullanicilar</button>
-      <button class="tabBtn" data-tab="catalog">Urun/Kategori</button>
-      <button class="tabBtn" data-tab="auctions">Ihale Yonetimi</button>
-    </nav>
+        <section class="toolbar">
+          <div class="inputWrap">
+            <i class="fas fa-magnifying-glass"></i>
+            <input type="search" id="searchInput" placeholder="Kullanici ara (e-posta / ad)">
+          </div>
+        </section>
 
-    <div class="statusLine" id="statusLine"></div>
+        <div class="statusLine" id="statusLine"></div>
 
-    <section class="panel" id="panelUsers">
-      <main class="userList" id="userList"></main>
-    </section>
+        <section class="panel" id="panelUsers">
+          <main class="userList" id="userList"></main>
+        </section>
 
-    <section class="panel hide" id="panelCatalog">
+        <section class="panel hide" id="panelCatalog">
       <div class="panelTools">
         <div class="inputWrap compact">
           <i class="fas fa-filter"></i>
@@ -112,62 +120,85 @@
           </div>
         </article>
       </div>
-    </section>
+        </section>
 
-    <section class="panel hide" id="panelAuctions">
-      <article class="panelCard">
-        <h3 id="auctionFormTitle">Ihale Ekle</h3>
-        <form id="auctionForm" class="stackForm">
-          <input type="hidden" id="auctionIdInput">
-          <div class="row2">
-            <input id="auctionLotNoInput" type="text" placeholder="Ihale No (or: 34AT999)" required>
-            <input id="auctionTitleInput" type="text" placeholder="Ihale basligi" required>
-          </div>
-          <div class="row2">
-            <select id="auctionGroupSelect" required></select>
-            <select id="auctionCategorySelect" required></select>
-          </div>
-          <div class="row3">
-            <input id="auctionStartPriceInput" type="number" min="0" step="0.01" placeholder="Baslangic bedeli" required>
-            <input id="auctionMinIncrementInput" type="number" min="0" step="0.01" placeholder="Min artis" required>
-            <select id="auctionStatusInput">
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="ENDED">ENDED</option>
-            </select>
-          </div>
-          <div class="row2">
-            <input id="auctionEndsAtInput" type="datetime-local" required>
-            <input id="auctionImageUrlInput" type="url" placeholder="Gorsel URL (opsiyonel)">
-          </div>
-          <div class="row3">
-            <input id="auctionCityInput" type="text" placeholder="Il">
-            <input id="auctionDistrictInput" type="text" placeholder="Ilce">
-            <input id="auctionNeighborhoodInput" type="text" placeholder="Mahalle">
-          </div>
-          <div class="row2">
-            <button class="miniBtn success" type="submit" id="auctionSaveBtn">Kaydet</button>
-            <button class="miniBtn" type="button" id="auctionResetBtn">Temizle</button>
-          </div>
-        </form>
-      </article>
+        <section class="panel hide" id="panelAuctions">
+          <article class="panelCard">
+            <h3 id="auctionFormTitle">Ihale Ekle</h3>
+            <form id="auctionForm" class="stackForm">
+              <input type="hidden" id="auctionIdInput">
+              <div class="row2">
+                <input id="auctionLotNoInput" type="text" placeholder="Ihale No (or: 34AT999)" required>
+                <input id="auctionTitleInput" type="text" placeholder="Ihale basligi" required>
+              </div>
+              <div class="row2">
+                <select id="auctionGroupSelect" required></select>
+                <select id="auctionCategorySelect" required></select>
+              </div>
+              <div class="row3">
+                <input id="auctionStartPriceInput" type="number" min="0" step="0.01" placeholder="Baslangic bedeli" required>
+                <input id="auctionMinIncrementInput" type="number" min="0" step="0.01" placeholder="Min artis" required>
+                <select id="auctionStatusInput">
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="ENDED">ENDED</option>
+                </select>
+              </div>
+              <div class="row2">
+                <input id="auctionEndsAtInput" type="datetime-local" required>
+                <input id="auctionImageUrlInput" type="url" placeholder="Gorsel URL (opsiyonel)">
+              </div>
+              <div class="row3">
+                <input id="auctionCityInput" type="text" placeholder="Il">
+                <input id="auctionDistrictInput" type="text" placeholder="Ilce">
+                <input id="auctionNeighborhoodInput" type="text" placeholder="Mahalle">
+              </div>
+              <div class="row2">
+                <button class="miniBtn success" type="submit" id="auctionSaveBtn">Kaydet</button>
+                <button class="miniBtn" type="button" id="auctionResetBtn">Temizle</button>
+              </div>
+            </form>
+          </article>
 
-      <article class="panelCard">
-        <h3>Ihale Listesi</h3>
-        <div class="tableTools">
-          <div class="inputWrap compact">
-            <i class="fas fa-magnifying-glass"></i>
-            <input type="search" id="auctionSearchInput" placeholder="Ihale no, baslik, grup, kategori ara">
-          </div>
-        </div>
-        <div class="tableWrap">
-          <table>
-            <thead>
-              <tr><th>No</th><th>Baslik</th><th>Grup/Kategori</th><th>Fiyat</th><th>Bitis</th><th>Durum</th><th>Islem</th></tr>
-            </thead>
-            <tbody id="auctionRows"></tbody>
-          </table>
-        </div>
-      </article>
+          <article class="panelCard">
+            <h3>Ihale Listesi</h3>
+            <div class="tableTools">
+              <div class="inputWrap compact">
+                <i class="fas fa-magnifying-glass"></i>
+                <input type="search" id="auctionSearchInput" placeholder="Ihale no, baslik, grup, kategori ara">
+              </div>
+            </div>
+            <div class="tableWrap">
+              <table>
+                <thead>
+                  <tr><th>No</th><th>Baslik</th><th>Grup/Kategori</th><th>Fiyat</th><th>Bitis</th><th>Durum</th><th>Islem</th></tr>
+                </thead>
+                <tbody id="auctionRows"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="panel hide" id="panelReports">
+          <article class="panelCard">
+            <h3>Raporlar</h3>
+            <div class="emptyState">Bu bolum yakinda detaylandirilacak. Kisa ozet metrikler ustteki kartlarda canli olarak gorulebilir.</div>
+          </article>
+        </section>
+
+        <section class="panel hide" id="panelSettings">
+          <article class="panelCard">
+            <h3>Sistem Ayarlari</h3>
+            <div class="emptyState">Ayarlari guvenli sekilde yonetmek icin bu bolume kontrollu formlar eklenecek.</div>
+          </article>
+        </section>
+
+        <section class="panel hide" id="panelLogs">
+          <article class="panelCard">
+            <h3>Denetim Kayitlari</h3>
+            <div class="emptyState">Yonetici islem kayitlari burada listelenecek.</div>
+          </article>
+        </section>
+      </div>
     </section>
   </div>
 </body>

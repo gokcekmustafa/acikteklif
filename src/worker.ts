@@ -667,14 +667,19 @@ async function handleApi(request, env, url) {
       const isActive = body.isActive === false ? 0 : 1;
 
       try {
-        await env.DB.prepare(
-          `INSERT INTO categories (id, group_id, name, sort_order, is_active, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
-        )
-          .bind(id, groupId, name.slice(0, 120), sortOrder, isActive)
-          .run();
-      } catch {
-        return json({ ok: false, error: "Bu kategori adı aynı grupta zaten var." }, 409);
+        await insertCategoryRecord(env, {
+          id,
+          groupId,
+          name: name.slice(0, 120),
+          sortOrder,
+          isActive,
+        });
+      } catch (error) {
+        const message = String((error as any)?.message || "");
+        if (message.toLowerCase().includes("unique") || message.toLowerCase().includes("constraint")) {
+          return json({ ok: false, error: "Kategori eklenemedi. Aynı isimde bir kategori zaten var." }, 409);
+        }
+        return json({ ok: false, error: "Kategori eklenemedi. Lütfen tekrar deneyin." }, 500);
       }
 
       await writeAdminAuditLog(env, session.user.id, null, "category.create", { id, groupId, name });
@@ -706,6 +711,11 @@ async function handleApi(request, env, url) {
         if (!name) return json({ ok: false, error: "Kategori adı boş olamaz." }, 400);
         updates.push("name = ?");
         values.push(name.slice(0, 120));
+        if (await tableHasColumn(env, "categories", "slug")) {
+          const slug = await buildUniqueCategorySlug(env, name, categoryId);
+          updates.push("slug = ?");
+          values.push(slug);
+        }
       }
       if (body.sortOrder !== undefined) {
         const sortOrder = Number.isFinite(Number(body.sortOrder)) ? Number(body.sortOrder) : 0;
@@ -738,12 +748,24 @@ async function handleApi(request, env, url) {
       }
 
       const categoryId = decodeURIComponent(String(categoryMatch[1] || ""));
-      const auctionCount = await env.DB.prepare("SELECT COUNT(*) as count FROM auctions WHERE category_id = ?")
+      const categoryRow = await env.DB.prepare("SELECT id, name, group_id FROM categories WHERE id = ?")
         .bind(categoryId)
         .first();
-      if (Number(auctionCount?.count || 0) > 0) {
-        return json({ ok: false, error: "Bu kategoriye bağlı ihaleler var. Önce ihaleleri güncelleyin." }, 409);
-      }
+      if (!categoryRow) return json({ ok: false, error: "Kategori bulunamadı." }, 404);
+
+      const replacementCategoryId = await ensureReplacementCategoryForDelete(
+        env,
+        String(categoryRow.group_id || ""),
+        categoryId
+      );
+
+      await env.DB.prepare(
+        `UPDATE auctions
+         SET category_id = ?, category = COALESCE((SELECT name FROM categories WHERE id = ?), category), updated_at = CURRENT_TIMESTAMP
+         WHERE category_id = ?`
+      )
+        .bind(replacementCategoryId, replacementCategoryId, categoryId)
+        .run();
 
       const deleted = await env.DB.prepare("DELETE FROM categories WHERE id = ?").bind(categoryId).run();
       if ((deleted.meta?.changes || 0) < 1) return json({ ok: false, error: "Kategori bulunamadı." }, 404);
@@ -1562,6 +1584,129 @@ async function ensureMarketplaceSchema(env) {
       console.warn("Marketplace index statement hatasi:", error);
     }
   }
+}
+
+async function insertCategoryRecord(
+  env,
+  params: { id: string; groupId: string; name: string; sortOrder: number; isActive: number }
+) {
+  const hasSlug = await tableHasColumn(env, "categories", "slug");
+  const hasGroupId = await tableHasColumn(env, "categories", "group_id");
+  const hasSortOrder = await tableHasColumn(env, "categories", "sort_order");
+  const hasIsActive = await tableHasColumn(env, "categories", "is_active");
+
+  const columns = ["id", "name"];
+  const values: unknown[] = [params.id, params.name];
+  const placeholders = ["?", "?"];
+
+  if (hasGroupId) {
+    columns.push("group_id");
+    values.push(params.groupId);
+    placeholders.push("?");
+  }
+  if (hasSlug) {
+    columns.push("slug");
+    values.push(await buildUniqueCategorySlug(env, params.name));
+    placeholders.push("?");
+  }
+  if (hasSortOrder) {
+    columns.push("sort_order");
+    values.push(params.sortOrder);
+    placeholders.push("?");
+  }
+  if (hasIsActive) {
+    columns.push("is_active");
+    values.push(params.isActive);
+    placeholders.push("?");
+  }
+  columns.push("created_at", "updated_at");
+  placeholders.push("CURRENT_TIMESTAMP", "CURRENT_TIMESTAMP");
+
+  const sql = `INSERT INTO categories (${columns.join(", ")}) VALUES (${placeholders.join(", ")})`;
+  await env.DB.prepare(sql).bind(...values).run();
+}
+
+async function ensureReplacementCategoryForDelete(env, groupIdRaw: string, deletingCategoryId: string) {
+  const fallbackGroupId = String(groupIdRaw || "").trim() || FALLBACK_CATALOG_GROUP_ID;
+
+  const sameGroupReplacement = await env.DB.prepare(
+    `SELECT id
+     FROM categories
+     WHERE group_id = ? AND id <> ?
+     ORDER BY sort_order ASC, name ASC
+     LIMIT 1`
+  )
+    .bind(fallbackGroupId, deletingCategoryId)
+    .first();
+  if (sameGroupReplacement?.id) return String(sameGroupReplacement.id);
+
+  const groupRow = await env.DB.prepare("SELECT name FROM product_groups WHERE id = ?").bind(fallbackGroupId).first();
+  const groupName = String(groupRow?.name || "").trim();
+  const candidateNames = [
+    "Genel",
+    groupName ? `Genel ${groupName}` : "",
+    groupName ? `${groupName} Genel` : "",
+  ]
+    .map((x) => x.trim().slice(0, 120))
+    .filter(Boolean);
+
+  for (const name of candidateNames) {
+    const id = crypto.randomUUID();
+    try {
+      await insertCategoryRecord(env, {
+        id,
+        groupId: fallbackGroupId,
+        name,
+        sortOrder: 999,
+        isActive: 1,
+      });
+      return id;
+    } catch {
+      // mevcut unique kısıtlarına göre sonraki aday denenir
+    }
+  }
+
+  const anyReplacement = await env.DB.prepare(
+    `SELECT id
+     FROM categories
+     WHERE id <> ?
+     ORDER BY sort_order ASC, name ASC
+     LIMIT 1`
+  )
+    .bind(deletingCategoryId)
+    .first();
+  if (anyReplacement?.id) return String(anyReplacement.id);
+
+  throw new Error("Kategori silme için yedek kategori oluşturulamadı.");
+}
+
+async function tableHasColumn(env, tableName: "categories" | "product_groups" | "auctions", columnName: string) {
+  const safeTable = String(tableName || "").trim().toLowerCase();
+  const safeColumn = String(columnName || "").trim().toLowerCase();
+  const cacheKey = `${safeTable}:${safeColumn}`;
+  const state = env as any;
+  const cache = (state.__tableColumnCache = state.__tableColumnCache || new Map<string, boolean>());
+  if (cache.has(cacheKey)) return cache.get(cacheKey) === true;
+
+  const schemaRows = await env.DB.prepare(`PRAGMA table_info(${safeTable})`).all();
+  const hasColumn = (schemaRows.results || []).some((row) => String(row.name || "").toLowerCase() === safeColumn);
+  cache.set(cacheKey, hasColumn);
+  return hasColumn;
+}
+
+async function buildUniqueCategorySlug(env, value: string, excludeCategoryId: string = "") {
+  let base = slugifyCatalogToken(value);
+  if (!base) base = "kategori";
+
+  for (let i = 0; i < 500; i += 1) {
+    const suffix = i === 0 ? "" : `-${i + 1}`;
+    const slug = `${base}${suffix}`;
+    const row = await env.DB.prepare("SELECT id FROM categories WHERE slug = ? LIMIT 1").bind(slug).first();
+    if (!row?.id) return slug;
+    if (excludeCategoryId && String(row.id) === String(excludeCategoryId)) return slug;
+  }
+
+  return `${base}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
 async function seedDefaultCatalogGroups(env) {

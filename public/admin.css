@@ -105,13 +105,6 @@ body {
   padding: 11px 14px;
 }
 
-.summary {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
 .card {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -178,10 +171,52 @@ body {
   color: var(--muted);
 }
 
+.workspace {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.sideNav {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  position: sticky;
+  top: 12px;
+}
+
+.sideTitle {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #4a6488;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.mainArea {
+  display: grid;
+  gap: 10px;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .tabs {
   display: flex;
   gap: 8px;
-  margin: 8px 0 8px;
+  margin: 2px 0;
+}
+
+.tabs.vertical {
+  display: grid;
+  gap: 6px;
 }
 
 .tabBtn {
@@ -193,6 +228,14 @@ body {
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tabs.vertical .tabBtn {
+  justify-content: flex-start;
+  width: 100%;
 }
 
 .tabBtn.active {
@@ -538,6 +581,18 @@ th {
 }
 
 @media (max-width: 1150px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .sideNav {
+    position: static;
+  }
+
+  .tabs.vertical {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .summary {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -557,6 +612,10 @@ th {
   .panelTools {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .tabs.vertical {
+    grid-template-columns: 1fr;
   }
 
   .topActions {
