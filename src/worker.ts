@@ -43,6 +43,16 @@ const DEFAULT_CATALOG_GROUPS = [
   { id: "grp-genel", name: "Genel", sortOrder: 999 },
 ] as const;
 const FALLBACK_CATALOG_GROUP_ID = "grp-genel";
+const SCHEMA_WARM_TTL_MS = 15 * 60 * 1000;
+
+type RuntimeSchemaState = {
+  adminReadyAt: number;
+  marketplaceReadyAt: number;
+  legacyRepairReadyAt: number;
+  inflightAdmin: Promise<void> | null;
+  inflightMarketplace: Promise<void> | null;
+  inflightLegacyRepair: Promise<void> | null;
+};
 
 interface TurnstileVerifyResponse {
   success: boolean;
@@ -413,18 +423,7 @@ async function handleApi(request, env, url) {
   }
 
   if (method === "GET" && path === "/api/auctions") {
-    await ensureMarketplaceSchema(env);
-    const data = await env.DB.prepare(
-      `SELECT
-        a.id, a.lot_no, a.title, a.start_price, a.current_bid, a.min_increment, a.ends_at, a.status, a.created_at, a.updated_at,
-        a.bid_count, a.product_group_id, a.category_id, a.city, a.district, a.neighborhood, a.image_url,
-        pg.name AS product_group, c.name AS category
-       FROM auctions a
-       LEFT JOIN product_groups pg ON pg.id = a.product_group_id
-       LEFT JOIN categories c ON c.id = a.category_id
-       ORDER BY a.created_at DESC`
-    ).all();
-    return json({ ok: true, items: data.results || [] });
+    return json({ ok: true, items: await getAdminAuctionsListSafe(env) });
   }
 
   if (method === "POST" && path === "/api/bids") {
@@ -497,8 +496,10 @@ async function handleApi(request, env, url) {
     const cfgError = requireSessionPepper(env);
     if (cfgError) return cfgError;
 
-    await ensureAdminSchema(env);
-    await ensureMarketplaceSchema(env);
+    await ensureAdminSchemaWarm(env);
+    if (method !== "GET") {
+      await ensureMarketplaceSchemaWarm(env, { runLegacyRepair: true });
+    }
 
     const session = await getSession(request, env);
     if (!session) return json({ ok: false, error: "Yönetim paneli için giriş yapmalısınız." }, 401);
@@ -535,28 +536,36 @@ async function handleApi(request, env, url) {
     const canManageCatalog =
       actorAccess.permissions[PERMISSIONS.AUCTIONS_EDIT] || actorAccess.permissions[PERMISSIONS.AUCTIONS_CREATE];
 
+    if (method === "GET" && path === "/api/admin/bootstrap") {
+      const users = actorAccess.permissions[PERMISSIONS.USERS_VIEW] ? await getAdminUsersList(env) : [];
+      const catalog = canManageCatalog ? await getCatalogSnapshotSafe(env) : { groups: [], categories: [] };
+      const auctions = canManageCatalog ? await getAdminAuctionsListSafe(env) : [];
+
+      return json({
+        ok: true,
+        user: {
+          id: session.user.id,
+          email: session.user.email,
+          name: session.user.name,
+          role: actorAccess.role,
+          permissions: actorAccess.permissions,
+        },
+        permissionDefs: ALL_PERMISSION_KEYS.map((key) => ({
+          key,
+          label: permissionLabel(key),
+        })),
+        users,
+        groups: catalog.groups,
+        categories: catalog.categories,
+        auctions,
+      });
+    }
+
     if (method === "GET" && path === "/api/admin/catalog") {
       if (!canManageCatalog) {
         return json({ ok: false, error: "Katalog yönetim yetkiniz yok." }, 403);
       }
-
-      const groupsResult = await env.DB.prepare(
-        `SELECT id, name, sort_order, is_active, created_at
-         FROM product_groups
-         ORDER BY sort_order ASC, name ASC`
-      ).all();
-
-      const categoriesResult = await env.DB.prepare(
-        `SELECT id, group_id, name, sort_order, is_active, created_at
-         FROM categories
-         ORDER BY sort_order ASC, name ASC`
-      ).all();
-
-      return json({
-        ok: true,
-        groups: groupsResult.results || [],
-        categories: categoriesResult.results || [],
-      });
+      return json({ ok: true, ...(await getCatalogSnapshotSafe(env)) });
     }
 
     if (method === "POST" && path === "/api/admin/product-groups") {
@@ -788,18 +797,7 @@ async function handleApi(request, env, url) {
       if (!canManageCatalog) {
         return json({ ok: false, error: "İhale görüntüleme yetkiniz yok." }, 403);
       }
-
-      const data = await env.DB.prepare(
-        `SELECT
-          a.id, a.lot_no, a.title, a.start_price, a.current_bid, a.min_increment, a.bid_count, a.ends_at, a.status,
-          a.created_at, a.updated_at, a.product_group_id, a.category_id, a.city, a.district, a.neighborhood, a.image_url,
-          pg.name AS product_group, c.name AS category
-         FROM auctions a
-         LEFT JOIN product_groups pg ON pg.id = a.product_group_id
-         LEFT JOIN categories c ON c.id = a.category_id
-         ORDER BY a.created_at DESC`
-      ).all();
-      return json({ ok: true, items: data.results || [] });
+      return json({ ok: true, items: await getAdminAuctionsListSafe(env) });
     }
 
     if (method === "POST" && path === "/api/admin/auctions") {
@@ -905,49 +903,7 @@ async function handleApi(request, env, url) {
       if (!actorAccess.permissions[PERMISSIONS.USERS_VIEW]) {
         return json({ ok: false, error: "Kullanıcıları görüntüleme yetkiniz yok." }, 403);
       }
-
-      const usersResult = await env.DB.prepare(
-        `SELECT
-          u.id, u.email, u.name, u.email_verified_at, u.disabled_at, u.created_at,
-          COALESCE(r.role, ?) AS role
-         FROM users u
-         LEFT JOIN user_roles r ON r.user_id = u.id
-         ORDER BY u.created_at DESC`
-      )
-        .bind(USER_ROLES.MEMBER)
-        .all();
-
-      const overrideRows = await env.DB.prepare(
-        "SELECT user_id, permission_key, is_enabled FROM user_permission_overrides"
-      ).all();
-
-      const overridesByUser = new Map<string, Record<string, boolean>>();
-      for (const row of overrideRows.results || []) {
-        const userId = String(row.user_id || "");
-        const permissionKey = String(row.permission_key || "");
-        if (!userId || !permissionKey) continue;
-        if (!isKnownPermission(permissionKey)) continue;
-        const forUser = overridesByUser.get(userId) || {};
-        forUser[permissionKey] = Number(row.is_enabled || 0) === 1;
-        overridesByUser.set(userId, forUser);
-      }
-
-      const items = (usersResult.results || []).map((row) => {
-        const role = normalizeRole(row.role);
-        const permissions = buildRolePermissions(role, overridesByUser.get(String(row.id || "")) || {});
-        return {
-          id: row.id,
-          email: row.email,
-          name: row.name,
-          role,
-          emailVerified: !!row.email_verified_at,
-          isDisabled: !!row.disabled_at,
-          createdAt: row.created_at,
-          permissions,
-        };
-      });
-
-      return json({ ok: true, items });
+      return json({ ok: true, items: await getAdminUsersList(env) });
     }
 
     const roleMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/role$/);
@@ -1471,6 +1427,89 @@ async function writeAdminAuditLog(env, actorUserId, targetUserId, action, detail
   }
 }
 
+function getRuntimeSchemaState(): RuntimeSchemaState {
+  const key = "__acikTeklifRuntimeSchemaState";
+  const globalScope = globalThis as any;
+  if (!globalScope[key]) {
+    globalScope[key] = {
+      adminReadyAt: 0,
+      marketplaceReadyAt: 0,
+      legacyRepairReadyAt: 0,
+      inflightAdmin: null,
+      inflightMarketplace: null,
+      inflightLegacyRepair: null,
+    } satisfies RuntimeSchemaState;
+  }
+  return globalScope[key] as RuntimeSchemaState;
+}
+
+async function ensureAdminSchemaWarm(env) {
+  const state = getRuntimeSchemaState();
+  const now = Date.now();
+  if (state.adminReadyAt > 0 && now - state.adminReadyAt < SCHEMA_WARM_TTL_MS) return;
+
+  if (!state.inflightAdmin) {
+    state.inflightAdmin = (async () => {
+      await ensureAdminSchema(env);
+      state.adminReadyAt = Date.now();
+    })()
+      .catch((error) => {
+        state.adminReadyAt = 0;
+        throw error;
+      })
+      .finally(() => {
+        state.inflightAdmin = null;
+      });
+  }
+
+  await state.inflightAdmin;
+}
+
+async function ensureMarketplaceSchemaWarm(env, options: { runLegacyRepair?: boolean } = {}) {
+  const runLegacyRepair = options.runLegacyRepair === true;
+  const state = getRuntimeSchemaState();
+  const now = Date.now();
+  const structureFresh = state.marketplaceReadyAt > 0 && now - state.marketplaceReadyAt < SCHEMA_WARM_TTL_MS;
+
+  if (!structureFresh) {
+    if (!state.inflightMarketplace) {
+      state.inflightMarketplace = (async () => {
+        await ensureMarketplaceSchema(env, { runLegacyRepair: false });
+        state.marketplaceReadyAt = Date.now();
+      })()
+        .catch((error) => {
+          state.marketplaceReadyAt = 0;
+          throw error;
+        })
+        .finally(() => {
+          state.inflightMarketplace = null;
+        });
+    }
+    await state.inflightMarketplace;
+  }
+
+  if (!runLegacyRepair) return;
+
+  const repairFresh = state.legacyRepairReadyAt > 0 && now - state.legacyRepairReadyAt < SCHEMA_WARM_TTL_MS;
+  if (repairFresh) return;
+
+  if (!state.inflightLegacyRepair) {
+    state.inflightLegacyRepair = (async () => {
+      await backfillLegacyCatalogRelations(env);
+      state.legacyRepairReadyAt = Date.now();
+    })()
+      .catch((error) => {
+        state.legacyRepairReadyAt = 0;
+        throw error;
+      })
+      .finally(() => {
+        state.inflightLegacyRepair = null;
+      });
+  }
+
+  await state.inflightLegacyRepair;
+}
+
 async function ensureAdminSchema(env) {
   const statements = [
     `CREATE TABLE IF NOT EXISTS user_roles (
@@ -1519,7 +1558,8 @@ async function ensureAdminSchema(env) {
   }
 }
 
-async function ensureMarketplaceSchema(env) {
+async function ensureMarketplaceSchema(env, options: { runLegacyRepair?: boolean } = {}) {
+  const runLegacyRepair = options.runLegacyRepair === true;
   const baseStatements = [
     `CREATE TABLE IF NOT EXISTS product_groups (
       id TEXT PRIMARY KEY,
@@ -1578,7 +1618,9 @@ async function ensureMarketplaceSchema(env) {
   }
 
   await seedDefaultCatalogGroups(env);
-  await backfillLegacyCatalogRelations(env);
+  if (runLegacyRepair) {
+    await backfillLegacyCatalogRelations(env);
+  }
 
   const indexStatements = [
     "CREATE INDEX IF NOT EXISTS idx_product_groups_name ON product_groups(name)",
@@ -1593,6 +1635,100 @@ async function ensureMarketplaceSchema(env) {
     } catch (error) {
       console.warn("Marketplace index statement hatasi:", error);
     }
+  }
+}
+
+async function getCatalogSnapshot(env) {
+  const [groupsResult, categoriesResult] = await Promise.all([
+    env.DB.prepare(
+      `SELECT id, name, sort_order, is_active, created_at
+       FROM product_groups
+       ORDER BY sort_order ASC, name ASC`
+    ).all(),
+    env.DB.prepare(
+      `SELECT id, group_id, name, sort_order, is_active, created_at
+       FROM categories
+       ORDER BY sort_order ASC, name ASC`
+    ).all(),
+  ]);
+
+  return {
+    groups: groupsResult.results || [],
+    categories: categoriesResult.results || [],
+  };
+}
+
+async function getAdminAuctionsList(env) {
+  const data = await env.DB.prepare(
+    `SELECT
+      a.id, a.lot_no, a.title, a.start_price, a.current_bid, a.min_increment, a.bid_count, a.ends_at, a.status,
+      a.created_at, a.updated_at, a.product_group_id, a.category_id, a.city, a.district, a.neighborhood, a.image_url,
+      pg.name AS product_group, c.name AS category
+     FROM auctions a
+     LEFT JOIN product_groups pg ON pg.id = a.product_group_id
+     LEFT JOIN categories c ON c.id = a.category_id
+     ORDER BY a.created_at DESC`
+  ).all();
+  return data.results || [];
+}
+
+async function getAdminUsersList(env) {
+  const usersResult = await env.DB.prepare(
+    `SELECT
+      u.id, u.email, u.name, u.email_verified_at, u.disabled_at, u.created_at,
+      COALESCE(r.role, ?) AS role
+     FROM users u
+     LEFT JOIN user_roles r ON r.user_id = u.id
+     ORDER BY u.created_at DESC`
+  )
+    .bind(USER_ROLES.MEMBER)
+    .all();
+
+  const overrideRows = await env.DB.prepare("SELECT user_id, permission_key, is_enabled FROM user_permission_overrides").all();
+  const overridesByUser = new Map<string, Record<string, boolean>>();
+  for (const row of overrideRows.results || []) {
+    const userId = String(row.user_id || "");
+    const permissionKey = String(row.permission_key || "");
+    if (!userId || !permissionKey) continue;
+    if (!isKnownPermission(permissionKey)) continue;
+    const forUser = overridesByUser.get(userId) || {};
+    forUser[permissionKey] = Number(row.is_enabled || 0) === 1;
+    overridesByUser.set(userId, forUser);
+  }
+
+  return (usersResult.results || []).map((row) => {
+    const role = normalizeRole(row.role);
+    const permissions = buildRolePermissions(role, overridesByUser.get(String(row.id || "")) || {});
+    return {
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      role,
+      emailVerified: !!row.email_verified_at,
+      isDisabled: !!row.disabled_at,
+      createdAt: row.created_at,
+      permissions,
+    };
+  });
+}
+
+async function getCatalogSnapshotSafe(env) {
+  try {
+    return await getCatalogSnapshot(env);
+  } catch (error) {
+    console.warn("Katalog snapshot sorgusu hata verdi, schema onarimi deneniyor:", error);
+    await ensureMarketplaceSchemaWarm(env, { runLegacyRepair: true });
+    return await getCatalogSnapshot(env);
+  }
+}
+
+async function getAdminAuctionsListSafe(env) {
+  try {
+    return await getAdminAuctionsList(env);
+  } catch (error) {
+    console.warn("Ihale listesi sorgusu hata verdi, schema onarimi deneniyor:", error);
+    await ensureMarketplaceSchemaWarm(env, { runLegacyRepair: true });
+    return await getAdminAuctionsList(env);
   }
 }
 

@@ -100,18 +100,24 @@ async function init() {
     setStatus("Yonetim paneli hazir.", "ok");
 }
 async function bootstrapData() {
-    const me = await apiFetch("/api/admin/me");
-    state.currentUser = me.user || null;
-    const permissionDefs = await apiFetch("/api/admin/permission-keys");
-    if (Array.isArray(permissionDefs.items) && permissionDefs.items.length > 0) {
-        state.permissionDefs = permissionDefs.items
+    const data = await apiFetch("/api/admin/bootstrap");
+    applyBootstrapPayload(data);
+}
+async function reloadAll() {
+    const data = await apiFetch("/api/admin/bootstrap");
+    applyBootstrapPayload(data);
+}
+function applyBootstrapPayload(data) {
+    state.currentUser = data.user || null;
+    if (Array.isArray(data.permissionDefs) && data.permissionDefs.length > 0) {
+        state.permissionDefs = data.permissionDefs
             .map((item) => ({ key: String(item.key || ""), label: String(item.label || item.key || "") }))
             .filter((item) => item.key);
     }
-    await reloadAll();
-}
-async function reloadAll() {
-    await Promise.all([loadUsers(), loadCatalog(), loadAuctions()]);
+    state.users = Array.isArray(data.users) ? data.users : [];
+    state.groups = Array.isArray(data.groups) ? data.groups : [];
+    state.categories = Array.isArray(data.categories) ? data.categories : [];
+    state.auctions = Array.isArray(data.auctions) ? data.auctions : [];
     const who = state.currentUser
         ? `${state.currentUser.name || "Yonetici"} (${state.currentUser.email || "-"})`
         : "Oturum bulunamadi";

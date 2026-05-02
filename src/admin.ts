@@ -108,21 +108,29 @@ async function init() {
 }
 
 async function bootstrapData() {
-  const me = await apiFetch("/api/admin/me");
-  state.currentUser = me.user || null;
+  const data = await apiFetch("/api/admin/bootstrap");
+  applyBootstrapPayload(data);
+}
 
-  const permissionDefs = await apiFetch("/api/admin/permission-keys");
-  if (Array.isArray(permissionDefs.items) && permissionDefs.items.length > 0) {
-    state.permissionDefs = permissionDefs.items
+async function reloadAll() {
+  const data = await apiFetch("/api/admin/bootstrap");
+  applyBootstrapPayload(data);
+}
+
+function applyBootstrapPayload(data: any) {
+  state.currentUser = data.user || null;
+
+  if (Array.isArray(data.permissionDefs) && data.permissionDefs.length > 0) {
+    state.permissionDefs = data.permissionDefs
       .map((item: any) => ({ key: String(item.key || ""), label: String(item.label || item.key || "") }))
       .filter((item: any) => item.key);
   }
 
-  await reloadAll();
-}
+  state.users = Array.isArray(data.users) ? data.users : [];
+  state.groups = Array.isArray(data.groups) ? data.groups : [];
+  state.categories = Array.isArray(data.categories) ? data.categories : [];
+  state.auctions = Array.isArray(data.auctions) ? data.auctions : [];
 
-async function reloadAll() {
-  await Promise.all([loadUsers(), loadCatalog(), loadAuctions()]);
   const who = state.currentUser
     ? `${state.currentUser.name || "Yonetici"} (${state.currentUser.email || "-"})`
     : "Oturum bulunamadi";
