@@ -15,8 +15,9 @@ Bu proje statik arayuzun yaninda Cloudflare Worker + D1 ile calisan uyelik ve te
 
 ## Dizin Yapisi
 
-- `public/index.html`, `public/styles.css`, `public/script.js`: Frontend (yayinda kullanilan statik dosyalar)
-- `src/worker.js`: API ve auth mantigi
+- `public/index.html`, `public/styles.css`, `public/script.js`: Yayina cikan statik dosyalar
+- `src/client.ts`: Frontend TypeScript kaynagi (`npm run build` ile `public/script.js` uretilir)
+- `src/worker.ts`: API ve auth mantigi (TypeScript)
 - `migrations/0001_initial.sql`: D1 sema + ornek ihale verisi
 - `wrangler.toml`: Worker konfigurasyonu
 
@@ -63,14 +64,19 @@ npx wrangler secret put TURNSTILE_SITE_KEY
 ```
 `wrangler.toml` icindeki `REQUIRE_EMAIL_VERIFICATION` degerini ihtiyaca gore guncelleyin.
 
-9. Lokal calistir:
+9. Frontend TS derle:
+```bash
+npm run build
+```
+
+10. Lokal calistir:
 ```bash
 npx wrangler dev
 ```
 
-10. Deploy:
+11. Deploy:
 ```bash
-npx wrangler deploy
+npm run deploy
 ```
 
 ## Turnstile Notu

@@ -1,3 +1,4 @@
+﻿// @ts-nocheck
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 const EMAIL_VERIFY_TTL_SECONDS = 60 * 60 * 24;
 const PASSWORD_RESET_TTL_SECONDS = 60 * 60;
@@ -15,7 +16,7 @@ export default {
 
       if (!env.ASSETS) {
         return json(
-          { ok: false, error: "Static asset binding bulunamadı. wrangler.toml içinde [assets] binding kontrol edin." },
+          { ok: false, error: "Static asset binding bulunamadÄ±. wrangler.toml iÃ§inde [assets] binding kontrol edin." },
           500
         );
       }
@@ -23,7 +24,7 @@ export default {
       return env.ASSETS.fetch(request);
     } catch (error) {
       console.error("Unhandled error:", error);
-      return json({ ok: false, error: "Sunucu hatası oluştu." }, 500);
+      return json({ ok: false, error: "Sunucu hatasÄ± oluÅŸtu." }, 500);
     }
   },
 };
@@ -33,7 +34,7 @@ async function handleApi(request, env, url) {
   const path = url.pathname;
 
   if (!env.DB) {
-    return json({ ok: false, error: "D1 binding bulunamadı. wrangler.toml içindeki DB binding'i kontrol edin." }, 500);
+    return json({ ok: false, error: "D1 binding bulunamadÄ±. wrangler.toml iÃ§indeki DB binding'i kontrol edin." }, 500);
   }
 
   if (method === "GET" && path === "/api/health") {
@@ -72,7 +73,7 @@ async function handleApi(request, env, url) {
 
     const ip = getClientIp(request);
     const limited = await checkRateLimit(env, `register:${ip}`, 8, 10 * 60);
-    if (limited) return json({ ok: false, error: "Çok fazla deneme yaptınız. Lütfen sonra tekrar deneyin." }, 429);
+    if (limited) return json({ ok: false, error: "Ã‡ok fazla deneme yaptÄ±nÄ±z. LÃ¼tfen sonra tekrar deneyin." }, 429);
 
     const body = await readJson(request);
     const turnstileError = await ensureTurnstileRequired(env, request, body, "register");
@@ -82,13 +83,13 @@ async function handleApi(request, env, url) {
     const name = sanitizeName(body.name);
     const password = String(body.password || "");
 
-    if (!isValidEmail(email)) return json({ ok: false, error: "Geçerli bir e-posta girin." }, 400);
+    if (!isValidEmail(email)) return json({ ok: false, error: "GeÃ§erli bir e-posta girin." }, 400);
     if (password.length < MIN_PASSWORD_LENGTH) {
-      return json({ ok: false, error: `Şifre en az ${MIN_PASSWORD_LENGTH} karakter olmalıdır.` }, 400);
+      return json({ ok: false, error: `Åifre en az ${MIN_PASSWORD_LENGTH} karakter olmalÄ±dÄ±r.` }, 400);
     }
 
     const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
-    if (existing) return json({ ok: false, error: "Bu e-posta ile kayıtlı bir kullanıcı zaten var." }, 409);
+    if (existing) return json({ ok: false, error: "Bu e-posta ile kayÄ±tlÄ± bir kullanÄ±cÄ± zaten var." }, 409);
 
     const userId = crypto.randomUUID();
     const passwordHash = await hashPassword(password);
@@ -106,8 +107,8 @@ async function handleApi(request, env, url) {
       await sendAuthEmail(
         env,
         email,
-        "E-posta Doğrulama",
-        `Hesabınızı doğrulamak için bu bağlantıyı açın: ${verifyUrl}`
+        "E-posta DoÄŸrulama",
+        `HesabÄ±nÄ±zÄ± doÄŸrulamak iÃ§in bu baÄŸlantÄ±yÄ± aÃ§Ä±n: ${verifyUrl}`
       );
     } else {
       await env.DB.prepare(
@@ -142,7 +143,7 @@ async function handleApi(request, env, url) {
 
     const ip = getClientIp(request);
     const limited = await checkRateLimit(env, `login:${ip}`, 20, 10 * 60);
-    if (limited) return json({ ok: false, error: "Çok fazla deneme yaptınız. Lütfen sonra tekrar deneyin." }, 429);
+    if (limited) return json({ ok: false, error: "Ã‡ok fazla deneme yaptÄ±nÄ±z. LÃ¼tfen sonra tekrar deneyin." }, 429);
 
     const body = await readJson(request);
     const turnstileError = await ensureTurnstileRequired(env, request, body, "login");
@@ -151,7 +152,7 @@ async function handleApi(request, env, url) {
     const email = normalizeEmail(body.email);
     const password = String(body.password || "");
 
-    if (!isValidEmail(email) || !password) return json({ ok: false, error: "E-posta ve şifre zorunludur." }, 400);
+    if (!isValidEmail(email) || !password) return json({ ok: false, error: "E-posta ve ÅŸifre zorunludur." }, 400);
 
     const user = await env.DB.prepare(
       "SELECT id, email, name, password_hash, email_verified_at, disabled_at FROM users WHERE email = ?"
@@ -159,10 +160,10 @@ async function handleApi(request, env, url) {
       .bind(email)
       .first();
 
-    if (!user || user.disabled_at) return json({ ok: false, error: "E-posta veya şifre hatalı." }, 401);
+    if (!user || user.disabled_at) return json({ ok: false, error: "E-posta veya ÅŸifre hatalÄ±." }, 401);
 
     const passOk = await verifyPassword(password, user.password_hash);
-    if (!passOk) return json({ ok: false, error: "E-posta veya şifre hatalı." }, 401);
+    if (!passOk) return json({ ok: false, error: "E-posta veya ÅŸifre hatalÄ±." }, 401);
 
     const { cookie, expiresAt } = await createSession(env, request, user.id);
     const headers = new Headers({ "content-type": "application/json; charset=utf-8" });
@@ -171,7 +172,7 @@ async function handleApi(request, env, url) {
     return new Response(
       JSON.stringify({
         ok: true,
-        message: "Giriş başarılı.",
+        message: "GiriÅŸ baÅŸarÄ±lÄ±.",
         expiresAt,
         user: {
           id: user.id,
@@ -195,7 +196,7 @@ async function handleApi(request, env, url) {
 
     const headers = new Headers({ "content-type": "application/json; charset=utf-8" });
     headers.append("set-cookie", clearSessionCookie());
-    return new Response(JSON.stringify({ ok: true, message: "Çıkış yapıldı." }), { status: 200, headers });
+    return new Response(JSON.stringify({ ok: true, message: "Ã‡Ä±kÄ±ÅŸ yapÄ±ldÄ±." }), { status: 200, headers });
   }
 
   if (method === "POST" && path === "/api/auth/verify/request") {
@@ -218,11 +219,11 @@ async function handleApi(request, env, url) {
     }
 
     if (!targetUser) {
-      return json({ ok: true, message: "Eğer hesap varsa doğrulama e-postası gönderilecektir." });
+      return json({ ok: true, message: "EÄŸer hesap varsa doÄŸrulama e-postasÄ± gÃ¶nderilecektir." });
     }
 
     if (targetUser.email_verified_at) {
-      return json({ ok: true, message: "E-posta zaten doğrulanmış." });
+      return json({ ok: true, message: "E-posta zaten doÄŸrulanmÄ±ÅŸ." });
     }
 
     const token = await createEmailVerifyToken(env, targetUser.id);
@@ -230,13 +231,13 @@ async function handleApi(request, env, url) {
     await sendAuthEmail(
       env,
       targetUser.email,
-      "E-posta Doğrulama",
-      `Hesabınızı doğrulamak için bu bağlantıyı açın: ${verifyUrl}`
+      "E-posta DoÄŸrulama",
+      `HesabÄ±nÄ±zÄ± doÄŸrulamak iÃ§in bu baÄŸlantÄ±yÄ± aÃ§Ä±n: ${verifyUrl}`
     );
 
     return json({
       ok: true,
-      message: "Doğrulama e-postası gönderildi.",
+      message: "DoÄŸrulama e-postasÄ± gÃ¶nderildi.",
       debugVerifyToken: shouldExposeDebugToken(env) ? token : undefined,
     });
   }
@@ -244,7 +245,7 @@ async function handleApi(request, env, url) {
   if (method === "POST" && path === "/api/auth/verify/confirm") {
     const body = await readJson(request);
     const token = String(body.token || "");
-    if (!token) return json({ ok: false, error: "Doğrulama token zorunludur." }, 400);
+    if (!token) return json({ ok: false, error: "DoÄŸrulama token zorunludur." }, 400);
 
     const tokenHash = await sha256Hex(token);
     const row = await env.DB.prepare(
@@ -254,7 +255,7 @@ async function handleApi(request, env, url) {
       .first();
 
     if (!row || row.consumed_at || new Date(row.expires_at).getTime() < Date.now()) {
-      return json({ ok: false, error: "Doğrulama bağlantısı geçersiz veya süresi dolmuş." }, 400);
+      return json({ ok: false, error: "DoÄŸrulama baÄŸlantÄ±sÄ± geÃ§ersiz veya sÃ¼resi dolmuÅŸ." }, 400);
     }
 
     await env.DB.batch([
@@ -264,30 +265,30 @@ async function handleApi(request, env, url) {
       env.DB.prepare("UPDATE email_verification_tokens SET consumed_at = CURRENT_TIMESTAMP WHERE id = ?").bind(row.id),
     ]);
 
-    return json({ ok: true, message: "E-posta başarıyla doğrulandı." });
+    return json({ ok: true, message: "E-posta baÅŸarÄ±yla doÄŸrulandÄ±." });
   }
 
   if (method === "POST" && path === "/api/auth/password/forgot") {
     const body = await readJson(request);
 
     const email = normalizeEmail(body.email);
-    if (!isValidEmail(email)) return json({ ok: true, message: "Eğer hesap varsa sıfırlama e-postası gönderilecektir." });
+    if (!isValidEmail(email)) return json({ ok: true, message: "EÄŸer hesap varsa sÄ±fÄ±rlama e-postasÄ± gÃ¶nderilecektir." });
 
     const user = await env.DB.prepare("SELECT id, email FROM users WHERE email = ?").bind(email).first();
-    if (!user) return json({ ok: true, message: "Eğer hesap varsa sıfırlama e-postası gönderilecektir." });
+    if (!user) return json({ ok: true, message: "EÄŸer hesap varsa sÄ±fÄ±rlama e-postasÄ± gÃ¶nderilecektir." });
 
     const token = await createPasswordResetToken(env, user.id);
     const resetUrl = `${getBaseUrl(request, env)}/?reset=${encodeURIComponent(token)}`;
     await sendAuthEmail(
       env,
       user.email,
-      "Şifre Sıfırlama",
-      `Şifrenizi sıfırlamak için bu bağlantıyı açın: ${resetUrl}`
+      "Åifre SÄ±fÄ±rlama",
+      `Åifrenizi sÄ±fÄ±rlamak iÃ§in bu baÄŸlantÄ±yÄ± aÃ§Ä±n: ${resetUrl}`
     );
 
     return json({
       ok: true,
-      message: "Eğer hesap varsa sıfırlama e-postası gönderilecektir.",
+      message: "EÄŸer hesap varsa sÄ±fÄ±rlama e-postasÄ± gÃ¶nderilecektir.",
       debugResetToken: shouldExposeDebugToken(env) ? token : undefined,
     });
   }
@@ -300,7 +301,7 @@ async function handleApi(request, env, url) {
 
     if (!token) return json({ ok: false, error: "Reset token zorunludur." }, 400);
     if (newPassword.length < MIN_PASSWORD_LENGTH) {
-      return json({ ok: false, error: `Yeni şifre en az ${MIN_PASSWORD_LENGTH} karakter olmalıdır.` }, 400);
+      return json({ ok: false, error: `Yeni ÅŸifre en az ${MIN_PASSWORD_LENGTH} karakter olmalÄ±dÄ±r.` }, 400);
     }
 
     const tokenHash = await sha256Hex(token);
@@ -309,7 +310,7 @@ async function handleApi(request, env, url) {
       .first();
 
     if (!row || row.consumed_at || new Date(row.expires_at).getTime() < Date.now()) {
-      return json({ ok: false, error: "Şifre sıfırlama bağlantısı geçersiz veya süresi dolmuş." }, 400);
+      return json({ ok: false, error: "Åifre sÄ±fÄ±rlama baÄŸlantÄ±sÄ± geÃ§ersiz veya sÃ¼resi dolmuÅŸ." }, 400);
     }
 
     const passwordHash = await hashPassword(newPassword);
@@ -319,7 +320,7 @@ async function handleApi(request, env, url) {
       env.DB.prepare("UPDATE sessions SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ? AND revoked_at IS NULL").bind(row.user_id),
     ]);
 
-    return json({ ok: true, message: "Şifreniz güncellendi. Lütfen tekrar giriş yapın." });
+    return json({ ok: true, message: "Åifreniz gÃ¼ncellendi. LÃ¼tfen tekrar giriÅŸ yapÄ±n." });
   }
 
   if (method === "GET" && path === "/api/auctions") {
@@ -334,19 +335,19 @@ async function handleApi(request, env, url) {
     if (cfgError) return cfgError;
 
     const session = await getSession(request, env);
-    if (!session) return json({ ok: false, error: "Teklif verebilmek için giriş yapmalısınız." }, 401);
+    if (!session) return json({ ok: false, error: "Teklif verebilmek iÃ§in giriÅŸ yapmalÄ±sÄ±nÄ±z." }, 401);
     if (isEmailVerificationRequired(env) && !session.user.email_verified_at) {
-      return json({ ok: false, error: "Teklif verebilmek için önce e-posta adresinizi doğrulayın." }, 403);
+      return json({ ok: false, error: "Teklif verebilmek iÃ§in Ã¶nce e-posta adresinizi doÄŸrulayÄ±n." }, 403);
     }
 
     const limited = await checkRateLimit(env, `bid:${session.user.id}`, 30, 60);
-    if (limited) return json({ ok: false, error: "Çok sık teklif verdiniz. Lütfen biraz bekleyin." }, 429);
+    if (limited) return json({ ok: false, error: "Ã‡ok sÄ±k teklif verdiniz. LÃ¼tfen biraz bekleyin." }, 429);
 
     const body = await readJson(request);
     const lotNo = String(body.lotNo || "").trim().toUpperCase();
     const amount = Number(body.amount || 0);
-    if (!lotNo) return json({ ok: false, error: "İhale numarası zorunludur." }, 400);
-    if (!Number.isFinite(amount) || amount <= 0) return json({ ok: false, error: "Geçerli bir teklif tutarı girin." }, 400);
+    if (!lotNo) return json({ ok: false, error: "Ä°hale numarasÄ± zorunludur." }, 400);
+    if (!Number.isFinite(amount) || amount <= 0) return json({ ok: false, error: "GeÃ§erli bir teklif tutarÄ± girin." }, 400);
 
     const auction = await env.DB.prepare(
       "SELECT id, lot_no, title, start_price, current_bid, min_increment, ends_at, status FROM auctions WHERE lot_no = ?"
@@ -354,14 +355,14 @@ async function handleApi(request, env, url) {
       .bind(lotNo)
       .first();
 
-    if (!auction) return json({ ok: false, error: "İhale bulunamadı." }, 404);
-    if (auction.status !== "ACTIVE") return json({ ok: false, error: "Bu ihale aktif değil." }, 409);
-    if (new Date(auction.ends_at).getTime() <= Date.now()) return json({ ok: false, error: "İhalenin süresi sona erdi." }, 409);
+    if (!auction) return json({ ok: false, error: "Ä°hale bulunamadÄ±." }, 404);
+    if (auction.status !== "ACTIVE") return json({ ok: false, error: "Bu ihale aktif deÄŸil." }, 409);
+    if (new Date(auction.ends_at).getTime() <= Date.now()) return json({ ok: false, error: "Ä°halenin sÃ¼resi sona erdi." }, 409);
 
     const floor = auction.current_bid ?? auction.start_price;
     const minimumRequired = Number(floor) + Number(auction.min_increment || 0);
     if (amount < minimumRequired) {
-      return json({ ok: false, error: `Teklif en az ${formatMoney(minimumRequired)} olmalıdır.` }, 400);
+      return json({ ok: false, error: `Teklif en az ${formatMoney(minimumRequired)} olmalÄ±dÄ±r.` }, 400);
     }
 
     const updateResult = await env.DB.prepare(
@@ -374,7 +375,7 @@ async function handleApi(request, env, url) {
 
     const changed = updateResult.meta?.changes || 0;
     if (changed < 1) {
-      return json({ ok: false, error: "Teklif işlenirken fiyat değişti. Lütfen güncel fiyatla tekrar deneyin." }, 409);
+      return json({ ok: false, error: "Teklif iÅŸlenirken fiyat deÄŸiÅŸti. LÃ¼tfen gÃ¼ncel fiyatla tekrar deneyin." }, 409);
     }
 
     await env.DB.prepare(
@@ -385,13 +386,13 @@ async function handleApi(request, env, url) {
 
     return json({
       ok: true,
-      message: "Teklifiniz alındı.",
+      message: "Teklifiniz alÄ±ndÄ±.",
       lotNo,
       amount,
     });
   }
 
-  return json({ ok: false, error: "Endpoint bulunamadı." }, 404);
+  return json({ ok: false, error: "Endpoint bulunamadÄ±." }, 404);
 }
 
 async function createSession(env, request, userId) {
@@ -605,7 +606,7 @@ function normalizeEmail(email) {
 
 function sanitizeName(name) {
   const clean = String(name || "").trim().replace(/\s+/g, " ");
-  if (!clean) return "Yeni Üye";
+  if (!clean) return "Yeni Ãœye";
   return clean.slice(0, 100);
 }
 
@@ -650,7 +651,7 @@ function requireSessionPepper(env) {
   return json(
     {
       ok: false,
-      error: "SESSION_PEPPER secret eksik. `wrangler secret put SESSION_PEPPER` ile güçlü bir secret tanımlayın.",
+      error: "SESSION_PEPPER secret eksik. `wrangler secret put SESSION_PEPPER` ile gÃ¼Ã§lÃ¼ bir secret tanÄ±mlayÄ±n.",
     },
     500
   );
@@ -677,16 +678,16 @@ async function ensureTurnstileRequired(env, request, body, expectedAction = null
   if (cfgError) return cfgError;
 
   const token = String(body?.turnstileToken || body?.["cf-turnstile-response"] || "").trim();
-  if (!token) return json({ ok: false, error: "Güvenlik doğrulaması tamamlanmadı. Lütfen tekrar deneyin." }, 400);
+  if (!token) return json({ ok: false, error: "GÃ¼venlik doÄŸrulamasÄ± tamamlanmadÄ±. LÃ¼tfen tekrar deneyin." }, 400);
 
   const remoteIp = getClientIp(request);
   const verify = await verifyTurnstileToken(String(env.TURNSTILE_SECRET || ""), token, remoteIp);
   if (!verify.success) {
-    return json({ ok: false, error: "Güvenlik doğrulaması başarısız. Lütfen tekrar deneyin." }, 400);
+    return json({ ok: false, error: "GÃ¼venlik doÄŸrulamasÄ± baÅŸarÄ±sÄ±z. LÃ¼tfen tekrar deneyin." }, 400);
   }
 
   if (expectedAction && verify.action !== expectedAction) {
-    return json({ ok: false, error: "Güvenlik doğrulaması geçersiz." }, 400);
+    return json({ ok: false, error: "GÃ¼venlik doÄŸrulamasÄ± geÃ§ersiz." }, 400);
   }
 
   return null;
@@ -705,7 +706,7 @@ async function verifyTurnstileToken(secret, token, remoteIp) {
     });
     return await response.json();
   } catch (error) {
-    console.error("Turnstile doğrulama hatası:", error);
+    console.error("Turnstile doÄŸrulama hatasÄ±:", error);
     return { success: false };
   }
 }
@@ -735,7 +736,7 @@ async function sendAuthEmail(env, to, subject, text) {
       }),
     });
   } catch (error) {
-    console.error("E-posta webhook çağrısı başarısız:", error);
+    console.error("E-posta webhook Ã§aÄŸrÄ±sÄ± baÅŸarÄ±sÄ±z:", error);
   }
 }
 
@@ -753,3 +754,4 @@ function formatMoney(value) {
     maximumFractionDigits: 2,
   }).format(value);
 }
+
