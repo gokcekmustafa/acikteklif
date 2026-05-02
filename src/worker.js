@@ -44,6 +44,7 @@ async function handleApi(request, env, url) {
     return json({
       ok: true,
       turnstileSiteKey: String(env.TURNSTILE_SITE_KEY || "").trim(),
+      requireEmailVerification: isEmailVerificationRequired(env),
     });
   }
 
@@ -91,6 +92,7 @@ async function handleApi(request, env, url) {
 
     const userId = crypto.randomUUID();
     const passwordHash = await hashPassword(password);
+    const requireEmailVerification = isEmailVerificationRequired(env);
 
     await env.DB.prepare(
       "INSERT INTO users (id, email, name, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
@@ -98,25 +100,37 @@ async function handleApi(request, env, url) {
       .bind(userId, email, name, passwordHash)
       .run();
 
-    const verifyToken = await createEmailVerifyToken(env, userId);
-    const verifyUrl = `${getBaseUrl(request, env)}/?verify=${encodeURIComponent(verifyToken)}`;
-    await sendAuthEmail(
-      env,
-      email,
-      "E-posta Doğrulama",
-      `Hesabınızı doğrulamak için bu bağlantıyı açın: ${verifyUrl}`
-    );
+    const verifyToken = requireEmailVerification ? await createEmailVerifyToken(env, userId) : null;
+    if (requireEmailVerification && verifyToken) {
+      const verifyUrl = `${getBaseUrl(request, env)}/?verify=${encodeURIComponent(verifyToken)}`;
+      await sendAuthEmail(
+        env,
+        email,
+        "E-posta Doğrulama",
+        `Hesabınızı doğrulamak için bu bağlantıyı açın: ${verifyUrl}`
+      );
+    } else {
+      await env.DB.prepare(
+        "UPDATE users SET email_verified_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+      )
+        .bind(userId)
+        .run();
+    }
 
     const { cookie, expiresAt } = await createSession(env, request, userId);
     const headers = new Headers({ "content-type": "application/json; charset=utf-8" });
     headers.append("set-cookie", cookie);
 
+    const registerMessage = requireEmailVerification
+      ? "Kayit basarili. E-posta dogrulama baglantisi gonderildi."
+      : "Kayit basarili.";
+
     return new Response(
       JSON.stringify({
         ok: true,
-        message: "Kayıt başarılı. E-posta doğrulama bağlantısı gönderildi.",
         expiresAt,
-        debugVerifyToken: shouldExposeDebugToken(env) ? verifyToken : undefined,
+        message: registerMessage,
+        debugVerifyToken: requireEmailVerification && shouldExposeDebugToken(env) ? verifyToken : undefined,
       }),
       { status: 201, headers }
     );
@@ -185,6 +199,10 @@ async function handleApi(request, env, url) {
   }
 
   if (method === "POST" && path === "/api/auth/verify/request") {
+    if (!isEmailVerificationRequired(env)) {
+      return json({ ok: true, message: "Bu ortamda e-posta dogrulama zorunlu degil." });
+    }
+
     const cfgError = requireSessionPepper(env);
     if (cfgError) return cfgError;
 
@@ -317,7 +335,7 @@ async function handleApi(request, env, url) {
 
     const session = await getSession(request, env);
     if (!session) return json({ ok: false, error: "Teklif verebilmek için giriş yapmalısınız." }, 401);
-    if (!session.user.email_verified_at) {
+    if (isEmailVerificationRequired(env) && !session.user.email_verified_at) {
       return json({ ok: false, error: "Teklif verebilmek için önce e-posta adresinizi doğrulayın." }, 403);
     }
 
@@ -719,6 +737,10 @@ async function sendAuthEmail(env, to, subject, text) {
   } catch (error) {
     console.error("E-posta webhook çağrısı başarısız:", error);
   }
+}
+
+function isEmailVerificationRequired(env) {
+  return String(env.REQUIRE_EMAIL_VERIFICATION || "").toLowerCase() === "true";
 }
 
 function shouldExposeDebugToken(env) {

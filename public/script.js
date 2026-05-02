@@ -180,6 +180,7 @@ const state = {
   },
   auth: {
     user: null,
+    requireEmailVerification: false,
   },
   turnstile: {
     siteKey: META_TURNSTILE_SITE_KEY || "",
@@ -327,9 +328,9 @@ async function hydrateTurnstileConfig() {
   try {
     const data = await apiFetch("/api/config");
     const runtimeKey = String(data.turnstileSiteKey || "").trim();
+    state.auth.requireEmailVerification = data.requireEmailVerification === true;
     if (runtimeKey) {
       state.turnstile.siteKey = runtimeKey;
-      return;
     }
   } catch {
     // ignore and fallback to meta value
@@ -458,7 +459,9 @@ function updateAuthUi() {
     return;
   }
 
-  const verifiedText = user.emailVerified ? "doğrulanmış" : "doğrulanmamış";
+  const verifiedText = state.auth.requireEmailVerification
+    ? (user.emailVerified ? "doğrulanmış" : "doğrulanmamış")
+    : "doğrulama kapalı";
   elements.authStatus.textContent = `${user.name} (${verifiedText})`;
   elements.openSignInModal.classList.add("hide");
   elements.logoutBtn.classList.remove("hide");
@@ -782,7 +785,7 @@ async function handleBid(button) {
     return;
   }
 
-  if (!state.auth.user.emailVerified) {
+  if (state.auth.requireEmailVerification && !state.auth.user.emailVerified) {
     try {
       const data = await apiFetch("/api/auth/verify/request", { method: "POST" });
       const message = data.debugVerifyToken

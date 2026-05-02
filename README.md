@@ -9,7 +9,7 @@ Bu proje statik arayuzun yaninda Cloudflare Worker + D1 ile calisan uyelik ve te
 - Oturum yonetimi: `HttpOnly + Secure cookie`
 - E-posta dogrulama akisi
 - Sifre sifirlama akisi
-- Sadece dogrulanmis uyelerin teklif verebilmesi: `/api/bids`
+- E-posta dogrulama zorunlulugu ayarlanabilir (`REQUIRE_EMAIL_VERIFICATION`)
 - Basit rate limiting (D1 tabanli)
 - Turnstile captcha korumasi (register/login icin zorunlu)
 
@@ -56,12 +56,19 @@ npx wrangler secret put TURNSTILE_SECRET
 npx wrangler secret put TURNSTILE_SITE_KEY
 ```
 
-8. Lokal calistir:
+8. E-posta dogrulama zorunlulugunu ayarla:
+```bash
+# false: mail dogrulama olmadan teklif verilebilir
+# true : teklif icin e-posta dogrulama gerekir
+```
+`wrangler.toml` icindeki `REQUIRE_EMAIL_VERIFICATION` degerini ihtiyaca gore guncelleyin.
+
+9. Lokal calistir:
 ```bash
 npx wrangler dev
 ```
 
-9. Deploy:
+10. Deploy:
 ```bash
 npx wrangler deploy
 ```
