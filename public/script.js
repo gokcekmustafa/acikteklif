@@ -5,7 +5,7 @@ const META_TURNSTILE_SITE_KEY = document
   ?.trim();
 
 
-const listings = [
+const fallbackListings = [
   {
     id: 1,
     lotNo: "34AT001",
@@ -160,9 +160,14 @@ const listings = [
   },
 ];
 
+const DEFAULT_LISTING_IMAGE =
+  "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=900&q=80";
+const fallbackListingByLotNo = new Map(fallbackListings.map((item) => [item.lotNo, item]));
+
 const state = {
   tab: "ALL",
   order: "DEFAULT",
+  listings: [],
   filters: {
     productGroup: "",
     category: "",
@@ -233,20 +238,89 @@ init().catch((error) => {
 });
 
 async function init() {
-  fillSelect(elements.productGroup, uniqueValues("productGroup"));
-  fillSelect(elements.category, uniqueValues("category"));
-  fillSelect(elements.city, uniqueValues("city"));
-  fillSelect(elements.district, uniqueValues("district"));
-  fillSelect(elements.neighborhood, uniqueValues("neighborhood"));
-
   await hydrateTurnstileConfig();
   await initTurnstile();
+  await loadListings();
+  hydrateFilterOptions();
   bindEvents();
   await hydrateAuth();
   await handleUrlActions();
   render();
   updateCountdowns();
   setInterval(updateCountdowns, 1000);
+}
+
+function hydrateFilterOptions() {
+  refillSelect(elements.productGroup, uniqueValues("productGroup"), "Urun Grubu Seciniz");
+  refillSelect(elements.category, uniqueValues("category"), "Kategori Seciniz");
+  refillSelect(elements.city, uniqueValues("city"), "Il Seciniz");
+  refillSelect(elements.district, uniqueValues("district"), "Ilce Seciniz");
+  refillSelect(elements.neighborhood, uniqueValues("neighborhood"), "Mahalle Seciniz");
+}
+
+function refillSelect(selectElement, values, placeholder) {
+  selectElement.innerHTML = "";
+  const option = document.createElement("option");
+  option.value = "";
+  option.textContent = placeholder;
+  selectElement.appendChild(option);
+  fillSelect(selectElement, values);
+}
+
+async function loadListings() {
+  try {
+    const data = await apiFetch("/api/auctions");
+    const items = Array.isArray(data.items) ? data.items : [];
+    state.listings = items.map((item, index) => toListingModel(item, index));
+  } catch (error) {
+    console.warn("Auction API fetch failed, using fallback list.", error);
+    state.listings = [];
+  }
+
+  if (state.listings.length < 1) {
+    state.listings = fallbackListings.map((item) => ({
+      ...item,
+      minIncrement: guessIncrement(item),
+      status: "ACTIVE",
+    }));
+  }
+}
+
+function toListingModel(item, index) {
+  const lotNo = String(item?.lot_no || item?.lotNo || "").trim().toUpperCase();
+  const fallback = fallbackListingByLotNo.get(lotNo) || {};
+
+  const startPrice = Number(item?.start_price ?? item?.startPrice ?? fallback.startPrice ?? 0);
+  const currentBidRaw = item?.current_bid ?? item?.currentBid ?? fallback.lastBid ?? null;
+  const currentBid = currentBidRaw === null || currentBidRaw === undefined ? null : Number(currentBidRaw);
+  const minIncrementRaw = item?.min_increment ?? item?.minIncrement ?? fallback.minIncrement ?? guessIncrement({ startPrice });
+  const minIncrement = Number.isFinite(Number(minIncrementRaw)) ? Number(minIncrementRaw) : guessIncrement({ startPrice });
+
+  const endAt = String(item?.ends_at || item?.endAt || fallback.endAt || addTime(0, 1, 0, 0));
+  const status = String(item?.status || fallback.status || "ACTIVE").toUpperCase();
+  const createdAt = String(item?.created_at || item?.createdAt || fallback.createdAt || new Date().toISOString());
+
+  return {
+    id: item?.id || fallback.id || lotNo || String(index + 1),
+    lotNo: lotNo || fallback.lotNo || `LOT${String(index + 1).padStart(3, "0")}`,
+    title: String(item?.title || fallback.title || "Ihale"),
+    productGroup: fallback.productGroup || "Genel",
+    category: fallback.category || "Genel",
+    city: fallback.city || "Belirtilmemis",
+    district: fallback.district || "-",
+    neighborhood: fallback.neighborhood || "-",
+    startPrice: Number.isFinite(startPrice) ? startPrice : 0,
+    lastBid: Number.isFinite(currentBid) ? currentBid : null,
+    hasOffer: Number.isFinite(currentBid) && currentBid > 0,
+    isNew: fallback.isNew ?? false,
+    isOpportunity: fallback.isOpportunity ?? false,
+    priceDropped: fallback.priceDropped ?? false,
+    endAt,
+    image: fallback.image || DEFAULT_LISTING_IMAGE,
+    createdAt,
+    status,
+    minIncrement,
+  };
 }
 
 async function hydrateTurnstileConfig() {
@@ -546,7 +620,7 @@ function fillSelect(selectElement, values) {
 }
 
 function uniqueValues(key) {
-  return [...new Set(listings.map((item) => item[key]))].sort((a, b) => a.localeCompare(b, "tr"));
+  return [...new Set(state.listings.map((item) => item[key]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"));
 }
 
 function readFiltersFromForm() {
@@ -585,7 +659,7 @@ function clearFilters() {
 }
 
 function render() {
-  const filtered = applyFilters(listings.slice());
+  const filtered = applyFilters(state.listings.slice());
   const sorted = applySort(filtered);
 
   elements.listingBoxes.innerHTML = sorted.map(renderCard).join("");
@@ -643,7 +717,7 @@ function applySort(data) {
 
 function renderCard(item) {
   const remaining = getRemaining(item.endAt);
-  const isEnded = remaining.totalSeconds <= 0;
+  const isEnded = item.status === "ENDED" || remaining.totalSeconds <= 0;
   const countdownHtml = isEnded
     ? '<div class="counterEndText">İhale Sonuçlanmıştır</div>'
     : `
@@ -657,7 +731,9 @@ function renderCard(item) {
 
   const bidLabel = item.lastBid ? "SON TEKLİF" : "İLK TEKLİF BEKLENİYOR";
   const bidValue = item.lastBid ? formatMoney(item.lastBid) : "-";
-  const minimumBid = (item.lastBid ?? item.startPrice) + guessIncrement(item);
+  const minimumBid = (item.lastBid ?? item.startPrice) + Number(item.minIncrement || guessIncrement(item));
+  const bidButtonText = isEnded ? "SONUCLANDI" : "TEKLIF VER";
+  const bidButtonAttrs = isEnded ? 'disabled aria-disabled="true"' : "";
 
   return `
     <div class="box1 imgWrap">
@@ -688,7 +764,7 @@ function renderCard(item) {
             <div class="tLine2">Başlangıç Bedeli</div>
           </div>
           <div class="adBottomLine">
-            <button class="bidBtn" data-lot-no="${escapeHtml(item.lotNo)}" data-min-bid="${minimumBid}">TEKLİF VER</button>
+            <button class="bidBtn" data-lot-no="${escapeHtml(item.lotNo)}" data-min-bid="${minimumBid}" ${bidButtonAttrs}>${bidButtonText}</button>
             <div class="bLine1">${bidValue}</div>
             <div class="bLine2">${bidLabel}</div>
           </div>
@@ -736,12 +812,13 @@ async function handleBid(button) {
       body: { lotNo, amount },
     });
 
-    const listing = listings.find((x) => x.lotNo === lotNo);
+    const listing = state.listings.find((x) => x.lotNo === lotNo);
     if (listing) {
       listing.lastBid = data.amount;
       listing.hasOffer = true;
     }
 
+    await loadListings();
     render();
     alert(data.message || "Teklifiniz alındı.");
   } catch (error) {

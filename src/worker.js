@@ -306,7 +306,7 @@ async function handleApi(request, env, url) {
 
   if (method === "GET" && path === "/api/auctions") {
     const data = await env.DB.prepare(
-      "SELECT lot_no, title, start_price, current_bid, ends_at, status FROM auctions ORDER BY created_at DESC"
+      "SELECT id, lot_no, title, start_price, current_bid, min_increment, ends_at, status, created_at FROM auctions ORDER BY created_at DESC"
     ).all();
     return json({ ok: true, items: data.results || [] });
   }
