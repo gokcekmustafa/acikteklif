@@ -498,7 +498,7 @@ async function handleApi(request, env, url) {
 
     await ensureAdminSchemaWarm(env);
     if (method !== "GET") {
-      await ensureMarketplaceSchemaWarm(env, { runLegacyRepair: true });
+      await ensureMarketplaceSchemaWarm(env);
     }
 
     const session = await getSession(request, env);
@@ -650,7 +650,7 @@ async function handleApi(request, env, url) {
         return json({ ok: false, error: "Genel ürün grubu sistem varsayılanıdır, silinemez." }, 400);
       }
 
-      await ensureMarketplaceSchemaWarm(env, { runLegacyRepair: true });
+      await ensureMarketplaceSchemaWarm(env);
       const fallbackGroupNameRow = await env.DB.prepare("SELECT name FROM product_groups WHERE id = ?")
         .bind(FALLBACK_CATALOG_GROUP_ID)
         .first();
@@ -1768,7 +1768,7 @@ async function getCatalogSnapshotSafe(env) {
     return await getCatalogSnapshot(env);
   } catch (error) {
     console.warn("Katalog snapshot sorgusu hata verdi, schema onarimi deneniyor:", error);
-    await ensureMarketplaceSchemaWarm(env, { runLegacyRepair: true });
+    await ensureMarketplaceSchemaWarm(env);
     return await getCatalogSnapshot(env);
   }
 }
@@ -1778,7 +1778,7 @@ async function getAdminAuctionsListSafe(env) {
     return await getAdminAuctionsList(env);
   } catch (error) {
     console.warn("Ihale listesi sorgusu hata verdi, schema onarimi deneniyor:", error);
-    await ensureMarketplaceSchemaWarm(env, { runLegacyRepair: true });
+    await ensureMarketplaceSchemaWarm(env);
     return await getAdminAuctionsList(env);
   }
 }
@@ -1907,21 +1907,44 @@ async function buildUniqueCategorySlug(env, value: string, excludeCategoryId: st
 }
 
 async function seedDefaultCatalogGroups(env) {
-  for (const group of DEFAULT_CATALOG_GROUPS) {
-    try {
-      await env.DB.prepare(
-        `INSERT INTO product_groups (id, name, sort_order, is_active, created_at, updated_at)
-         VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-         ON CONFLICT(id) DO UPDATE SET
-           name = excluded.name,
-           is_active = 1,
-           updated_at = CURRENT_TIMESTAMP`
-      )
-        .bind(group.id, group.name, group.sortOrder)
-        .run();
-    } catch (error) {
-      console.warn("Varsayilan urun grubu yazilamadi:", error);
+  const countRow = await env.DB.prepare("SELECT COUNT(1) AS total FROM product_groups").first();
+  const totalGroups = Number(countRow?.total || 0);
+
+  if (totalGroups < 1) {
+    for (const group of DEFAULT_CATALOG_GROUPS) {
+      try {
+        await env.DB.prepare(
+          `INSERT OR IGNORE INTO product_groups (id, name, sort_order, is_active, created_at, updated_at)
+           VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+        )
+          .bind(group.id, group.name, group.sortOrder)
+          .run();
+      } catch (error) {
+        console.warn("Varsayilan urun grubu yazilamadi:", error);
+      }
     }
+  }
+
+  const fallbackGroup = await env.DB.prepare("SELECT id FROM product_groups WHERE id = ? LIMIT 1")
+    .bind(FALLBACK_CATALOG_GROUP_ID)
+    .first();
+  if (fallbackGroup?.id) return;
+
+  const fallbackSeed = DEFAULT_CATALOG_GROUPS.find((item) => item.id === FALLBACK_CATALOG_GROUP_ID) || {
+    id: FALLBACK_CATALOG_GROUP_ID,
+    name: "Genel",
+    sortOrder: 999,
+  };
+
+  try {
+    await env.DB.prepare(
+      `INSERT INTO product_groups (id, name, sort_order, is_active, created_at, updated_at)
+       VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+    )
+      .bind(fallbackSeed.id, fallbackSeed.name, fallbackSeed.sortOrder)
+      .run();
+  } catch (error) {
+    console.warn("Fallback urun grubu olusturulamadi:", error);
   }
 }
 
@@ -2147,7 +2170,8 @@ async function validateAuctionPayload(env, body) {
   const city = String(body.city || "").trim().slice(0, 120);
   const district = String(body.district || "").trim().slice(0, 120);
   const neighborhood = String(body.neighborhood || "").trim().slice(0, 120);
-  const imageUrl = String(body.imageUrl || "").trim().slice(0, 500);
+  const rawImageUrl = String(body.imageUrl || "").trim();
+  let imageUrl = "";
 
   if (!lotNo) return { error: "İhale no zorunludur." };
   if (!title) return { error: "İhale başlığı zorunludur." };
@@ -2156,6 +2180,19 @@ async function validateAuctionPayload(env, body) {
 
   const endTime = new Date(endsAt).getTime();
   if (!endsAt || Number.isNaN(endTime)) return { error: "Bitiş tarihi geçersiz." };
+  if (rawImageUrl) {
+    if (rawImageUrl.startsWith("data:image/")) {
+      if (rawImageUrl.length > 1_200_000) {
+        return { error: "Gorsel dosyasi cok buyuk. Daha kucuk bir dosya yukleyin." };
+      }
+      imageUrl = rawImageUrl;
+    } else {
+      if (!/^https?:\/\//i.test(rawImageUrl)) {
+        return { error: "Gorsel URL http/https ile baslamalidir." };
+      }
+      imageUrl = rawImageUrl.slice(0, 2000);
+    }
+  }
 
   let groupId = groupIdRaw;
   let categoryId = categoryIdRaw;

@@ -63,7 +63,13 @@
         <div class="statusLine" id="statusLine"></div>
 
         <section class="panel" id="panelUsers">
-          <main class="userList" id="userList"></main>
+          <div class="usersLayout">
+            <aside class="usersMaster">
+              <div class="usersMasterTitle">Kullanicilar</div>
+              <div class="userList" id="userList"></div>
+            </aside>
+            <article class="usersDetail" id="userDetail"></article>
+          </div>
         </section>
 
         <section class="panel hide" id="panelCatalog">
@@ -146,6 +152,25 @@
               <div class="row2">
                 <input id="auctionEndsAtInput" type="datetime-local" required>
                 <input id="auctionImageUrlInput" type="url" placeholder="Gorsel URL (opsiyonel)">
+              </div>
+              <div class="uploadBlock">
+                <div class="uploadHead">
+                  <strong>Urun Gorseli Yukle</strong>
+                  <span class="uploadHint">Dosya sec veya surukle birak (JPG, PNG, WEBP)</span>
+                </div>
+                <div class="uploadDropzone" id="auctionImageDropzone" tabindex="0" role="button" aria-label="Gorsel yukleme alani">
+                  <div class="uploadDropzoneText">
+                    <i class="fas fa-cloud-arrow-up"></i>
+                    <span>Gorseli buraya surukleyip birak veya dosya sec</span>
+                  </div>
+                  <input id="auctionImageFileInput" type="file" accept="image/*" class="visuallyHidden">
+                </div>
+                <div class="row2">
+                  <button class="miniBtn" type="button" id="auctionImagePickBtn">Dosyadan Sec</button>
+                  <button class="miniBtn danger" type="button" id="auctionImageClearBtn">Gorseli Temizle</button>
+                </div>
+                <div class="uploadMeta" id="auctionImageMeta">Henuz dosya secilmedi.</div>
+                <img class="uploadPreview hide" id="auctionImagePreview" alt="Secilen gorsel onizleme">
               </div>
               <div class="row3">
                 <input id="auctionCityInput" type="text" placeholder="Il">

@@ -2,6 +2,9 @@ const API_BASE = "";
 const ROLE_MEMBER = "member";
 const ROLE_MANAGER = "manager";
 const ROLE_ADMIN = "admin";
+const MAX_AUCTION_IMAGE_DIMENSION = 1600;
+const MAX_AUCTION_IMAGE_BYTES = 450 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/jpg"]);
 
 const defaultPermissionDefs = [
   { key: "admin.panel.access", label: "Admin panel erisimi" },
@@ -22,9 +25,11 @@ const state: any = {
   activeTab: "users",
   currentUser: null,
   users: [],
+  selectedUserId: "",
   groups: [],
   categories: [],
   auctions: [],
+  auctionImageDataUrl: "",
   permissionDefs: defaultPermissionDefs,
   query: "",
   catalogQuery: "",
@@ -46,6 +51,7 @@ const elements = {
   catalogSearchInput: byId("catalogSearchInput"),
   auctionSearchInput: byId("auctionSearchInput"),
   userList: byId("userList"),
+  userDetail: byId("userDetail"),
   statTotalUsers: byId("statTotalUsers"),
   statManagers: byId("statManagers"),
   statDisabledUsers: byId("statDisabledUsers"),
@@ -85,6 +91,12 @@ const elements = {
   auctionStatusInput: byId("auctionStatusInput"),
   auctionEndsAtInput: byId("auctionEndsAtInput"),
   auctionImageUrlInput: byId("auctionImageUrlInput"),
+  auctionImageDropzone: byId("auctionImageDropzone"),
+  auctionImageFileInput: byId("auctionImageFileInput"),
+  auctionImagePickBtn: byId("auctionImagePickBtn"),
+  auctionImageClearBtn: byId("auctionImageClearBtn"),
+  auctionImageMeta: byId("auctionImageMeta"),
+  auctionImagePreview: byId("auctionImagePreview"),
   auctionCityInput: byId("auctionCityInput"),
   auctionDistrictInput: byId("auctionDistrictInput"),
   auctionNeighborhoodInput: byId("auctionNeighborhoodInput"),
@@ -130,6 +142,10 @@ function applyBootstrapPayload(data: any) {
   state.groups = Array.isArray(data.groups) ? data.groups : [];
   state.categories = Array.isArray(data.categories) ? data.categories : [];
   state.auctions = Array.isArray(data.auctions) ? data.auctions : [];
+  const hasSelectedUser = state.users.some((user: any) => String(user.id || "") === String(state.selectedUserId || ""));
+  if (!hasSelectedUser) {
+    state.selectedUserId = state.users[0] ? String(state.users[0].id || "") : "";
+  }
 
   const who = state.currentUser
     ? `${state.currentUser.name || "Yonetici"} (${state.currentUser.email || "-"})`
@@ -175,9 +191,18 @@ function bindEvents() {
 function bindUserEvents() {
   elements.userList.addEventListener("click", async (event: any) => {
     const target = event.target as HTMLElement;
+    const selectBtn = target.closest("button[data-action='select-user']") as HTMLButtonElement | null;
+    if (!selectBtn) return;
+    const userId = String(selectBtn.dataset.userId || "");
+    if (!userId) return;
+    state.selectedUserId = userId;
+    renderUsers();
+  });
+
+  elements.userDetail.addEventListener("click", async (event: any) => {
+    const target = event.target as HTMLElement;
     const actionBtn = target.closest("button[data-action]") as HTMLButtonElement | null;
     if (!actionBtn) return;
-
     const action = String(actionBtn.dataset.action || "");
     const userId = String(actionBtn.dataset.userId || "");
     if (!userId) return;
@@ -191,6 +216,7 @@ function bindUserEvents() {
         });
         await loadUsers();
         renderUsers();
+        renderStats();
         setStatus(!disabled ? "Kullanici pasife alindi." : "Kullanici aktif edildi.", "ok");
       });
       return;
@@ -222,11 +248,10 @@ function bindUserEvents() {
     }
   });
 
-  elements.userList.addEventListener("change", async (event: any) => {
+  elements.userDetail.addEventListener("change", async (event: any) => {
     const target = event.target as HTMLElement;
     const roleSelect = target.closest("select[data-action='change-role']") as HTMLSelectElement | null;
     if (!roleSelect) return;
-
     const userId = String(roleSelect.dataset.userId || "");
     const role = String(roleSelect.value || "").trim();
     if (!userId || !role) return;
@@ -238,6 +263,7 @@ function bindUserEvents() {
       });
       await loadUsers();
       renderUsers();
+      renderStats();
       setStatus("Rol guncellendi.", "ok");
     });
   });
@@ -394,6 +420,58 @@ function bindAuctionEvents() {
     fillAuctionCategorySelect();
   });
 
+  elements.auctionImagePickBtn.addEventListener("click", () => {
+    elements.auctionImageFileInput.click();
+  });
+
+  elements.auctionImageDropzone.addEventListener("click", () => {
+    elements.auctionImageFileInput.click();
+  });
+
+  elements.auctionImageDropzone.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    elements.auctionImageFileInput.click();
+  });
+
+  elements.auctionImageDropzone.addEventListener("dragover", (event: DragEvent) => {
+    event.preventDefault();
+    elements.auctionImageDropzone.classList.add("dragOver");
+  });
+
+  elements.auctionImageDropzone.addEventListener("dragleave", () => {
+    elements.auctionImageDropzone.classList.remove("dragOver");
+  });
+
+  elements.auctionImageDropzone.addEventListener("drop", async (event: DragEvent) => {
+    event.preventDefault();
+    elements.auctionImageDropzone.classList.remove("dragOver");
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+    await setAuctionImageFromFile(file);
+  });
+
+  elements.auctionImageFileInput.addEventListener("change", async () => {
+    const file = elements.auctionImageFileInput.files?.[0];
+    if (!file) return;
+    await setAuctionImageFromFile(file);
+    elements.auctionImageFileInput.value = "";
+  });
+
+  elements.auctionImageClearBtn.addEventListener("click", () => {
+    clearAuctionImageSelection();
+    setStatus("Yuklenen gorsel temizlendi.", "ok");
+  });
+
+  elements.auctionImageUrlInput.addEventListener("input", () => {
+    const hasManualUrl = String(elements.auctionImageUrlInput.value || "").trim().length > 0;
+    if (!hasManualUrl) return;
+    state.auctionImageDataUrl = "";
+    elements.auctionImagePreview.classList.add("hide");
+    elements.auctionImagePreview.removeAttribute("src");
+    elements.auctionImageMeta.textContent = "URL gorseli kullanilacak.";
+  });
+
   elements.auctionForm.addEventListener("submit", async (event: any) => {
     event.preventDefault();
     const auctionId = String(elements.auctionIdInput.value || "").trim();
@@ -502,12 +580,35 @@ function renderUsers() {
   const users = filterUsers(state.users, state.query);
   if (users.length < 1) {
     elements.userList.innerHTML = '<div class="emptyState">Filtreye uygun kullanici bulunamadi.</div>';
+    elements.userDetail.innerHTML = '<div class="usersDetailEmpty">Kullanici secildiginde yetki ayarlari burada gorunur.</div>';
     return;
   }
-  elements.userList.innerHTML = users.map(renderUserCard).join("");
+
+  const selectedUserId = String(state.selectedUserId || "");
+  const selectedExists = users.some((user: any) => String(user.id || "") === selectedUserId);
+  if (!selectedExists) {
+    state.selectedUserId = String(users[0].id || "");
+  }
+
+  const selected = users.find((user: any) => String(user.id || "") === String(state.selectedUserId || "")) || users[0];
+  elements.userList.innerHTML = users
+    .map((user: any) => renderUserListItem(user, String(user.id || "") === String(state.selectedUserId || "")))
+    .join("");
+  elements.userDetail.innerHTML = renderUserDetail(selected);
 }
 
-function renderUserCard(user: any) {
+function renderUserListItem(user: any, isSelected: boolean) {
+  const status = user.isDisabled ? "Pasif" : "Aktif";
+  return `
+    <button class="userListItem ${isSelected ? "active" : ""}" data-action="select-user" data-user-id="${escapeHtml(user.id || "")}" type="button">
+      <div class="userLineTop">${escapeHtml(user.name || "Isimsiz")}</div>
+      <div class="userLineMeta">${escapeHtml(user.email || "-")}</div>
+      <div class="userLineMeta">${escapeHtml(normalizeRole(user.role).toUpperCase())} | ${status}</div>
+    </button>
+  `;
+}
+
+function renderUserDetail(user: any) {
   const permissions = user.permissions || {};
   const role = normalizeRole(user.role);
   const isAdminUser = role === ROLE_ADMIN;
@@ -526,43 +627,42 @@ function renderUserCard(user: any) {
       const enabled = permissions[perm.key] === true;
       const cls = `${enabled ? "permBtn on" : "permBtn off"}${isAdminUser ? " locked" : ""}`;
       const lockBadge = isAdminUser ? " (Sabit)" : "";
+      const stateLabel = enabled ? "Acik" : "Kapali";
       return `<button class="${cls}" data-action="toggle-permission" data-user-id="${escapeHtml(
         user.id
       )}" data-permission-key="${escapeHtml(perm.key)}" data-enabled="${enabled ? "true" : "false"}" ${
         isAdminUser ? "disabled" : ""
-      }>${escapeHtml(perm.label)}${lockBadge}</button>`;
+      }>${escapeHtml(perm.label)}: ${stateLabel}${lockBadge}</button>`;
     })
     .join("");
 
   return `
-    <article class="userCard">
-      <div class="userHead">
-        <div>
-          <div class="nameLine">${escapeHtml(user.name || "Isimsiz")} ${statusBadge} ${verifiedBadge}</div>
-          <div class="userEmail">${escapeHtml(user.email || "-")}</div>
-          <div class="metaLine">ID: ${escapeHtml(user.id || "-")} | Kayit: ${formatDate(user.createdAt)}</div>
-        </div>
-        <div class="badges">
-          <span class="badge ${roleBadgeClass}">${role.toUpperCase()}</span>
-          <select class="roleSelect" data-action="change-role" data-user-id="${escapeHtml(user.id)}" ${
-            isAdminUser ? "disabled" : ""
-          }>
-            <option value="member" ${role === ROLE_MEMBER ? "selected" : ""}>Standart</option>
-            <option value="manager" ${role === ROLE_MANAGER ? "selected" : ""}>Yonetici</option>
-            <option value="admin" ${role === ROLE_ADMIN ? "selected" : ""}>Admin</option>
-          </select>
-        </div>
+    <div class="userDetailHead">
+      <div>
+        <div class="nameLine">${escapeHtml(user.name || "Isimsiz")} ${statusBadge} ${verifiedBadge}</div>
+        <div class="userEmail">${escapeHtml(user.email || "-")}</div>
+        <div class="metaLine">ID: ${escapeHtml(user.id || "-")} | Kayit: ${formatDate(user.createdAt)}</div>
       </div>
-      <div class="actionBar">
-        <button class="${statusBtnClass}" data-action="toggle-status" data-user-id="${escapeHtml(user.id)}" data-disabled="${
-          user.isDisabled ? "true" : "false"
-        }">${statusBtnText}</button>
-        <button class="miniBtn" data-action="revoke-sessions" data-user-id="${escapeHtml(
-          user.id
-        )}">Oturumlari Sonlandir</button>
+      <div class="badges">
+        <span class="badge ${roleBadgeClass}">${role.toUpperCase()}</span>
+        <select class="roleSelect" data-action="change-role" data-user-id="${escapeHtml(user.id)}" ${
+          isAdminUser ? "disabled" : ""
+        }>
+          <option value="member" ${role === ROLE_MEMBER ? "selected" : ""}>Standart</option>
+          <option value="manager" ${role === ROLE_MANAGER ? "selected" : ""}>Yonetici</option>
+          <option value="admin" ${role === ROLE_ADMIN ? "selected" : ""}>Admin</option>
+        </select>
       </div>
-      <div class="permGrid">${permissionButtons}</div>
-    </article>
+    </div>
+    <div class="actionBar">
+      <button class="${statusBtnClass}" data-action="toggle-status" data-user-id="${escapeHtml(user.id)}" data-disabled="${
+        user.isDisabled ? "true" : "false"
+      }">${statusBtnText}</button>
+      <button class="miniBtn" data-action="revoke-sessions" data-user-id="${escapeHtml(
+        user.id
+      )}">Oturumlari Sonlandir</button>
+    </div>
+    <div class="permGrid">${permissionButtons}</div>
   `;
 }
 
@@ -744,7 +844,16 @@ function fillAuctionForm(auction: any) {
   elements.auctionMinIncrementInput.value = String(Number(auction.min_increment || 1000));
   elements.auctionStatusInput.value = String(auction.status || "ACTIVE");
   elements.auctionEndsAtInput.value = toDateTimeLocal(auction.ends_at);
-  elements.auctionImageUrlInput.value = String(auction.image_url || "");
+  const imageValue = String(auction.image_url || "").trim();
+  if (imageValue.startsWith("data:image/")) {
+    state.auctionImageDataUrl = imageValue;
+    elements.auctionImageUrlInput.value = "";
+    setAuctionImagePreview(imageValue, "Kayitli gorsel secildi.");
+  } else {
+    clearAuctionImageSelection();
+    elements.auctionImageUrlInput.value = imageValue;
+    elements.auctionImageMeta.textContent = imageValue ? "URL gorseli kullanilacak." : "Henuz dosya secilmedi.";
+  }
   elements.auctionCityInput.value = String(auction.city || "");
   elements.auctionDistrictInput.value = String(auction.district || "");
   elements.auctionNeighborhoodInput.value = String(auction.neighborhood || "");
@@ -753,6 +862,8 @@ function fillAuctionForm(auction: any) {
 
 function readAuctionFormPayload() {
   const endsAtLocal = String(elements.auctionEndsAtInput.value || "").trim();
+  const manualUrl = String(elements.auctionImageUrlInput.value || "").trim();
+  const imageUrl = String(state.auctionImageDataUrl || "").trim() || manualUrl;
   return {
     lotNo: String(elements.auctionLotNoInput.value || "").trim().toUpperCase(),
     title: String(elements.auctionTitleInput.value || "").trim(),
@@ -765,7 +876,7 @@ function readAuctionFormPayload() {
     city: String(elements.auctionCityInput.value || "").trim(),
     district: String(elements.auctionDistrictInput.value || "").trim(),
     neighborhood: String(elements.auctionNeighborhoodInput.value || "").trim(),
-    imageUrl: String(elements.auctionImageUrlInput.value || "").trim(),
+    imageUrl,
   };
 }
 
@@ -803,6 +914,7 @@ function resetAuctionForm() {
   elements.auctionStatusInput.value = "ACTIVE";
   elements.auctionEndsAtInput.value = "";
   elements.auctionImageUrlInput.value = "";
+  clearAuctionImageSelection();
   elements.auctionCityInput.value = "";
   elements.auctionDistrictInput.value = "";
   elements.auctionNeighborhoodInput.value = "";
@@ -814,6 +926,111 @@ function ensureAuctionSelectionDefaults() {
     const firstGroup = state.groups.find((x: any) => Number(x.is_active || 0) === 1) || state.groups[0] || null;
     if (firstGroup) elements.auctionGroupSelect.value = String(firstGroup.id || "");
   }
+}
+
+async function setAuctionImageFromFile(file: File) {
+  const type = String(file.type || "").toLowerCase();
+  if (!ALLOWED_IMAGE_TYPES.has(type)) {
+    setStatus("Desteklenmeyen dosya formati. JPG, PNG veya WEBP yukleyin.", "error");
+    return;
+  }
+
+  setStatus("Gorsel isleniyor...", "warn");
+  try {
+    const dataUrl = await optimizeAuctionImage(file);
+    state.auctionImageDataUrl = dataUrl;
+    elements.auctionImageUrlInput.value = "";
+    setAuctionImagePreview(dataUrl, `${file.name} secildi (${formatBytes(file.size)}).`);
+    setStatus("Gorsel yukleme hazir.", "ok");
+  } catch (error: any) {
+    console.error(error);
+    setStatus(error.message || "Gorsel yuklenemedi.", "error");
+  }
+}
+
+async function optimizeAuctionImage(file: File) {
+  const image = await readImageFile(file);
+  let width = image.naturalWidth || image.width || 1;
+  let height = image.naturalHeight || image.height || 1;
+  const largest = Math.max(width, height);
+  if (largest > MAX_AUCTION_IMAGE_DIMENSION) {
+    const ratio = MAX_AUCTION_IMAGE_DIMENSION / largest;
+    width = Math.max(1, Math.round(width * ratio));
+    height = Math.max(1, Math.round(height * ratio));
+  }
+
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Tarayici gorsel isleme destegi vermiyor.");
+
+  let bestDataUrl = "";
+  let bestApproxSize = Number.POSITIVE_INFINITY;
+  let currentWidth = width;
+  let currentHeight = height;
+
+  for (let scaleStep = 0; scaleStep < 6; scaleStep += 1) {
+    canvas.width = currentWidth;
+    canvas.height = currentHeight;
+    context.clearRect(0, 0, currentWidth, currentHeight);
+    context.drawImage(image, 0, 0, currentWidth, currentHeight);
+
+    for (let quality = 0.9; quality >= 0.5; quality -= 0.1) {
+      const dataUrl = canvas.toDataURL("image/jpeg", Number(quality.toFixed(2)));
+      const approxSize = estimateDataUrlBytes(dataUrl);
+      if (approxSize < bestApproxSize) {
+        bestApproxSize = approxSize;
+        bestDataUrl = dataUrl;
+      }
+      if (approxSize <= MAX_AUCTION_IMAGE_BYTES) {
+        return dataUrl;
+      }
+    }
+
+    currentWidth = Math.max(420, Math.round(currentWidth * 0.82));
+    currentHeight = Math.max(320, Math.round(currentHeight * 0.82));
+  }
+
+  if (!bestDataUrl) throw new Error("Gorsel donusturulemedi.");
+  return bestDataUrl;
+}
+
+async function readImageFile(file: File): Promise<HTMLImageElement> {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    return await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Dosya gorsel olarak okunamadi."));
+      image.src = objectUrl;
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+function clearAuctionImageSelection() {
+  state.auctionImageDataUrl = "";
+  elements.auctionImagePreview.classList.add("hide");
+  elements.auctionImagePreview.removeAttribute("src");
+  elements.auctionImageMeta.textContent = "Henuz dosya secilmedi.";
+}
+
+function setAuctionImagePreview(dataUrl: string, metaText: string) {
+  elements.auctionImagePreview.src = dataUrl;
+  elements.auctionImagePreview.classList.remove("hide");
+  elements.auctionImageMeta.textContent = metaText;
+}
+
+function estimateDataUrlBytes(dataUrl: string) {
+  const body = String(dataUrl || "").split(",")[1] || "";
+  return Math.ceil((body.length * 3) / 4);
+}
+
+function formatBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  if (bytes < 1024) return `${Math.round(bytes)} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 function filterUsers(users: any[], query: string) {
