@@ -2,6 +2,7 @@ ENVIRONMENT=development
 REQUIRE_EMAIL_VERIFICATION=false
 PUBLIC_BASE_URL=http://127.0.0.1:8787
 SESSION_PEPPER=replace_with_long_random_secret
+SUPER_ADMIN_EMAILS=admin@example.com
 # EMAIL_FROM=noreply@example.com
 # EMAIL_WEBHOOK_URL=https://your-mail-webhook.example/send
 TURNSTILE_SITE_KEY=1x00000000000000000000AA

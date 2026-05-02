@@ -1,4 +1,5 @@
 .wrangler/
 node_modules/
+.npm-cache/
 .dev.vars
 *.log
