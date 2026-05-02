@@ -27,6 +27,8 @@ const state: any = {
   auctions: [],
   permissionDefs: defaultPermissionDefs,
   query: "",
+  catalogQuery: "",
+  auctionQuery: "",
 };
 
 const elements = {
@@ -38,6 +40,8 @@ const elements = {
   panelUsers: byId("panelUsers"),
   panelCatalog: byId("panelCatalog"),
   panelAuctions: byId("panelAuctions"),
+  catalogSearchInput: byId("catalogSearchInput"),
+  auctionSearchInput: byId("auctionSearchInput"),
   userList: byId("userList"),
   statTotalUsers: byId("statTotalUsers"),
   statManagers: byId("statManagers"),
@@ -52,6 +56,8 @@ const elements = {
   groupSortInput: byId("groupSortInput"),
   groupActiveInput: byId("groupActiveInput"),
   groupResetBtn: byId("groupResetBtn"),
+  groupFormTitle: byId("groupFormTitle"),
+  groupSaveBtn: byId("groupSaveBtn"),
   groupRows: byId("groupRows"),
 
   categoryForm: byId("categoryForm"),
@@ -61,6 +67,8 @@ const elements = {
   categorySortInput: byId("categorySortInput"),
   categoryActiveInput: byId("categoryActiveInput"),
   categoryResetBtn: byId("categoryResetBtn"),
+  categoryFormTitle: byId("categoryFormTitle"),
+  categorySaveBtn: byId("categorySaveBtn"),
   categoryRows: byId("categoryRows"),
 
   auctionForm: byId("auctionForm"),
@@ -78,6 +86,8 @@ const elements = {
   auctionDistrictInput: byId("auctionDistrictInput"),
   auctionNeighborhoodInput: byId("auctionNeighborhoodInput"),
   auctionResetBtn: byId("auctionResetBtn"),
+  auctionFormTitle: byId("auctionFormTitle"),
+  auctionSaveBtn: byId("auctionSaveBtn"),
   auctionRows: byId("auctionRows"),
 };
 
@@ -129,6 +139,14 @@ function bindEvents() {
   elements.searchInput.addEventListener("input", () => {
     state.query = String(elements.searchInput.value || "").trim().toLowerCase();
     renderUsers();
+  });
+  elements.catalogSearchInput.addEventListener("input", () => {
+    state.catalogQuery = String(elements.catalogSearchInput.value || "").trim().toLowerCase();
+    renderCatalog();
+  });
+  elements.auctionSearchInput.addEventListener("input", () => {
+    state.auctionQuery = String(elements.auctionSearchInput.value || "").trim().toLowerCase();
+    renderAuctions();
   });
 
   elements.tabs.addEventListener("click", (event: any) => {
@@ -257,6 +275,7 @@ function bindCatalogEvents() {
       elements.groupNameInput.value = group.name || "";
       elements.groupSortInput.value = String(group.sort_order ?? 0);
       elements.groupActiveInput.checked = Number(group.is_active || 0) === 1;
+      updateFormHeadings();
       return;
     }
 
@@ -329,6 +348,7 @@ function bindCatalogEvents() {
       elements.categoryNameInput.value = category.name || "";
       elements.categorySortInput.value = String(category.sort_order ?? 0);
       elements.categoryActiveInput.checked = Number(category.is_active || 0) === 1;
+      updateFormHeadings();
       return;
     }
 
@@ -397,6 +417,7 @@ function bindAuctionEvents() {
       fillAuctionForm(auction);
       state.activeTab = "auctions";
       renderTabs();
+      updateFormHeadings();
       return;
     }
 
@@ -435,6 +456,7 @@ function renderAll() {
   renderUsers();
   renderCatalog();
   renderAuctions();
+  updateFormHeadings();
 }
 
 function renderTabs() {
@@ -474,6 +496,7 @@ function renderUsers() {
 function renderUserCard(user: any) {
   const permissions = user.permissions || {};
   const role = normalizeRole(user.role);
+  const isAdminUser = role === ROLE_ADMIN;
   const roleBadgeClass = `role-${role}`;
   const statusBadge = user.isDisabled
     ? '<span class="badge danger">Pasif</span>'
@@ -487,12 +510,13 @@ function renderUserCard(user: any) {
   const permissionButtons = state.permissionDefs
     .map((perm: any) => {
       const enabled = permissions[perm.key] === true;
-      const cls = enabled ? "permBtn on" : "permBtn off";
+      const cls = `${enabled ? "permBtn on" : "permBtn off"}${isAdminUser ? " locked" : ""}`;
+      const lockBadge = isAdminUser ? " (Sabit)" : "";
       return `<button class="${cls}" data-action="toggle-permission" data-user-id="${escapeHtml(
         user.id
-      )}" data-permission-key="${escapeHtml(perm.key)}" data-enabled="${enabled ? "true" : "false"}">${escapeHtml(
-        perm.label
-      )}</button>`;
+      )}" data-permission-key="${escapeHtml(perm.key)}" data-enabled="${enabled ? "true" : "false"}" ${
+        isAdminUser ? "disabled" : ""
+      }>${escapeHtml(perm.label)}${lockBadge}</button>`;
     })
     .join("");
 
@@ -506,7 +530,9 @@ function renderUserCard(user: any) {
         </div>
         <div class="badges">
           <span class="badge ${roleBadgeClass}">${role.toUpperCase()}</span>
-          <select class="roleSelect" data-action="change-role" data-user-id="${escapeHtml(user.id)}">
+          <select class="roleSelect" data-action="change-role" data-user-id="${escapeHtml(user.id)}" ${
+            isAdminUser ? "disabled" : ""
+          }>
             <option value="member" ${role === ROLE_MEMBER ? "selected" : ""}>Standart</option>
             <option value="manager" ${role === ROLE_MANAGER ? "selected" : ""}>Yonetici</option>
             <option value="admin" ${role === ROLE_ADMIN ? "selected" : ""}>Admin</option>
@@ -531,7 +557,23 @@ function renderCatalog() {
   fillGroupSelect(elements.auctionGroupSelect, true);
   fillAuctionCategorySelect();
 
-  elements.groupRows.innerHTML = state.groups
+  const q = String(state.catalogQuery || "").trim().toLowerCase();
+  const groupNameById = new Map(state.groups.map((g: any) => [g.id, g.name]));
+  const groups = state.groups.filter((group: any) => {
+    if (!q) return true;
+    return String(group.name || "").toLowerCase().includes(q);
+  });
+  const categories = state.categories.filter((category: any) => {
+    if (!q) return true;
+    const categoryName = String(category.name || "").toLowerCase();
+    const groupName = String(groupNameById.get(category.group_id) || "").toLowerCase();
+    return categoryName.includes(q) || groupName.includes(q);
+  });
+
+  if (groups.length < 1) {
+    elements.groupRows.innerHTML = '<tr><td colspan="3"><div class="emptyState">Filtreye uygun urun grubu bulunamadi.</div></td></tr>';
+  } else {
+    elements.groupRows.innerHTML = groups
     .map((group: any) => {
       const active = Number(group.is_active || 0) === 1;
       return `
@@ -551,41 +593,64 @@ function renderCatalog() {
       `;
     })
     .join("");
+  }
 
-  const groupNameById = new Map(state.groups.map((g: any) => [g.id, g.name]));
-  elements.categoryRows.innerHTML = state.categories
-    .map((category: any) => {
-      const active = Number(category.is_active || 0) === 1;
-      return `
-        <tr>
-          <td>${escapeHtml(category.name || "-")}<div class="metaLine">Sira: ${Number(category.sort_order || 0)}</div></td>
-          <td>${escapeHtml(groupNameById.get(category.group_id) || "-")}</td>
-          <td><span class="pill ${active ? "ok" : "danger"}">${active ? "Aktif" : "Pasif"}</span></td>
-          <td>
-            <div class="rowActions">
-              <button class="miniBtn" data-action="edit-category" data-id="${escapeHtml(category.id)}">Duzenle</button>
-              <button class="miniBtn" data-action="toggle-category" data-id="${escapeHtml(category.id)}">${
-                active ? "Pasif Et" : "Aktif Et"
-              }</button>
-              <button class="miniBtn danger" data-action="delete-category" data-id="${escapeHtml(category.id)}">Sil</button>
-            </div>
-          </td>
-        </tr>
-      `;
-    })
-    .join("");
+  if (categories.length < 1) {
+    elements.categoryRows.innerHTML =
+      '<tr><td colspan="4"><div class="emptyState">Filtreye uygun kategori bulunamadi.</div></td></tr>';
+  } else {
+    elements.categoryRows.innerHTML = categories
+      .map((category: any) => {
+        const active = Number(category.is_active || 0) === 1;
+        return `
+          <tr>
+            <td>${escapeHtml(category.name || "-")}<div class="metaLine">Sira: ${Number(category.sort_order || 0)}</div></td>
+            <td>${escapeHtml(groupNameById.get(category.group_id) || "-")}</td>
+            <td><span class="pill ${active ? "ok" : "danger"}">${active ? "Aktif" : "Pasif"}</span></td>
+            <td>
+              <div class="rowActions">
+                <button class="miniBtn" data-action="edit-category" data-id="${escapeHtml(category.id)}">Duzenle</button>
+                <button class="miniBtn" data-action="toggle-category" data-id="${escapeHtml(category.id)}">${
+                  active ? "Pasif Et" : "Aktif Et"
+                }</button>
+                <button class="miniBtn danger" data-action="delete-category" data-id="${escapeHtml(category.id)}">Sil</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+  }
 }
 
 function renderAuctions() {
   fillGroupSelect(elements.auctionGroupSelect, true);
   fillAuctionCategorySelect();
 
-  if (state.auctions.length < 1) {
+  const q = String(state.auctionQuery || "").trim().toLowerCase();
+  const auctions = state.auctions.filter((auction: any) => {
+    if (!q) return true;
+    const haystack = [
+      auction.lot_no,
+      auction.title,
+      auction.product_group,
+      auction.category,
+      auction.city,
+      auction.district,
+      auction.neighborhood,
+      auction.status,
+    ]
+      .map((item: any) => String(item || "").toLowerCase())
+      .join(" ");
+    return haystack.includes(q);
+  });
+
+  if (auctions.length < 1) {
     elements.auctionRows.innerHTML = '<tr><td colspan="7"><div class="emptyState">Kayitli ihale bulunamadi.</div></td></tr>';
     return;
   }
 
-  elements.auctionRows.innerHTML = state.auctions
+  elements.auctionRows.innerHTML = auctions
     .map((auction: any) => {
       return `
         <tr>
@@ -662,6 +727,7 @@ function fillAuctionForm(auction: any) {
   elements.auctionCityInput.value = String(auction.city || "");
   elements.auctionDistrictInput.value = String(auction.district || "");
   elements.auctionNeighborhoodInput.value = String(auction.neighborhood || "");
+  updateFormHeadings();
 }
 
 function readAuctionFormPayload() {
@@ -687,6 +753,7 @@ function resetGroupForm() {
   elements.groupNameInput.value = "";
   elements.groupSortInput.value = "0";
   elements.groupActiveInput.checked = true;
+  updateFormHeadings();
 }
 
 function resetCategoryForm() {
@@ -697,6 +764,7 @@ function resetCategoryForm() {
   if (state.groups.length > 0) {
     elements.categoryGroupSelect.value = String(state.groups[0].id || "");
   }
+  updateFormHeadings();
 }
 
 function resetAuctionForm() {
@@ -714,6 +782,7 @@ function resetAuctionForm() {
   elements.auctionCityInput.value = "";
   elements.auctionDistrictInput.value = "";
   elements.auctionNeighborhoodInput.value = "";
+  updateFormHeadings();
 }
 
 function filterUsers(users: any[], query: string) {
@@ -730,6 +799,20 @@ function normalizeRole(role: string) {
   if (value === ROLE_ADMIN) return ROLE_ADMIN;
   if (value === ROLE_MANAGER) return ROLE_MANAGER;
   return ROLE_MEMBER;
+}
+
+function updateFormHeadings() {
+  const isEditingGroup = String(elements.groupIdInput.value || "").trim().length > 0;
+  const isEditingCategory = String(elements.categoryIdInput.value || "").trim().length > 0;
+  const isEditingAuction = String(elements.auctionIdInput.value || "").trim().length > 0;
+
+  elements.groupFormTitle.textContent = isEditingGroup ? "Urun Grubu Duzenle" : "Urun Grubu Ekle";
+  elements.categoryFormTitle.textContent = isEditingCategory ? "Kategori Duzenle" : "Kategori Ekle";
+  elements.auctionFormTitle.textContent = isEditingAuction ? "Ihale Duzenle" : "Ihale Ekle";
+
+  elements.groupSaveBtn.textContent = isEditingGroup ? "Guncelle" : "Kaydet";
+  elements.categorySaveBtn.textContent = isEditingCategory ? "Guncelle" : "Kaydet";
+  elements.auctionSaveBtn.textContent = isEditingAuction ? "Guncelle" : "Kaydet";
 }
 
 function setStatus(text: string, kind: "ok" | "error" | "warn" | "") {

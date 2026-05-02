@@ -164,6 +164,14 @@ body {
   font-size: 0.95rem;
 }
 
+.inputWrap.compact {
+  max-width: 100%;
+}
+
+.inputWrap.compact input {
+  height: 40px;
+}
+
 .sessionBox {
   font-size: 0.85rem;
   font-weight: 600;
@@ -215,6 +223,23 @@ body {
 .panel {
   display: grid;
   gap: 12px;
+}
+
+.panelTools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hintChip {
+  border: 1px solid #d7e0ef;
+  background: #f6f9ff;
+  color: #32517d;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .grid2 {
@@ -452,6 +477,11 @@ th {
   background: #f4f8ff;
 }
 
+.roleSelect:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .permGrid {
   margin-top: 12px;
   display: grid;
@@ -488,6 +518,15 @@ th {
   cursor: wait;
 }
 
+.permBtn.locked {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.tableTools {
+  margin-bottom: 10px;
+}
+
 .emptyState {
   background: #fff;
   border: 1px dashed #c7d5eb;
@@ -514,7 +553,8 @@ th {
   }
 
   .topbar,
-  .toolbar {
+  .toolbar,
+  .panelTools {
     flex-direction: column;
     align-items: stretch;
   }

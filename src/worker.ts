@@ -33,6 +33,16 @@ const MANAGER_DEFAULT_PERMISSIONS = new Set<string>([
   PERMISSIONS.REPORTS_VIEW,
 ]);
 const ADMIN_DEFAULT_PERMISSIONS = new Set<string>(ALL_PERMISSION_KEYS);
+const DEFAULT_CATALOG_GROUPS = [
+  { id: "grp-vasita", name: "Vasita", sortOrder: 10 },
+  { id: "grp-elektronik", name: "Elektronik", sortOrder: 20 },
+  { id: "grp-ofis", name: "Ofis Ekipmanlari", sortOrder: 30 },
+  { id: "grp-sanayi", name: "Sanayi Ekipmanlari", sortOrder: 40 },
+  { id: "grp-gayrimenkul", name: "Gayrimenkul", sortOrder: 50 },
+  { id: "grp-beyaz", name: "Beyaz Esya", sortOrder: 60 },
+  { id: "grp-genel", name: "Genel", sortOrder: 999 },
+] as const;
+const FALLBACK_CATALOG_GROUP_ID = "grp-genel";
 
 interface TurnstileVerifyResponse {
   success: boolean;
@@ -966,6 +976,10 @@ async function handleApi(request, env, url) {
 
       const targetUser = await env.DB.prepare("SELECT id, email FROM users WHERE id = ?").bind(targetUserId).first();
       if (!targetUser) return json({ ok: false, error: "Kullanıcı bulunamadı." }, 404);
+      const targetAccessBefore = await getUserAccess(env, targetUserId, targetUser.email);
+      if (targetAccessBefore.role === USER_ROLES.ADMIN) {
+        return json({ ok: false, error: "Admin kullanıcısının yetkileri sınırsızdır ve değiştirilemez." }, 400);
+      }
 
       if (
         targetUserId === session.user.id &&
@@ -1340,11 +1354,16 @@ function buildRolePermissions(role, overrides: Record<string, boolean> = {}) {
   const normalizedRole = normalizeRole(role);
   const permissions: Record<string, boolean> = {};
 
+  if (normalizedRole === USER_ROLES.ADMIN) {
+    for (const key of ALL_PERMISSION_KEYS) {
+      permissions[key] = true;
+    }
+    return permissions;
+  }
+
   for (const key of ALL_PERMISSION_KEYS) {
     let value = false;
-    if (normalizedRole === USER_ROLES.ADMIN) {
-      value = ADMIN_DEFAULT_PERMISSIONS.has(key);
-    } else if (normalizedRole === USER_ROLES.MANAGER) {
+    if (normalizedRole === USER_ROLES.MANAGER) {
       value = MANAGER_DEFAULT_PERMISSIONS.has(key);
     } else {
       value = key === PERMISSIONS.BIDS_PLACE;
@@ -1493,6 +1512,15 @@ async function ensureMarketplaceSchema(env) {
   ];
 
   const alterStatements = [
+    "ALTER TABLE product_groups ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE product_groups ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE product_groups ADD COLUMN created_at TEXT",
+    "ALTER TABLE product_groups ADD COLUMN updated_at TEXT",
+    "ALTER TABLE categories ADD COLUMN group_id TEXT",
+    "ALTER TABLE categories ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE categories ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE categories ADD COLUMN created_at TEXT",
+    "ALTER TABLE categories ADD COLUMN updated_at TEXT",
     "ALTER TABLE auctions ADD COLUMN product_group_id TEXT",
     "ALTER TABLE auctions ADD COLUMN category_id TEXT",
     "ALTER TABLE auctions ADD COLUMN city TEXT",
@@ -1517,7 +1545,12 @@ async function ensureMarketplaceSchema(env) {
     }
   }
 
+  await seedDefaultCatalogGroups(env);
+  await backfillLegacyCatalogRelations(env);
+
   const indexStatements = [
+    "CREATE INDEX IF NOT EXISTS idx_product_groups_name ON product_groups(name)",
+    "CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name)",
     "CREATE INDEX IF NOT EXISTS idx_auctions_product_group_id ON auctions(product_group_id)",
     "CREATE INDEX IF NOT EXISTS idx_auctions_category_id ON auctions(category_id)",
   ];
@@ -1529,6 +1562,233 @@ async function ensureMarketplaceSchema(env) {
       console.warn("Marketplace index statement hatasi:", error);
     }
   }
+}
+
+async function seedDefaultCatalogGroups(env) {
+  for (const group of DEFAULT_CATALOG_GROUPS) {
+    try {
+      await env.DB.prepare(
+        `INSERT INTO product_groups (id, name, sort_order, is_active, created_at, updated_at)
+         VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name,
+           is_active = 1,
+           updated_at = CURRENT_TIMESTAMP`
+      )
+        .bind(group.id, group.name, group.sortOrder)
+        .run();
+    } catch (error) {
+      console.warn("Varsayilan urun grubu yazilamadi:", error);
+    }
+  }
+}
+
+async function backfillLegacyCatalogRelations(env) {
+  await env.DB.prepare(
+    `UPDATE product_groups
+     SET sort_order = COALESCE(sort_order, 0),
+         is_active = COALESCE(is_active, 1),
+         created_at = COALESCE(NULLIF(TRIM(COALESCE(created_at, '')), ''), CURRENT_TIMESTAMP),
+         updated_at = COALESCE(NULLIF(TRIM(COALESCE(updated_at, '')), ''), CURRENT_TIMESTAMP)`
+  ).run();
+
+  const legacyGroupRows = await env.DB.prepare(
+    `SELECT DISTINCT TRIM(product_group) AS group_name
+     FROM auctions
+     WHERE product_group IS NOT NULL AND TRIM(product_group) <> ''`
+  ).all();
+
+  for (const row of legacyGroupRows.results || []) {
+    const groupName = String(row.group_name || "").trim();
+    if (!groupName) continue;
+    const groupId = await ensureCatalogGroupByName(env, groupName);
+    await env.DB.prepare(
+      `UPDATE auctions
+       SET product_group_id = ?
+       WHERE (product_group_id IS NULL OR TRIM(product_group_id) = '')
+         AND LOWER(TRIM(product_group)) = LOWER(TRIM(?))`
+    )
+      .bind(groupId, groupName)
+      .run();
+  }
+
+  const legacyCategoryRows = await env.DB.prepare(
+    `SELECT DISTINCT TRIM(category) AS category_name, TRIM(product_group) AS group_name
+     FROM auctions
+     WHERE category IS NOT NULL AND TRIM(category) <> ''`
+  ).all();
+
+  for (const row of legacyCategoryRows.results || []) {
+    const categoryName = String(row.category_name || "").trim();
+    if (!categoryName) continue;
+
+    const rawGroupName = String(row.group_name || "").trim();
+    const groupId = rawGroupName
+      ? await ensureCatalogGroupByName(env, rawGroupName)
+      : FALLBACK_CATALOG_GROUP_ID;
+
+    await env.DB.prepare(
+      `UPDATE categories
+       SET group_id = ?,
+           updated_at = COALESCE(NULLIF(TRIM(COALESCE(updated_at, '')), ''), CURRENT_TIMESTAMP)
+       WHERE (group_id IS NULL OR TRIM(group_id) = '')
+         AND LOWER(TRIM(name)) = LOWER(TRIM(?))`
+    )
+      .bind(groupId, categoryName)
+      .run();
+
+    const existing = await env.DB.prepare(
+      `SELECT id
+       FROM categories
+       WHERE group_id = ? AND LOWER(TRIM(name)) = LOWER(TRIM(?))
+       LIMIT 1`
+    )
+      .bind(groupId, categoryName)
+      .first();
+
+    if (!existing) {
+      const categoryId = `cat-${slugifyCatalogToken(categoryName)}-${crypto.randomUUID().slice(0, 8)}`;
+      try {
+        await env.DB.prepare(
+          `INSERT INTO categories (id, group_id, name, sort_order, is_active, created_at, updated_at)
+           VALUES (?, ?, ?, 0, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+        )
+          .bind(categoryId, groupId, categoryName.slice(0, 120))
+          .run();
+      } catch {
+        // legacy UNIQUE(name) constraint olabilir; bu durumda mevcut kayit kullanilir
+      }
+    }
+  }
+
+  await env.DB.prepare(
+    `UPDATE categories
+     SET group_id = COALESCE(NULLIF(TRIM(COALESCE(group_id, '')), ''), ?),
+         sort_order = COALESCE(sort_order, 0),
+         is_active = COALESCE(is_active, 1),
+         created_at = COALESCE(NULLIF(TRIM(COALESCE(created_at, '')), ''), CURRENT_TIMESTAMP),
+         updated_at = COALESCE(NULLIF(TRIM(COALESCE(updated_at, '')), ''), CURRENT_TIMESTAMP)`
+  )
+    .bind(FALLBACK_CATALOG_GROUP_ID)
+    .run();
+
+  await env.DB.prepare(
+    `UPDATE auctions
+     SET category_id = (
+       SELECT c.id
+       FROM categories c
+       WHERE LOWER(TRIM(c.name)) = LOWER(TRIM(auctions.category))
+         AND c.group_id = auctions.product_group_id
+       ORDER BY c.sort_order ASC, c.created_at ASC
+       LIMIT 1
+     )
+     WHERE (category_id IS NULL OR TRIM(category_id) = '')
+       AND category IS NOT NULL
+       AND TRIM(category) <> ''
+       AND product_group_id IS NOT NULL
+       AND TRIM(product_group_id) <> ''`
+  ).run();
+
+  await env.DB.prepare(
+    `UPDATE auctions
+     SET category_id = (
+       SELECT c.id
+       FROM categories c
+       WHERE LOWER(TRIM(c.name)) = LOWER(TRIM(auctions.category))
+       ORDER BY c.sort_order ASC, c.created_at ASC
+       LIMIT 1
+     )
+     WHERE (category_id IS NULL OR TRIM(category_id) = '')
+       AND category IS NOT NULL
+       AND TRIM(category) <> ''`
+  ).run();
+
+  await env.DB.prepare(
+    `UPDATE auctions
+     SET product_group_id = (
+       SELECT c.group_id
+       FROM categories c
+       WHERE c.id = auctions.category_id
+       LIMIT 1
+     )
+     WHERE (product_group_id IS NULL OR TRIM(product_group_id) = '')
+       AND category_id IS NOT NULL
+       AND TRIM(category_id) <> ''`
+  ).run();
+
+  await env.DB.prepare(
+    `UPDATE auctions
+     SET product_group_id = ?
+     WHERE product_group_id IS NULL OR TRIM(product_group_id) = ''`
+  )
+    .bind(FALLBACK_CATALOG_GROUP_ID)
+    .run();
+}
+
+async function ensureCatalogGroupByName(env, groupNameRaw: string) {
+  const groupName = String(groupNameRaw || "").trim().slice(0, 120);
+  if (!groupName) return FALLBACK_CATALOG_GROUP_ID;
+
+  const existing = await env.DB.prepare(
+    "SELECT id FROM product_groups WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) LIMIT 1"
+  )
+    .bind(groupName)
+    .first();
+  if (existing?.id) return String(existing.id);
+
+  const token = slugifyCatalogToken(groupName);
+  const baseId = `grp-${token}`;
+  const candidateIds: string[] = [baseId];
+  for (let i = 2; i <= 10; i += 1) {
+    candidateIds.push(`${baseId}-${i}`);
+  }
+
+  for (const id of candidateIds) {
+    try {
+      await env.DB.prepare(
+        `INSERT INTO product_groups (id, name, sort_order, is_active, created_at, updated_at)
+         VALUES (?, ?, 0, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+      )
+        .bind(id, groupName)
+        .run();
+      return id;
+    } catch {
+      const row = await env.DB.prepare(
+        "SELECT id FROM product_groups WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) LIMIT 1"
+      )
+        .bind(groupName)
+        .first();
+      if (row?.id) return String(row.id);
+    }
+  }
+
+  return FALLBACK_CATALOG_GROUP_ID;
+}
+
+function slugifyCatalogToken(value: string) {
+  const map: Record<string, string> = {
+    Ç: "c",
+    ç: "c",
+    Ğ: "g",
+    ğ: "g",
+    İ: "i",
+    I: "i",
+    ı: "i",
+    Ö: "o",
+    ö: "o",
+    Ş: "s",
+    ş: "s",
+    Ü: "u",
+    ü: "u",
+  };
+  const normalized = String(value || "")
+    .split("")
+    .map((char) => map[char] || char)
+    .join("")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return (normalized || "genel").slice(0, 40);
 }
 
 async function validateAuctionPayload(env, body) {

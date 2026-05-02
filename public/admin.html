@@ -59,9 +59,16 @@
     </section>
 
     <section class="panel hide" id="panelCatalog">
+      <div class="panelTools">
+        <div class="inputWrap compact">
+          <i class="fas fa-filter"></i>
+          <input type="search" id="catalogSearchInput" placeholder="Urun grubu veya kategori ara">
+        </div>
+        <div class="hintChip">Hizli kullanim: listeden Duzenle ile formu doldur, Kaydet ile guncelle.</div>
+      </div>
       <div class="grid2">
         <article class="panelCard">
-          <h3>Urun Gruplari</h3>
+          <h3 id="groupFormTitle">Urun Grubu Ekle</h3>
           <form id="groupForm" class="stackForm">
             <input type="hidden" id="groupIdInput">
             <input id="groupNameInput" type="text" placeholder="Urun grubu adi" required>
@@ -83,7 +90,7 @@
         </article>
 
         <article class="panelCard">
-          <h3>Kategoriler</h3>
+          <h3 id="categoryFormTitle">Kategori Ekle</h3>
           <form id="categoryForm" class="stackForm">
             <input type="hidden" id="categoryIdInput">
             <select id="categoryGroupSelect" required></select>
@@ -109,7 +116,7 @@
 
     <section class="panel hide" id="panelAuctions">
       <article class="panelCard">
-        <h3>Ihale Kayit Formu</h3>
+        <h3 id="auctionFormTitle">Ihale Ekle</h3>
         <form id="auctionForm" class="stackForm">
           <input type="hidden" id="auctionIdInput">
           <div class="row2">
@@ -146,6 +153,12 @@
 
       <article class="panelCard">
         <h3>Ihale Listesi</h3>
+        <div class="tableTools">
+          <div class="inputWrap compact">
+            <i class="fas fa-magnifying-glass"></i>
+            <input type="search" id="auctionSearchInput" placeholder="Ihale no, baslik, grup, kategori ara">
+          </div>
+        </div>
         <div class="tableWrap">
           <table>
             <thead>
