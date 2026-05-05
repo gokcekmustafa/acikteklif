@@ -11,9 +11,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-  <link rel="stylesheet" href="./styles.css?v=20260505-1">
+  <link rel="stylesheet" href="./styles.css?v=20260505-2">
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-  <script src="./script.js?v=20260505-3" defer></script>
+  <script src="./script.js?v=20260505-4" defer></script>
 </head>
 <body>
   <a href="#" id="backToTop" aria-label="Yukarı çık"><i class="fas fa-chevron-up"></i></a>
@@ -167,15 +167,15 @@
               <li><a href="#" data-sort-type="OPPORTUNITIES">FIRSATLAR</a></li>
               <li><a href="#" data-sort-type="FALL_IN_PRICE">FİYATI DÜŞENLER</a></li>
             </ul>
+            <div class="switchView">
+              <a href="#" class="changeViewListBtn active" title="Liste"><i class="fas fa-bars"></i></a>
+              <a href="#" class="changeViewTableBtn" title="Galeri"><i class="fas fa-border-all"></i></a>
+            </div>
             <select id="selectOrder" class="priceOrder">
               <option value="DEFAULT">Gelişmiş Sıralama</option>
               <option value="PRICE_ASC">Önce En Düşük</option>
               <option value="PRICE_DESC">Önce En Yüksek</option>
             </select>
-            <div class="switchView">
-              <a href="#" class="changeViewListBtn active" title="Liste"><i class="fas fa-bars"></i></a>
-              <a href="#" class="changeViewTableBtn" title="Galeri"><i class="fas fa-border-all"></i></a>
-            </div>
             <a class="searchModuleLinkMobile" title="Detaylı arama" href="#searchModule">DETAYLI ARAMA <i class="fas fa-search"></i></a>
             <select class="sortListMobile" id="selectedSortTypeId">
               <option value="ALL">TÜMÜ</option>

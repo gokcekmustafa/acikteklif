@@ -3,6 +3,9 @@ const API_BASE = "";
 const PRIMARY_APP_ORIGIN = "https://acik-teklif-pazari.gokcek.workers.dev";
 const PERMISSION_ADMIN_PANEL_ACCESS = "admin.panel.access";
 const PERMISSION_BIDS_PLACE = "bids.place";
+const ONLY_AUTOMOBILE_MODE = true;
+const AUTOMOBILE_PRODUCT_GROUP = "Vasıta";
+const AUTOMOBILE_CATEGORY = "Otomobil";
 const META_TURNSTILE_SITE_KEY = document
     .querySelector('meta[name="turnstile-site-key"]')
     ?.getAttribute("content")
@@ -243,6 +246,7 @@ async function init() {
     await initTurnstile();
     await loadListings();
     hydrateFilterOptions();
+    applyInitialFilters();
     bindEvents();
     await hydrateAuth();
     await handleUrlActions();
@@ -251,11 +255,25 @@ async function init() {
     setInterval(updateCountdowns, 1000);
 }
 function hydrateFilterOptions() {
-    refillSelect(elements.productGroup, uniqueValues("productGroup"), "Urun Grubu Seciniz");
-    refillSelect(elements.category, uniqueValues("category"), "Kategori Seciniz");
+    if (ONLY_AUTOMOBILE_MODE) {
+        refillSelect(elements.productGroup, [AUTOMOBILE_PRODUCT_GROUP], "Urun Grubu Seciniz");
+        refillSelect(elements.category, [AUTOMOBILE_CATEGORY], "Kategori Seciniz");
+    }
+    else {
+        refillSelect(elements.productGroup, uniqueValues("productGroup"), "Urun Grubu Seciniz");
+        refillSelect(elements.category, uniqueValues("category"), "Kategori Seciniz");
+    }
     refillSelect(elements.city, uniqueValues("city"), "Il Seciniz");
     refillSelect(elements.district, uniqueValues("district"), "Ilce Seciniz");
     refillSelect(elements.neighborhood, uniqueValues("neighborhood"), "Mahalle Seciniz");
+}
+function applyInitialFilters() {
+    if (ONLY_AUTOMOBILE_MODE) {
+        state.filters.productGroup = AUTOMOBILE_PRODUCT_GROUP;
+        state.filters.category = AUTOMOBILE_CATEGORY;
+        elements.productGroup.value = AUTOMOBILE_PRODUCT_GROUP;
+        elements.category.value = AUTOMOBILE_CATEGORY;
+    }
 }
 function refillSelect(selectElement, values, placeholder) {
     selectElement.innerHTML = "";
@@ -271,7 +289,7 @@ async function loadListings() {
     try {
         const data = await apiFetch("/api/auctions");
         const items = Array.isArray(data.items) ? data.items : [];
-        state.listings = items.map((item, index) => toListingModel(item, index));
+        state.listings = enforceListingScope(items.map((item, index) => toListingModel(item, index)));
     }
     catch (error) {
         apiFailed = true;
@@ -279,17 +297,55 @@ async function loadListings() {
         state.listings = [];
     }
     if (state.listings.length < 1 && apiFailed && shouldUseDemoFallback()) {
-        state.listings = fallbackListings.map((item) => ({
+        state.listings = enforceListingScope(fallbackListings.map((item) => ({
             ...item,
             minIncrement: guessIncrement(item),
             status: "ACTIVE",
-        }));
+        })));
         return;
     }
     if (state.listings.length < 1 && apiFailed) {
         state.listingLoadError =
             `Ihale verisi sunucudan alinamadi. Dogru adresi acin: ${PRIMARY_APP_ORIGIN}`;
     }
+}
+function enforceListingScope(rows) {
+    if (!ONLY_AUTOMOBILE_MODE)
+        return rows;
+    return rows
+        .filter((item) => isAutomobileCandidate(item))
+        .map((item) => ({
+        ...item,
+        productGroup: AUTOMOBILE_PRODUCT_GROUP,
+        category: AUTOMOBILE_CATEGORY,
+    }));
+}
+function isAutomobileCandidate(item) {
+    const group = normalizeText(item?.productGroup);
+    const category = normalizeText(item?.category);
+    const hasVehicleFields = String(item?.vehicleBrand || "").trim().length > 0 || String(item?.vehicleModel || "").trim().length > 0;
+    const vehicleGroup = group.includes("vasita") ||
+        group.includes("arac") ||
+        group.includes("otomotiv") ||
+        group.includes("otomobil");
+    const vehicleCategory = category.includes("otomobil") ||
+        category.includes("otomotiv") ||
+        category.includes("arac") ||
+        category.includes("suv") ||
+        category.includes("sedan") ||
+        category.includes("hatchback") ||
+        category.includes("coupe");
+    return vehicleGroup || vehicleCategory || hasVehicleFields;
+}
+function normalizeText(value) {
+    return String(value || "")
+        .toLocaleLowerCase("tr-TR")
+        .replaceAll("ı", "i")
+        .replaceAll("ç", "c")
+        .replaceAll("ğ", "g")
+        .replaceAll("ö", "o")
+        .replaceAll("ş", "s")
+        .replaceAll("ü", "u");
 }
 function toListingModel(item, index) {
     const lotNo = String(item?.lot_no || item?.lotNo || "").trim().toUpperCase();
@@ -656,8 +712,8 @@ function uniqueValues(key) {
 }
 function readFiltersFromForm() {
     state.filters = {
-        productGroup: elements.productGroup.value,
-        category: elements.category.value,
+        productGroup: ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : elements.productGroup.value,
+        category: ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_CATEGORY : elements.category.value,
         city: elements.city.value,
         district: elements.district.value,
         neighborhood: elements.neighborhood.value,
@@ -668,8 +724,8 @@ function readFiltersFromForm() {
 }
 function clearFilters() {
     state.filters = {
-        productGroup: "",
-        category: "",
+        productGroup: ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : "",
+        category: ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_CATEGORY : "",
         city: "",
         district: "",
         neighborhood: "",
@@ -677,8 +733,8 @@ function clearFilters() {
         maxPrice: "",
         lotNo: "",
     };
-    elements.productGroup.value = "";
-    elements.category.value = "";
+    elements.productGroup.value = ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : "";
+    elements.category.value = ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_CATEGORY : "";
     elements.city.value = "";
     elements.district.value = "";
     elements.neighborhood.value = "";
