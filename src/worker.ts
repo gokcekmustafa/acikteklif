@@ -48,6 +48,8 @@ const MAX_GALLERY_IMAGE_COUNT = 20;
 const MAX_GALLERY_IMAGE_DATA_URL_LENGTH = 1_200_000;
 const MAX_ATTACHMENT_COUNT = 15;
 const MAX_ATTACHMENT_DATA_URL_LENGTH = 2_700_000;
+const MAX_GALLERY_TOTAL_DATA_URL_LENGTH = 2_400_000;
+const MAX_ATTACHMENT_TOTAL_DATA_URL_LENGTH = 3_200_000;
 
 type RuntimeSchemaState = {
   adminReadyAt: number;
@@ -2331,8 +2333,27 @@ async function validateAuctionPayload(env, body) {
     imageUrl = imageList[0];
   }
 
+  const galleryTotalLength = imageList.reduce((sum: number, item: string) => sum + String(item || "").length, 0);
+  if (galleryTotalLength > MAX_GALLERY_TOTAL_DATA_URL_LENGTH) {
+    return { error: "Gorsellerin toplam boyutu cok buyuk. Lutfen daha az veya daha kucuk gorsel yukleyin." };
+  }
+
   const expertiseFiles = normalizeAttachmentList(body.expertiseFiles || body.expertise_files || body.expertise_files_json || []);
   const documentFiles = normalizeAttachmentList(body.documentFiles || body.document_files || body.document_files_json || []);
+  const expertiseTotalLength = expertiseFiles.reduce(
+    (sum: number, item: { dataUrl: string }) => sum + String(item.dataUrl || "").length,
+    0
+  );
+  if (expertiseTotalLength > MAX_ATTACHMENT_TOTAL_DATA_URL_LENGTH) {
+    return { error: "Ekspertiz dosyalarinin toplam boyutu cok buyuk. Lutfen dosya sayisini veya boyutunu azaltin." };
+  }
+  const documentTotalLength = documentFiles.reduce(
+    (sum: number, item: { dataUrl: string }) => sum + String(item.dataUrl || "").length,
+    0
+  );
+  if (documentTotalLength > MAX_ATTACHMENT_TOTAL_DATA_URL_LENGTH) {
+    return { error: "Dokumanlarin toplam boyutu cok buyuk. Lutfen dosya sayisini veya boyutunu azaltin." };
+  }
 
   let groupId = groupIdRaw;
   let categoryId = categoryIdRaw;
@@ -2465,6 +2486,19 @@ function mapAuctionMutationError(error: unknown, fallbackMessage: string): { sta
 
   if (message.includes("foreign key")) {
     return { status: 409, error: "Seçilen ürün grubu veya kategori geçersiz. Lütfen tekrar seçin." };
+  }
+
+  if (
+    message.includes("string or blob too big") ||
+    message.includes("too big") ||
+    message.includes("request entity too large") ||
+    message.includes("payload too large") ||
+    message.includes("statement too large")
+  ) {
+    return {
+      status: 413,
+      error: "Yuklenen gorsel veya dosyalarin toplam boyutu cok buyuk. Lutfen dosya sayisini veya boyutunu azaltin.",
+    };
   }
 
   if (message.includes("not null constraint failed: auctions.lot_no")) {

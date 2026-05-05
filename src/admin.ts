@@ -7,6 +7,8 @@ const MAX_AUCTION_IMAGE_BYTES = 450 * 1024;
 const MAX_AUCTION_IMAGE_COUNT = 20;
 const MAX_AUCTION_FILE_BYTES = 2 * 1024 * 1024;
 const MAX_AUCTION_FILE_COUNT = 15;
+const MAX_AUCTION_GALLERY_TOTAL_BYTES = 2_400_000;
+const MAX_AUCTION_REPORT_TOTAL_BYTES = 3_200_000;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/jpg"]);
 const ALLOWED_REPORT_FILE_TYPES = new Set([
   "application/pdf",
@@ -68,12 +70,15 @@ type AuctionFieldKey =
   | "startsAt"
   | "endsAt"
   | "startPrice"
-  | "minIncrement";
+  | "minIncrement"
+  | "images"
+  | "expertiseFiles"
+  | "documentFiles";
 
 type AuctionFieldBinding = {
   key: AuctionFieldKey;
   label: string;
-  element: HTMLInputElement | HTMLSelectElement;
+  element: HTMLElement;
 };
 
 type AuctionValidationIssue = {
@@ -191,6 +196,11 @@ function getAuctionFieldBinding(fieldKey: AuctionFieldKey): AuctionFieldBinding 
   if (fieldKey === "endsAt") return { key: fieldKey, label: "Bitis Tarihi", element: elements.auctionEndsAtInput };
   if (fieldKey === "startPrice") return { key: fieldKey, label: "Baslangic Bedeli", element: elements.auctionStartPriceInput };
   if (fieldKey === "minIncrement") return { key: fieldKey, label: "Minimum Artis", element: elements.auctionMinIncrementInput };
+  if (fieldKey === "images") return { key: fieldKey, label: "Arac Gorselleri", element: elements.auctionImageDropzone };
+  if (fieldKey === "expertiseFiles")
+    return { key: fieldKey, label: "Ekspertiz Dosyalari", element: elements.auctionExpertiseDropzone };
+  if (fieldKey === "documentFiles")
+    return { key: fieldKey, label: "Dokumanlar", element: elements.auctionDocumentDropzone };
   return null;
 }
 
@@ -1124,11 +1134,18 @@ function clearAuctionFieldErrors() {
   for (const wrap of wraps) {
     wrap.classList.remove("invalid");
   }
+  const uploadBlocks = Array.from(elements.auctionForm.querySelectorAll(".uploadBlock.invalid")) as HTMLElement[];
+  for (const block of uploadBlocks) {
+    block.classList.remove("invalid");
+  }
   const hints = Array.from(elements.auctionForm.querySelectorAll(".fieldError")) as HTMLElement[];
   for (const hint of hints) {
     hint.remove();
   }
-  for (const binding of getAllAuctionFieldBindings()) {
+  const allKeys: AuctionFieldKey[] = [...AUCTION_REQUIRED_FIELD_KEYS, "images", "expertiseFiles", "documentFiles"];
+  for (const key of allKeys) {
+    const binding = getAuctionFieldBinding(key);
+    if (!binding) continue;
     binding.element.removeAttribute("aria-invalid");
   }
 }
@@ -1139,14 +1156,16 @@ function showAuctionFieldError(issue: AuctionValidationIssue) {
 
   binding.element.setAttribute("aria-invalid", "true");
   const wrap = binding.element.closest(".fieldWrap") as HTMLElement | null;
-  if (!wrap) return;
+  const block = binding.element.closest(".uploadBlock") as HTMLElement | null;
+  const target = wrap || block;
+  if (!target) return;
 
-  wrap.classList.add("invalid");
-  let hint = wrap.querySelector(".fieldError") as HTMLElement | null;
+  target.classList.add("invalid");
+  let hint = target.querySelector(".fieldError") as HTMLElement | null;
   if (!hint) {
     hint = document.createElement("small");
     hint.className = "fieldError";
-    wrap.appendChild(hint);
+    target.appendChild(hint);
   }
   hint.textContent = issue.message;
 }
@@ -1189,6 +1208,27 @@ function validateAuctionFormPayload(payload: any): AuctionValidationIssue[] {
     addIssue("minIncrement", "Minimum artis sifirdan buyuk olmalidir.");
   }
 
+  const galleryBytes = getGalleryTotalBytes(payload.images || []);
+  if (galleryBytes > MAX_AUCTION_GALLERY_TOTAL_BYTES) {
+    addIssue("images", `Gorsellerin toplam boyutu cok buyuk. En fazla ${formatBytes(MAX_AUCTION_GALLERY_TOTAL_BYTES)} olabilir.`);
+  }
+
+  const expertiseBytes = getReportTotalBytes(payload.expertiseFiles || []);
+  if (expertiseBytes > MAX_AUCTION_REPORT_TOTAL_BYTES) {
+    addIssue(
+      "expertiseFiles",
+      `Ekspertiz dosyalarinin toplam boyutu cok buyuk. En fazla ${formatBytes(MAX_AUCTION_REPORT_TOTAL_BYTES)} olabilir.`
+    );
+  }
+
+  const documentBytes = getReportTotalBytes(payload.documentFiles || []);
+  if (documentBytes > MAX_AUCTION_REPORT_TOTAL_BYTES) {
+    addIssue(
+      "documentFiles",
+      `Dokumanlarin toplam boyutu cok buyuk. En fazla ${formatBytes(MAX_AUCTION_REPORT_TOTAL_BYTES)} olabilir.`
+    );
+  }
+
   return issues;
 }
 
@@ -1217,18 +1257,9 @@ function applyAuctionValidationIssues(issues: AuctionValidationIssue[]) {
 function normalizeSearchText(value: string) {
   return String(value || "")
     .toLowerCase()
-    .replaceAll("ı", "i")
-    .replaceAll("İ", "i")
-    .replaceAll("ş", "s")
-    .replaceAll("Ş", "s")
-    .replaceAll("ğ", "g")
-    .replaceAll("Ğ", "g")
-    .replaceAll("ü", "u")
-    .replaceAll("Ü", "u")
-    .replaceAll("ö", "o")
-    .replaceAll("Ö", "o")
-    .replaceAll("ç", "c")
-    .replaceAll("Ç", "c");
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replaceAll("ı", "i");
 }
 
 function parseAuctionValidationIssuesFromMessage(messageRaw: string): AuctionValidationIssue[] {
@@ -1258,6 +1289,21 @@ function parseAuctionValidationIssuesFromMessage(messageRaw: string): AuctionVal
   if (message.includes("kategori secilen urun grubuna ait degil")) {
     addIssue("groupId", "Urun grubu ile kategori eslesmiyor.");
     addIssue("categoryId", "Urun grubu ile kategori eslesmiyor.");
+  }
+  if (message.includes("gorsel") && message.includes("toplam boyut")) {
+    addIssue("images", "Gorsellerin toplam boyutu fazla. Bir kismini kaldirip tekrar deneyin.");
+  }
+  if (message.includes("gorsel") && message.includes("cok buyuk")) {
+    addIssue("images", "Gorsel boyutu buyuk. Daha kucuk gorseller kullanin.");
+  }
+  if (message.includes("ekspertiz") && message.includes("toplam boyut")) {
+    addIssue("expertiseFiles", "Ekspertiz dosyalarinin toplam boyutu fazla.");
+  }
+  if (message.includes("dokuman") && message.includes("toplam boyut")) {
+    addIssue("documentFiles", "Dokumanlarin toplam boyutu fazla.");
+  }
+  if (message.includes("payload too large") || message.includes("request entity too large") || message.includes("string or blob too big")) {
+    addIssue("images", "Yuklenen medya boyutu fazla. Gorsel veya dosya sayisini azaltin.");
   }
 
   return issues;
@@ -1389,6 +1435,7 @@ async function addAuctionImagesFromFiles(files: File[]) {
 
   const queue = files.slice(0, acceptedCount);
   let added = 0;
+  let skippedForSize = 0;
 
   setStatus("Gorseller isleniyor...", "warn");
   for (const file of queue) {
@@ -1399,6 +1446,12 @@ async function addAuctionImagesFromFiles(files: File[]) {
 
     try {
       const dataUrl = await optimizeAuctionImage(file);
+      const currentTotal = getGalleryTotalBytes(state.auctionImageDataUrls);
+      const nextTotal = currentTotal + estimateStoredValueBytes(dataUrl);
+      if (nextTotal > MAX_AUCTION_GALLERY_TOTAL_BYTES) {
+        skippedForSize += 1;
+        continue;
+      }
       state.auctionImageDataUrls.push(dataUrl);
       added += 1;
     } catch (error) {
@@ -1409,9 +1462,26 @@ async function addAuctionImagesFromFiles(files: File[]) {
   state.auctionImageDataUrls = normalizeAuctionImageList(state.auctionImageDataUrls);
   renderAuctionImageGallery();
   if (added > 0) {
-    setStatus(`${added} gorsel eklendi.`, "ok");
+    const totalBytes = getGalleryTotalBytes(state.auctionImageDataUrls);
+    if (skippedForSize > 0) {
+      setStatus(
+        `${added} gorsel eklendi. ${skippedForSize} dosya toplam boyut siniri nedeniyle atlandi (${formatBytes(
+          MAX_AUCTION_GALLERY_TOTAL_BYTES
+        )}).`,
+        "warn"
+      );
+    } else {
+      setStatus(`${added} gorsel eklendi. Toplam gorsel boyutu: ${formatBytes(totalBytes)}.`, "ok");
+    }
   } else {
-    setStatus("Uygun gorsel bulunamadi.", "error");
+    if (skippedForSize > 0) {
+      setStatus(
+        `Gorseller eklenemedi. Toplam gorsel boyutu en fazla ${formatBytes(MAX_AUCTION_GALLERY_TOTAL_BYTES)} olabilir.`,
+        "error"
+      );
+    } else {
+      setStatus("Uygun gorsel bulunamadi.", "error");
+    }
   }
 }
 
@@ -1426,6 +1496,7 @@ async function addReportFiles(files: File[], mode: "expertise" | "document") {
   }
 
   let added = 0;
+  let skippedForSize = 0;
   for (const file of files.slice(0, acceptedCount)) {
     const type = String(file.type || "").toLowerCase();
     if (!ALLOWED_REPORT_FILE_TYPES.has(type)) {
@@ -1436,6 +1507,12 @@ async function addReportFiles(files: File[], mode: "expertise" | "document") {
     }
     try {
       const dataUrl = await readGenericFileAsDataUrl(file);
+      const currentTotal = getReportTotalBytes(current);
+      const nextTotal = currentTotal + estimateStoredValueBytes(dataUrl);
+      if (nextTotal > MAX_AUCTION_REPORT_TOTAL_BYTES) {
+        skippedForSize += 1;
+        continue;
+      }
       current.push({
         name: String(file.name || "dosya").slice(0, 140),
         type,
@@ -1456,10 +1533,27 @@ async function addReportFiles(files: File[], mode: "expertise" | "document") {
   renderAuctionFileList(mode);
 
   const label = mode === "expertise" ? "Ekspertiz" : "Dokuman";
+  const totalBytes = getReportTotalBytes(mode === "expertise" ? state.auctionExpertiseFiles : state.auctionDocumentFiles);
   if (added > 0) {
-    setStatus(`${label} dosyalari guncellendi (${added} yeni).`, "ok");
+    if (skippedForSize > 0) {
+      setStatus(
+        `${label} dosyalari guncellendi (${added} yeni). ${skippedForSize} dosya toplam boyut siniri nedeniyle atlandi (${formatBytes(
+          MAX_AUCTION_REPORT_TOTAL_BYTES
+        )}).`,
+        "warn"
+      );
+    } else {
+      setStatus(`${label} dosyalari guncellendi (${added} yeni, toplam ${formatBytes(totalBytes)}).`, "ok");
+    }
   } else {
-    setStatus(`${label} icin uygun dosya bulunamadi.`, "warn");
+    if (skippedForSize > 0) {
+      setStatus(
+        `${label} dosyalari eklenemedi. Toplam dosya boyutu en fazla ${formatBytes(MAX_AUCTION_REPORT_TOTAL_BYTES)} olabilir.`,
+        "warn"
+      );
+    } else {
+      setStatus(`${label} icin uygun dosya bulunamadi.`, "warn");
+    }
   }
 }
 
@@ -1472,7 +1566,10 @@ function renderAuctionImageGallery() {
     return;
   }
 
-  elements.auctionImageMeta.textContent = `${rows.length} gorsel secili. Ilk gorsel kart gorseli olarak kullanilacak.`;
+  const totalBytes = getGalleryTotalBytes(rows);
+  elements.auctionImageMeta.textContent = `${rows.length} gorsel secili (${formatBytes(
+    totalBytes
+  )}). Ilk gorsel kart gorseli olarak kullanilacak.`;
   elements.auctionImageGallery.innerHTML = rows
     .map(
       (dataUrl: string, index: number) => `
@@ -1504,7 +1601,8 @@ function renderAuctionFileList(mode: "expertise" | "document") {
     return;
   }
 
-  targetMeta.textContent = `${rows.length} dosya secili.`;
+  const totalBytes = getReportTotalBytes(rows);
+  targetMeta.textContent = `${rows.length} dosya secili (${formatBytes(totalBytes)}).`;
   targetList.innerHTML = rows
     .map((item: UploadedFileEntry, index: number) => {
       const icon = item.type.includes("pdf") ? "fa-file-pdf" : "fa-image";
@@ -1555,6 +1653,23 @@ function normalizeUploadedFileList(input: any) {
     if (out.length >= MAX_AUCTION_FILE_COUNT) break;
   }
   return out;
+}
+
+function estimateStoredValueBytes(value: string) {
+  const text = String(value || "").trim();
+  if (!text) return 0;
+  if (text.startsWith("data:")) return estimateDataUrlBytes(text);
+  return Math.min(text.length, 4096);
+}
+
+function getGalleryTotalBytes(input: any) {
+  const items = normalizeAuctionImageList(input);
+  return items.reduce((sum: number, item: string) => sum + estimateStoredValueBytes(item), 0);
+}
+
+function getReportTotalBytes(input: any) {
+  const files = normalizeUploadedFileList(input);
+  return files.reduce((sum: number, item: UploadedFileEntry) => sum + estimateStoredValueBytes(item.dataUrl), 0);
 }
 
 function parseJsonArrayMaybe(input: any) {
