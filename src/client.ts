@@ -332,6 +332,11 @@ function toListingModel(item, index) {
   const district = String(item?.district || fallback.district || "-");
   const neighborhood = String(item?.neighborhood || fallback.neighborhood || "-");
   const image = String(item?.image_url || item?.imageUrl || fallback.image || DEFAULT_LISTING_IMAGE);
+  const vehicleBrand = String(item?.vehicle_brand || item?.vehicleBrand || "");
+  const vehicleModel = String(item?.vehicle_model || item?.vehicleModel || "");
+  const vehicleModelDetail = String(item?.vehicle_model_detail || item?.vehicleModelDetail || "");
+  const vehicleYear = Number(item?.vehicle_year || item?.vehicleYear || 0);
+  const vehicleKm = Number(item?.vehicle_km || item?.vehicleKm || 0);
 
   return {
     id: item?.id || fallback.id || lotNo || String(index + 1),
@@ -353,6 +358,11 @@ function toListingModel(item, index) {
     createdAt,
     status,
     minIncrement,
+    vehicleBrand,
+    vehicleModel,
+    vehicleModelDetail,
+    vehicleYear: Number.isFinite(vehicleYear) && vehicleYear > 0 ? vehicleYear : null,
+    vehicleKm: Number.isFinite(vehicleKm) && vehicleKm >= 0 ? vehicleKm : null,
   };
 }
 
@@ -785,6 +795,16 @@ function renderCard(item) {
   const minimumBid = (item.lastBid ?? item.startPrice) + Number(item.minIncrement || guessIncrement(item));
   const bidButtonText = isEnded ? "SONUCLANDI" : "TEKLIF VER";
   const bidButtonAttrs = isEnded ? 'disabled aria-disabled="true"' : "";
+  const vehicleBits = [item.vehicleBrand, item.vehicleModel, item.vehicleYear ? String(item.vehicleYear) : "", item.vehicleKm ? `${item.vehicleKm} km` : ""]
+    .filter(Boolean)
+    .join(" • ");
+  const vehicleDetailLine = [item.vehicleModelDetail].filter(Boolean).join(" • ");
+  const vehicleHtml =
+    vehicleBits || vehicleDetailLine
+      ? `<div class="location"><i class="fas fa-car-side"></i> <span>${escapeHtml(
+          [vehicleBits, vehicleDetailLine].filter(Boolean).join(" | ")
+        )}</span></div>`
+      : "";
 
   return `
     <div class="box1 imgWrap">
@@ -803,6 +823,7 @@ function renderCard(item) {
             `${item.city} / ${item.district} / ${item.neighborhood}`
           )}</span></div>
           <h2 class="type"><i class="far fa-car"></i> <span>${escapeHtml(`${item.productGroup} / ${item.category}`)}</span></h2>
+          ${vehicleHtml}
           <div class="counterWrap">
             <span class="cText">Kalan Süre</span>
             ${countdownHtml}

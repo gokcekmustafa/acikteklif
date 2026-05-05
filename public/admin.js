@@ -72,6 +72,7 @@ const elements = {
     auctionStartPriceInput: byId("auctionStartPriceInput"),
     auctionMinIncrementInput: byId("auctionMinIncrementInput"),
     auctionStatusInput: byId("auctionStatusInput"),
+    auctionStartsAtInput: byId("auctionStartsAtInput"),
     auctionEndsAtInput: byId("auctionEndsAtInput"),
     auctionImageUrlInput: byId("auctionImageUrlInput"),
     auctionImageDropzone: byId("auctionImageDropzone"),
@@ -80,9 +81,23 @@ const elements = {
     auctionImageClearBtn: byId("auctionImageClearBtn"),
     auctionImageMeta: byId("auctionImageMeta"),
     auctionImagePreview: byId("auctionImagePreview"),
+    auctionVehicleSection: byId("auctionVehicleSection"),
     auctionCityInput: byId("auctionCityInput"),
     auctionDistrictInput: byId("auctionDistrictInput"),
     auctionNeighborhoodInput: byId("auctionNeighborhoodInput"),
+    auctionDescriptionInput: byId("auctionDescriptionInput"),
+    auctionVehicleBrandInput: byId("auctionVehicleBrandInput"),
+    auctionVehicleModelInput: byId("auctionVehicleModelInput"),
+    auctionVehicleModelDetailInput: byId("auctionVehicleModelDetailInput"),
+    auctionVehicleYearInput: byId("auctionVehicleYearInput"),
+    auctionVehicleKmInput: byId("auctionVehicleKmInput"),
+    auctionVehicleFuelTypeInput: byId("auctionVehicleFuelTypeInput"),
+    auctionVehicleTransmissionInput: byId("auctionVehicleTransmissionInput"),
+    auctionVehicleBodyTypeInput: byId("auctionVehicleBodyTypeInput"),
+    auctionVehicleColorInput: byId("auctionVehicleColorInput"),
+    auctionVehicleEngineVolumeInput: byId("auctionVehicleEngineVolumeInput"),
+    auctionVehicleEnginePowerInput: byId("auctionVehicleEnginePowerInput"),
+    auctionVehicleDriveTypeInput: byId("auctionVehicleDriveTypeInput"),
     auctionResetBtn: byId("auctionResetBtn"),
     auctionFormTitle: byId("auctionFormTitle"),
     auctionSaveBtn: byId("auctionSaveBtn"),
@@ -381,6 +396,7 @@ function bindCatalogEvents() {
 function bindAuctionEvents() {
     elements.auctionGroupSelect.addEventListener("change", () => {
         fillAuctionCategorySelect();
+        renderAuctionVehicleSection();
     });
     elements.auctionImagePickBtn.addEventListener("click", () => {
         elements.auctionImageFileInput.click();
@@ -496,6 +512,9 @@ function renderAll() {
     renderUsers();
     renderCatalog();
     renderAuctions();
+    if (!String(elements.auctionIdInput.value || "").trim()) {
+        resetAuctionForm();
+    }
     updateFormHeadings();
 }
 function renderTabs() {
@@ -674,6 +693,7 @@ function renderAuctions() {
     fillGroupSelect(elements.auctionGroupSelect, false);
     ensureAuctionSelectionDefaults();
     fillAuctionCategorySelect();
+    renderAuctionVehicleSection();
     const q = String(state.auctionQuery || "").trim().toLowerCase();
     const auctions = state.auctions.filter((auction) => {
         if (!q)
@@ -686,6 +706,9 @@ function renderAuctions() {
             auction.city,
             auction.district,
             auction.neighborhood,
+            auction.vehicle_brand,
+            auction.vehicle_model,
+            auction.vehicle_model_detail,
             auction.status,
         ]
             .map((item) => String(item || "").toLowerCase())
@@ -693,7 +716,7 @@ function renderAuctions() {
         return haystack.includes(q);
     });
     if (auctions.length < 1) {
-        elements.auctionRows.innerHTML = '<tr><td colspan="7"><div class="emptyState">Kayitli ihale bulunamadi.</div></td></tr>';
+        elements.auctionRows.innerHTML = '<tr><td colspan="8"><div class="emptyState">Kayitli ihale bulunamadi.</div></td></tr>';
         return;
     }
     elements.auctionRows.innerHTML = auctions
@@ -704,8 +727,9 @@ function renderAuctions() {
           <td>${escapeHtml(auction.title || "-")}</td>
           <td>${escapeHtml(`${auction.product_group || "-"} / ${auction.category || "-"}`)}</td>
           <td>${formatMoney(auction.start_price)}</td>
+          <td>${formatDate(auction.starts_at)}</td>
           <td>${formatDate(auction.ends_at)}</td>
-          <td><span class="pill ${String(auction.status || "").toUpperCase() === "ACTIVE" ? "ok" : "danger"}">${escapeHtml(auction.status || "-")}</span></td>
+          <td><span class="pill ${String(auction.status || "").toUpperCase() === "ACTIVE" ? "ok" : "danger"}">${escapeHtml(formatAuctionStatus(auction.status))}</span></td>
           <td>
             <div class="rowActions">
               <button class="miniBtn" data-action="edit-auction" data-id="${escapeHtml(auction.id)}">Duzenle</button>
@@ -766,9 +790,11 @@ function fillAuctionForm(auction) {
     elements.auctionGroupSelect.value = String(auction.product_group_id || "");
     fillAuctionCategorySelect();
     elements.auctionCategorySelect.value = String(auction.category_id || "");
+    renderAuctionVehicleSection();
     elements.auctionStartPriceInput.value = String(Number(auction.start_price || 0));
     elements.auctionMinIncrementInput.value = String(Number(auction.min_increment || 1000));
     elements.auctionStatusInput.value = String(auction.status || "ACTIVE");
+    elements.auctionStartsAtInput.value = toDateTimeLocal(auction.starts_at || auction.created_at || "");
     elements.auctionEndsAtInput.value = toDateTimeLocal(auction.ends_at);
     const imageValue = String(auction.image_url || "").trim();
     if (imageValue.startsWith("data:image/")) {
@@ -784,9 +810,23 @@ function fillAuctionForm(auction) {
     elements.auctionCityInput.value = String(auction.city || "");
     elements.auctionDistrictInput.value = String(auction.district || "");
     elements.auctionNeighborhoodInput.value = String(auction.neighborhood || "");
+    elements.auctionDescriptionInput.value = String(auction.description || "");
+    elements.auctionVehicleBrandInput.value = String(auction.vehicle_brand || "");
+    elements.auctionVehicleModelInput.value = String(auction.vehicle_model || "");
+    elements.auctionVehicleModelDetailInput.value = String(auction.vehicle_model_detail || "");
+    elements.auctionVehicleYearInput.value = String(auction.vehicle_year || "");
+    elements.auctionVehicleKmInput.value = String(auction.vehicle_km || "");
+    elements.auctionVehicleFuelTypeInput.value = String(auction.vehicle_fuel_type || "");
+    elements.auctionVehicleTransmissionInput.value = String(auction.vehicle_transmission || "");
+    elements.auctionVehicleBodyTypeInput.value = String(auction.vehicle_body_type || "");
+    elements.auctionVehicleColorInput.value = String(auction.vehicle_color || "");
+    elements.auctionVehicleEngineVolumeInput.value = String(auction.vehicle_engine_volume || "");
+    elements.auctionVehicleEnginePowerInput.value = String(auction.vehicle_engine_power || "");
+    elements.auctionVehicleDriveTypeInput.value = String(auction.vehicle_drive_type || "");
     updateFormHeadings();
 }
 function readAuctionFormPayload() {
+    const startsAtLocal = String(elements.auctionStartsAtInput.value || "").trim();
     const endsAtLocal = String(elements.auctionEndsAtInput.value || "").trim();
     const manualUrl = String(elements.auctionImageUrlInput.value || "").trim();
     const imageUrl = String(state.auctionImageDataUrl || "").trim() || manualUrl;
@@ -798,10 +838,24 @@ function readAuctionFormPayload() {
         startPrice: Number(elements.auctionStartPriceInput.value || 0),
         minIncrement: Number(elements.auctionMinIncrementInput.value || 0),
         status: String(elements.auctionStatusInput.value || "ACTIVE"),
+        startsAt: toIsoFromDateTimeLocal(startsAtLocal),
         endsAt: toIsoFromDateTimeLocal(endsAtLocal),
         city: String(elements.auctionCityInput.value || "").trim(),
         district: String(elements.auctionDistrictInput.value || "").trim(),
         neighborhood: String(elements.auctionNeighborhoodInput.value || "").trim(),
+        description: String(elements.auctionDescriptionInput.value || "").trim(),
+        vehicleBrand: String(elements.auctionVehicleBrandInput.value || "").trim(),
+        vehicleModel: String(elements.auctionVehicleModelInput.value || "").trim(),
+        vehicleModelDetail: String(elements.auctionVehicleModelDetailInput.value || "").trim(),
+        vehicleYear: Number(elements.auctionVehicleYearInput.value || 0),
+        vehicleKm: Number(elements.auctionVehicleKmInput.value || 0),
+        vehicleFuelType: String(elements.auctionVehicleFuelTypeInput.value || "").trim(),
+        vehicleTransmission: String(elements.auctionVehicleTransmissionInput.value || "").trim(),
+        vehicleBodyType: String(elements.auctionVehicleBodyTypeInput.value || "").trim(),
+        vehicleColor: String(elements.auctionVehicleColorInput.value || "").trim(),
+        vehicleEngineVolume: String(elements.auctionVehicleEngineVolumeInput.value || "").trim(),
+        vehicleEnginePower: String(elements.auctionVehicleEnginePowerInput.value || "").trim(),
+        vehicleDriveType: String(elements.auctionVehicleDriveTypeInput.value || "").trim(),
         imageUrl,
     };
 }
@@ -821,18 +875,36 @@ function resetAuctionForm() {
     const firstGroup = state.groups.find((x) => Number(x.is_active || 0) === 1) || state.groups[0] || null;
     elements.auctionGroupSelect.value = firstGroup ? String(firstGroup.id || "") : "";
     fillAuctionCategorySelect();
+    renderAuctionVehicleSection();
     const categoryOptions = Array.from(elements.auctionCategorySelect.options);
     const firstCategory = categoryOptions.find((opt) => String(opt.value || "").trim().length > 0);
     elements.auctionCategorySelect.value = firstCategory ? String(firstCategory.value || "") : "";
     elements.auctionStartPriceInput.value = "";
     elements.auctionMinIncrementInput.value = "1000";
     elements.auctionStatusInput.value = "ACTIVE";
-    elements.auctionEndsAtInput.value = "";
+    const now = new Date();
+    const startsAt = new Date(now.getTime() + 5 * 60 * 1000);
+    const endsAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    elements.auctionStartsAtInput.value = toDateTimeLocal(startsAt.toISOString());
+    elements.auctionEndsAtInput.value = toDateTimeLocal(endsAt.toISOString());
     elements.auctionImageUrlInput.value = "";
     clearAuctionImageSelection();
     elements.auctionCityInput.value = "";
     elements.auctionDistrictInput.value = "";
     elements.auctionNeighborhoodInput.value = "";
+    elements.auctionDescriptionInput.value = "";
+    elements.auctionVehicleBrandInput.value = "";
+    elements.auctionVehicleModelInput.value = "";
+    elements.auctionVehicleModelDetailInput.value = "";
+    elements.auctionVehicleYearInput.value = "";
+    elements.auctionVehicleKmInput.value = "";
+    elements.auctionVehicleFuelTypeInput.value = "";
+    elements.auctionVehicleTransmissionInput.value = "";
+    elements.auctionVehicleBodyTypeInput.value = "";
+    elements.auctionVehicleColorInput.value = "";
+    elements.auctionVehicleEngineVolumeInput.value = "";
+    elements.auctionVehicleEnginePowerInput.value = "";
+    elements.auctionVehicleDriveTypeInput.value = "";
     updateFormHeadings();
 }
 function ensureAuctionSelectionDefaults() {
@@ -841,6 +913,13 @@ function ensureAuctionSelectionDefaults() {
         if (firstGroup)
             elements.auctionGroupSelect.value = String(firstGroup.id || "");
     }
+}
+function renderAuctionVehicleSection() {
+    const selectedGroupId = String(elements.auctionGroupSelect.value || "");
+    const selectedGroup = state.groups.find((x) => String(x.id || "") === selectedGroupId);
+    const groupName = String(selectedGroup?.name || "").toLowerCase();
+    const isVehicleGroup = groupName.includes("vasita") || groupName.includes("otomotiv");
+    elements.auctionVehicleSection.classList.toggle("hide", !isVehicleGroup);
 }
 async function setAuctionImageFromFile(file) {
     const type = String(file.type || "").toLowerCase();
@@ -997,6 +1076,14 @@ function formatMoney(value) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     }).format(Number(value || 0));
+}
+function formatAuctionStatus(status) {
+    const value = String(status || "").toUpperCase();
+    if (value === "ACTIVE")
+        return "Yayinda";
+    if (value === "ENDED")
+        return "Sonlandirildi";
+    return value || "-";
 }
 function toDateTimeLocal(value) {
     if (!value)

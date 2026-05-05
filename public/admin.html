@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-  <link rel="stylesheet" href="./admin.css?v=20260505-1">
-  <script src="./admin.js?v=20260505-1" defer></script>
+  <link rel="stylesheet" href="./admin.css?v=20260505-2">
+  <script src="./admin.js?v=20260505-2" defer></script>
 </head>
 <body>
   <div class="shell">
@@ -117,26 +117,169 @@
             <h3 id="auctionFormTitle">Ihale Ekle</h3>
             <form id="auctionForm" class="stackForm">
               <input type="hidden" id="auctionIdInput">
-              <div class="row2">
-                <input id="auctionLotNoInput" type="text" placeholder="Ihale No (or: 34AT999)" required>
-                <input id="auctionTitleInput" type="text" placeholder="Ihale basligi" required>
+              <div class="formSection">
+                <h4>Temel Ihale Bilgileri</h4>
+                <div class="row2">
+                  <label class="fieldWrap">
+                    <span>Ihale No</span>
+                    <input id="auctionLotNoInput" type="text" placeholder="Ornek: 34AT999" required>
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Ihale Basligi</span>
+                    <input id="auctionTitleInput" type="text" placeholder="Ornek: Skoda Superb Prestige 2023" required>
+                  </label>
+                </div>
+                <div class="row2">
+                  <label class="fieldWrap">
+                    <span>Urun Grubu</span>
+                    <select id="auctionGroupSelect" required></select>
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Kategori</span>
+                    <select id="auctionCategorySelect" required></select>
+                  </label>
+                </div>
+                <div class="row2">
+                  <label class="fieldWrap">
+                    <span>Baslangic Tarihi</span>
+                    <input id="auctionStartsAtInput" type="datetime-local" required>
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Bitis Tarihi</span>
+                    <input id="auctionEndsAtInput" type="datetime-local" required>
+                  </label>
+                </div>
+                <div class="row3">
+                  <label class="fieldWrap">
+                    <span>Baslangic Bedeli</span>
+                    <input id="auctionStartPriceInput" type="number" min="0" step="0.01" placeholder="0" required>
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Minimum Artis</span>
+                    <input id="auctionMinIncrementInput" type="number" min="0" step="0.01" placeholder="0" required>
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Ihale Durumu</span>
+                    <select id="auctionStatusInput">
+                      <option value="ACTIVE">Yayinda</option>
+                      <option value="ENDED">Sonlandirildi</option>
+                    </select>
+                  </label>
+                </div>
               </div>
-              <div class="row2">
-                <select id="auctionGroupSelect" required></select>
-                <select id="auctionCategorySelect" required></select>
+
+              <div class="formSection">
+                <h4>Konum Bilgileri</h4>
+                <div class="row3">
+                  <label class="fieldWrap">
+                    <span>Il</span>
+                    <input id="auctionCityInput" type="text" placeholder="Ornek: Ankara">
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Ilce</span>
+                    <input id="auctionDistrictInput" type="text" placeholder="Ornek: Cankaya">
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Mahalle</span>
+                    <input id="auctionNeighborhoodInput" type="text" placeholder="Ornek: Remzi Oguz Arik Mh.">
+                  </label>
+                </div>
               </div>
-              <div class="row3">
-                <input id="auctionStartPriceInput" type="number" min="0" step="0.01" placeholder="Baslangic bedeli" required>
-                <input id="auctionMinIncrementInput" type="number" min="0" step="0.01" placeholder="Min artis" required>
-                <select id="auctionStatusInput">
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="ENDED">ENDED</option>
-                </select>
+
+              <div class="formSection" id="auctionVehicleSection">
+                <h4>Arac Bilgileri (Vasita Icin)</h4>
+                <div class="row3">
+                  <label class="fieldWrap">
+                    <span>Marka</span>
+                    <input id="auctionVehicleBrandInput" type="text" placeholder="Ornek: Skoda">
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Model</span>
+                    <input id="auctionVehicleModelInput" type="text" placeholder="Ornek: Superb">
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Model Detayi</span>
+                    <input id="auctionVehicleModelDetailInput" type="text" placeholder="Ornek: Prestige 1.5 TSI 150 DSG">
+                  </label>
+                </div>
+                <div class="row3">
+                  <label class="fieldWrap">
+                    <span>Model Yili</span>
+                    <input id="auctionVehicleYearInput" type="number" min="1950" max="2100" placeholder="Ornek: 2023">
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Kilometre</span>
+                    <input id="auctionVehicleKmInput" type="number" min="0" step="1" placeholder="Ornek: 31921">
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Renk</span>
+                    <input id="auctionVehicleColorInput" type="text" placeholder="Ornek: Siyah">
+                  </label>
+                </div>
+                <div class="row3">
+                  <label class="fieldWrap">
+                    <span>Yakit Tipi</span>
+                    <select id="auctionVehicleFuelTypeInput">
+                      <option value="">Seciniz</option>
+                      <option value="Benzinli">Benzinli</option>
+                      <option value="Dizel">Dizel</option>
+                      <option value="LPG">LPG</option>
+                      <option value="Hibrit">Hibrit</option>
+                      <option value="Elektrikli">Elektrikli</option>
+                    </select>
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Sanziman</span>
+                    <select id="auctionVehicleTransmissionInput">
+                      <option value="">Seciniz</option>
+                      <option value="Manuel">Manuel</option>
+                      <option value="Otomatik">Otomatik</option>
+                      <option value="Yari Otomatik">Yari Otomatik</option>
+                    </select>
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Kasa Tipi</span>
+                    <select id="auctionVehicleBodyTypeInput">
+                      <option value="">Seciniz</option>
+                      <option value="Sedan">Sedan</option>
+                      <option value="Hatchback">Hatchback</option>
+                      <option value="SUV">SUV</option>
+                      <option value="Station Wagon">Station Wagon</option>
+                      <option value="Coupe">Coupe</option>
+                      <option value="Pick-up">Pick-up</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="row3">
+                  <label class="fieldWrap">
+                    <span>Motor Hacmi</span>
+                    <input id="auctionVehicleEngineVolumeInput" type="text" placeholder="Ornek: 1301-1600">
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Motor Gucu</span>
+                    <input id="auctionVehicleEnginePowerInput" type="text" placeholder="Ornek: 126-150">
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Cekis Turu</span>
+                    <select id="auctionVehicleDriveTypeInput">
+                      <option value="">Seciniz</option>
+                      <option value="Onden Cekis">Onden Cekis</option>
+                      <option value="Arkadan Itis">Arkadan Itis</option>
+                      <option value="4x4">4x4</option>
+                    </select>
+                  </label>
+                </div>
+                <label class="fieldWrap">
+                  <span>Aciklama</span>
+                  <textarea id="auctionDescriptionInput" rows="4" placeholder="Arac durumunu, hasar kaydini, ekspertiz notlarini ve onemli detaylari yazin."></textarea>
+                </label>
               </div>
-              <div class="row2">
-                <input id="auctionEndsAtInput" type="datetime-local" required>
-                <input id="auctionImageUrlInput" type="url" placeholder="Gorsel URL (opsiyonel)">
-              </div>
+
+              <label class="fieldWrap">
+                <span>Gorsel URL (Opsiyonel)</span>
+                <input id="auctionImageUrlInput" type="url" placeholder="https://...">
+              </label>
+
               <div class="uploadBlock">
                 <div class="uploadHead">
                   <strong>Urun Gorseli Yukle</strong>
@@ -156,11 +299,6 @@
                 <div class="uploadMeta" id="auctionImageMeta">Henuz dosya secilmedi.</div>
                 <img class="uploadPreview hide" id="auctionImagePreview" alt="Secilen gorsel onizleme">
               </div>
-              <div class="row3">
-                <input id="auctionCityInput" type="text" placeholder="Il">
-                <input id="auctionDistrictInput" type="text" placeholder="Ilce">
-                <input id="auctionNeighborhoodInput" type="text" placeholder="Mahalle">
-              </div>
               <div class="row2">
                 <button class="miniBtn success" type="submit" id="auctionSaveBtn">Kaydet</button>
                 <button class="miniBtn" type="button" id="auctionResetBtn">Temizle</button>
@@ -179,7 +317,7 @@
             <div class="tableWrap">
               <table>
                 <thead>
-                  <tr><th>No</th><th>Baslik</th><th>Grup/Kategori</th><th>Fiyat</th><th>Bitis</th><th>Durum</th><th>Islem</th></tr>
+                  <tr><th>No</th><th>Baslik</th><th>Grup/Kategori</th><th>Fiyat</th><th>Baslangic</th><th>Bitis</th><th>Durum</th><th>Islem</th></tr>
                 </thead>
                 <tbody id="auctionRows"></tbody>
               </table>

@@ -824,9 +824,12 @@ async function handleApi(request, env, url) {
       try {
         await env.DB.prepare(
           `INSERT INTO auctions (
-            id, lot_no, title, start_price, current_bid, current_bid_user_id, min_increment, bid_count, ends_at, status,
-            product_group_id, category_id, city, district, neighborhood, image_url, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, NULL, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+            id, lot_no, title, start_price, current_bid, current_bid_user_id, min_increment, bid_count, starts_at, ends_at, status,
+            product_group_id, category_id, city, district, neighborhood, image_url, description,
+            vehicle_brand, vehicle_model, vehicle_model_detail, vehicle_year, vehicle_km, vehicle_fuel_type,
+            vehicle_transmission, vehicle_body_type, vehicle_color, vehicle_engine_volume, vehicle_engine_power, vehicle_drive_type,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, NULL, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
         )
           .bind(
             crypto.randomUUID(),
@@ -835,6 +838,7 @@ async function handleApi(request, env, url) {
             validation.startPrice,
             null,
             validation.minIncrement,
+            validation.startsAt,
             validation.endsAt,
             validation.status,
             validation.groupId,
@@ -842,7 +846,20 @@ async function handleApi(request, env, url) {
             validation.city,
             validation.district,
             validation.neighborhood,
-            validation.imageUrl
+            validation.imageUrl,
+            validation.description,
+            validation.vehicleBrand,
+            validation.vehicleModel,
+            validation.vehicleModelDetail,
+            validation.vehicleYear,
+            validation.vehicleKm,
+            validation.vehicleFuelType,
+            validation.vehicleTransmission,
+            validation.vehicleBodyType,
+            validation.vehicleColor,
+            validation.vehicleEngineVolume,
+            validation.vehicleEnginePower,
+            validation.vehicleDriveType
           )
           .run();
       } catch {
@@ -867,8 +884,10 @@ async function handleApi(request, env, url) {
       try {
         const result = await env.DB.prepare(
           `UPDATE auctions
-           SET lot_no = ?, title = ?, start_price = ?, min_increment = ?, ends_at = ?, status = ?,
-               product_group_id = ?, category_id = ?, city = ?, district = ?, neighborhood = ?, image_url = ?,
+           SET lot_no = ?, title = ?, start_price = ?, min_increment = ?, starts_at = ?, ends_at = ?, status = ?,
+               product_group_id = ?, category_id = ?, city = ?, district = ?, neighborhood = ?, image_url = ?, description = ?,
+               vehicle_brand = ?, vehicle_model = ?, vehicle_model_detail = ?, vehicle_year = ?, vehicle_km = ?, vehicle_fuel_type = ?,
+               vehicle_transmission = ?, vehicle_body_type = ?, vehicle_color = ?, vehicle_engine_volume = ?, vehicle_engine_power = ?, vehicle_drive_type = ?,
                updated_at = CURRENT_TIMESTAMP
            WHERE id = ?`
         )
@@ -877,6 +896,7 @@ async function handleApi(request, env, url) {
             validation.title,
             validation.startPrice,
             validation.minIncrement,
+            validation.startsAt,
             validation.endsAt,
             validation.status,
             validation.groupId,
@@ -885,6 +905,19 @@ async function handleApi(request, env, url) {
             validation.district,
             validation.neighborhood,
             validation.imageUrl,
+            validation.description,
+            validation.vehicleBrand,
+            validation.vehicleModel,
+            validation.vehicleModelDetail,
+            validation.vehicleYear,
+            validation.vehicleKm,
+            validation.vehicleFuelType,
+            validation.vehicleTransmission,
+            validation.vehicleBodyType,
+            validation.vehicleColor,
+            validation.vehicleEngineVolume,
+            validation.vehicleEnginePower,
+            validation.vehicleDriveType,
             auctionId
           )
           .run();
@@ -1611,6 +1644,20 @@ async function ensureMarketplaceSchema(env, options: { runLegacyRepair?: boolean
     "ALTER TABLE auctions ADD COLUMN district TEXT",
     "ALTER TABLE auctions ADD COLUMN neighborhood TEXT",
     "ALTER TABLE auctions ADD COLUMN image_url TEXT",
+    "ALTER TABLE auctions ADD COLUMN starts_at TEXT",
+    "ALTER TABLE auctions ADD COLUMN description TEXT",
+    "ALTER TABLE auctions ADD COLUMN vehicle_brand TEXT",
+    "ALTER TABLE auctions ADD COLUMN vehicle_model TEXT",
+    "ALTER TABLE auctions ADD COLUMN vehicle_model_detail TEXT",
+    "ALTER TABLE auctions ADD COLUMN vehicle_year INTEGER",
+    "ALTER TABLE auctions ADD COLUMN vehicle_km INTEGER",
+    "ALTER TABLE auctions ADD COLUMN vehicle_fuel_type TEXT",
+    "ALTER TABLE auctions ADD COLUMN vehicle_transmission TEXT",
+    "ALTER TABLE auctions ADD COLUMN vehicle_body_type TEXT",
+    "ALTER TABLE auctions ADD COLUMN vehicle_color TEXT",
+    "ALTER TABLE auctions ADD COLUMN vehicle_engine_volume TEXT",
+    "ALTER TABLE auctions ADD COLUMN vehicle_engine_power TEXT",
+    "ALTER TABLE auctions ADD COLUMN vehicle_drive_type TEXT",
   ];
 
   for (const sql of baseStatements) {
@@ -1672,8 +1719,11 @@ async function getCatalogSnapshot(env) {
 async function getAdminAuctionsList(env) {
   const data = await env.DB.prepare(
     `SELECT
-      a.id, a.lot_no, a.title, a.start_price, a.current_bid, a.min_increment, a.bid_count, a.ends_at, a.status,
+      a.id, a.lot_no, a.title, a.start_price, a.current_bid, a.min_increment, a.bid_count, COALESCE(a.starts_at, a.created_at) AS starts_at, a.ends_at, a.status,
       a.created_at, a.updated_at, a.product_group_id, a.category_id, a.city, a.district, a.neighborhood, a.image_url,
+      a.description, a.vehicle_brand, a.vehicle_model, a.vehicle_model_detail, a.vehicle_year, a.vehicle_km,
+      a.vehicle_fuel_type, a.vehicle_transmission, a.vehicle_body_type, a.vehicle_color, a.vehicle_engine_volume,
+      a.vehicle_engine_power, a.vehicle_drive_type,
       pg.name AS product_group, c.name AS category
      FROM auctions a
      LEFT JOIN product_groups pg ON pg.id = a.product_group_id
@@ -2121,6 +2171,7 @@ async function validateAuctionPayload(env, body) {
   const title = String(body.title || "").trim();
   const startPrice = Number(body.startPrice || 0);
   const minIncrement = Number(body.minIncrement || 0);
+  const startsAt = String(body.startsAt || "").trim();
   const endsAt = String(body.endsAt || "").trim();
   const statusRaw = String(body.status || "ACTIVE").trim().toUpperCase();
   const allowedStatus = ["ACTIVE", "ENDED"];
@@ -2130,6 +2181,19 @@ async function validateAuctionPayload(env, body) {
   const city = String(body.city || "").trim().slice(0, 120);
   const district = String(body.district || "").trim().slice(0, 120);
   const neighborhood = String(body.neighborhood || "").trim().slice(0, 120);
+  const description = String(body.description || "").trim().slice(0, 5000);
+  const vehicleBrand = String(body.vehicleBrand || "").trim().slice(0, 120);
+  const vehicleModel = String(body.vehicleModel || "").trim().slice(0, 120);
+  const vehicleModelDetail = String(body.vehicleModelDetail || "").trim().slice(0, 220);
+  const vehicleYearRaw = Number(body.vehicleYear || 0);
+  const vehicleKmRaw = Number(body.vehicleKm || 0);
+  const vehicleFuelType = String(body.vehicleFuelType || "").trim().slice(0, 80);
+  const vehicleTransmission = String(body.vehicleTransmission || "").trim().slice(0, 80);
+  const vehicleBodyType = String(body.vehicleBodyType || "").trim().slice(0, 80);
+  const vehicleColor = String(body.vehicleColor || "").trim().slice(0, 80);
+  const vehicleEngineVolume = String(body.vehicleEngineVolume || "").trim().slice(0, 80);
+  const vehicleEnginePower = String(body.vehicleEnginePower || "").trim().slice(0, 80);
+  const vehicleDriveType = String(body.vehicleDriveType || "").trim().slice(0, 80);
   const rawImageUrl = String(body.imageUrl || "").trim();
   let imageUrl = "";
 
@@ -2138,8 +2202,11 @@ async function validateAuctionPayload(env, body) {
   if (!Number.isFinite(startPrice) || startPrice <= 0) return { error: "Başlangıç bedeli geçersiz." };
   if (!Number.isFinite(minIncrement) || minIncrement <= 0) return { error: "Min artış tutarı geçersiz." };
 
+  const startTime = new Date(startsAt).getTime();
   const endTime = new Date(endsAt).getTime();
+  if (!startsAt || Number.isNaN(startTime)) return { error: "Baslangic tarihi gecersiz." };
   if (!endsAt || Number.isNaN(endTime)) return { error: "Bitiş tarihi geçersiz." };
+  if (endTime <= startTime) return { error: "Bitis tarihi, baslangic tarihinden sonra olmalidir." };
   if (rawImageUrl) {
     if (rawImageUrl.startsWith("data:image/")) {
       if (rawImageUrl.length > 1_200_000) {
@@ -2173,11 +2240,16 @@ async function validateAuctionPayload(env, body) {
 
   if (!groupId || !categoryId) return { error: "Ürün grubu ve kategori seçimi zorunludur." };
 
+  const vehicleYear =
+    Number.isFinite(vehicleYearRaw) && vehicleYearRaw >= 1900 && vehicleYearRaw <= 2100 ? Math.round(vehicleYearRaw) : null;
+  const vehicleKm = Number.isFinite(vehicleKmRaw) && vehicleKmRaw >= 0 ? Math.round(vehicleKmRaw) : null;
+
   return {
     lotNo: lotNo.slice(0, 64),
     title: title.slice(0, 220),
     startPrice,
     minIncrement,
+    startsAt: new Date(startTime).toISOString(),
     endsAt: new Date(endTime).toISOString(),
     status,
     groupId,
@@ -2185,6 +2257,19 @@ async function validateAuctionPayload(env, body) {
     city,
     district,
     neighborhood,
+    description,
+    vehicleBrand,
+    vehicleModel,
+    vehicleModelDetail,
+    vehicleYear,
+    vehicleKm,
+    vehicleFuelType,
+    vehicleTransmission,
+    vehicleBodyType,
+    vehicleColor,
+    vehicleEngineVolume,
+    vehicleEnginePower,
+    vehicleDriveType,
     imageUrl,
     error: null,
   };
