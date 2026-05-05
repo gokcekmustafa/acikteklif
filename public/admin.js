@@ -46,6 +46,16 @@ const state = {
     catalogQuery: "",
     auctionQuery: "",
 };
+const AUCTION_REQUIRED_FIELD_KEYS = [
+    "lotNo",
+    "title",
+    "groupId",
+    "categoryId",
+    "startsAt",
+    "endsAt",
+    "startPrice",
+    "minIncrement",
+];
 const elements = {
     refreshBtn: byId("refreshBtn"),
     searchInput: byId("searchInput"),
@@ -131,11 +141,34 @@ const elements = {
     auctionSaveBtn: byId("auctionSaveBtn"),
     auctionRows: byId("auctionRows"),
 };
+function getAuctionFieldBinding(fieldKey) {
+    if (fieldKey === "lotNo")
+        return { key: fieldKey, label: "Ihale No", element: elements.auctionLotNoInput };
+    if (fieldKey === "title")
+        return { key: fieldKey, label: "Ihale Basligi", element: elements.auctionTitleInput };
+    if (fieldKey === "groupId")
+        return { key: fieldKey, label: "Urun Grubu", element: elements.auctionGroupSelect };
+    if (fieldKey === "categoryId")
+        return { key: fieldKey, label: "Kategori", element: elements.auctionCategorySelect };
+    if (fieldKey === "startsAt")
+        return { key: fieldKey, label: "Baslangic Tarihi", element: elements.auctionStartsAtInput };
+    if (fieldKey === "endsAt")
+        return { key: fieldKey, label: "Bitis Tarihi", element: elements.auctionEndsAtInput };
+    if (fieldKey === "startPrice")
+        return { key: fieldKey, label: "Baslangic Bedeli", element: elements.auctionStartPriceInput };
+    if (fieldKey === "minIncrement")
+        return { key: fieldKey, label: "Minimum Artis", element: elements.auctionMinIncrementInput };
+    return null;
+}
+function getAllAuctionFieldBindings() {
+    return AUCTION_REQUIRED_FIELD_KEYS.map((key) => getAuctionFieldBinding(key)).filter((item) => item !== null);
+}
 init().catch((error) => {
     console.error(error);
     setStatus(error.message || "Yonetim paneli yuklenemedi.", "error");
 });
 async function init() {
+    markRequiredAuctionLabels();
     setStatus("Veriler yukleniyor...", "warn");
     await bootstrapData();
     bindEvents();
@@ -535,8 +568,14 @@ function bindAuctionEvents() {
     });
     elements.auctionForm.addEventListener("submit", async (event) => {
         event.preventDefault();
+        clearAuctionFieldErrors();
         const auctionId = String(elements.auctionIdInput.value || "").trim();
         const payload = readAuctionFormPayload();
+        const validationIssues = validateAuctionFormPayload(payload);
+        if (validationIssues.length > 0) {
+            applyAuctionValidationIssues(validationIssues);
+            return;
+        }
         await safeAction(elements.auctionForm, async () => {
             if (auctionId) {
                 await apiFetch(`/api/admin/auctions/${encodeURIComponent(auctionId)}`, { method: "PUT", body: payload });
@@ -544,6 +583,7 @@ function bindAuctionEvents() {
             else {
                 await apiFetch("/api/admin/auctions", { method: "POST", body: payload });
             }
+            clearAuctionFieldErrors();
             resetAuctionForm();
             await loadAuctions();
             renderAuctions();
@@ -553,6 +593,11 @@ function bindAuctionEvents() {
             alert(`${message} Kaydetme basarili.`);
             hideAuctionForm();
             elements.auctionListCard.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, {
+            suppressDefaultErrorStatus: true,
+            onError: (error) => {
+                handleAuctionSubmitError(error);
+            },
         });
     });
     elements.auctionResetBtn.addEventListener("click", () => resetAuctionForm());
@@ -877,6 +922,7 @@ function fillAuctionCategorySelect() {
     }
 }
 function fillAuctionForm(auction) {
+    clearAuctionFieldErrors();
     elements.auctionIdInput.value = String(auction.id || "");
     elements.auctionLotNoInput.value = String(auction.lot_no || "");
     elements.auctionTitleInput.value = String(auction.title || "");
@@ -956,6 +1002,173 @@ function readAuctionFormPayload() {
         documentFiles: normalizeUploadedFileList(state.auctionDocumentFiles || []),
     };
 }
+function markRequiredAuctionLabels() {
+    for (const binding of getAllAuctionFieldBindings()) {
+        const wrap = binding.element.closest(".fieldWrap");
+        if (wrap)
+            wrap.classList.add("requiredField");
+    }
+}
+function clearAuctionFieldErrors() {
+    const wraps = Array.from(elements.auctionForm.querySelectorAll(".fieldWrap.invalid"));
+    for (const wrap of wraps) {
+        wrap.classList.remove("invalid");
+    }
+    const hints = Array.from(elements.auctionForm.querySelectorAll(".fieldError"));
+    for (const hint of hints) {
+        hint.remove();
+    }
+    for (const binding of getAllAuctionFieldBindings()) {
+        binding.element.removeAttribute("aria-invalid");
+    }
+}
+function showAuctionFieldError(issue) {
+    const binding = getAuctionFieldBinding(issue.key);
+    if (!binding)
+        return;
+    binding.element.setAttribute("aria-invalid", "true");
+    const wrap = binding.element.closest(".fieldWrap");
+    if (!wrap)
+        return;
+    wrap.classList.add("invalid");
+    let hint = wrap.querySelector(".fieldError");
+    if (!hint) {
+        hint = document.createElement("small");
+        hint.className = "fieldError";
+        wrap.appendChild(hint);
+    }
+    hint.textContent = issue.message;
+}
+function validateAuctionFormPayload(payload) {
+    const issues = [];
+    const seen = new Set();
+    const addIssue = (key, message) => {
+        if (seen.has(key))
+            return;
+        const binding = getAuctionFieldBinding(key);
+        if (!binding)
+            return;
+        issues.push({ key, label: binding.label, message });
+        seen.add(key);
+    };
+    if (!String(payload.lotNo || "").trim())
+        addIssue("lotNo", "Ihale no zorunludur.");
+    if (!String(payload.title || "").trim())
+        addIssue("title", "Ihale basligi zorunludur.");
+    if (!String(payload.groupId || "").trim())
+        addIssue("groupId", "Urun grubu secimi zorunludur.");
+    if (!String(payload.categoryId || "").trim())
+        addIssue("categoryId", "Kategori secimi zorunludur.");
+    const startsAt = String(payload.startsAt || "").trim();
+    const endsAt = String(payload.endsAt || "").trim();
+    const startTime = startsAt ? new Date(startsAt).getTime() : Number.NaN;
+    const endTime = endsAt ? new Date(endsAt).getTime() : Number.NaN;
+    if (!startsAt)
+        addIssue("startsAt", "Baslangic tarihi zorunludur.");
+    else if (Number.isNaN(startTime))
+        addIssue("startsAt", "Baslangic tarihi gecersiz.");
+    if (!endsAt)
+        addIssue("endsAt", "Bitis tarihi zorunludur.");
+    else if (Number.isNaN(endTime))
+        addIssue("endsAt", "Bitis tarihi gecersiz.");
+    if (!Number.isNaN(startTime) && !Number.isNaN(endTime) && endTime <= startTime) {
+        addIssue("endsAt", "Bitis tarihi, baslangic tarihinden sonra olmalidir.");
+    }
+    if (!Number.isFinite(Number(payload.startPrice)) || Number(payload.startPrice) <= 0) {
+        addIssue("startPrice", "Baslangic bedeli sifirdan buyuk olmalidir.");
+    }
+    if (!Number.isFinite(Number(payload.minIncrement)) || Number(payload.minIncrement) <= 0) {
+        addIssue("minIncrement", "Minimum artis sifirdan buyuk olmalidir.");
+    }
+    return issues;
+}
+function applyAuctionValidationIssues(issues) {
+    if (!Array.isArray(issues) || issues.length < 1)
+        return;
+    clearAuctionFieldErrors();
+    for (const issue of issues) {
+        showAuctionFieldError(issue);
+    }
+    const labels = Array.from(new Set(issues.map((issue) => issue.label)));
+    setStatus(`Lutfen zorunlu alanlari kontrol edin: ${labels.join(", ")}`, "error");
+    const firstBinding = getAuctionFieldBinding(issues[0].key);
+    if (firstBinding) {
+        firstBinding.element.focus();
+        if (typeof firstBinding.element.select === "function") {
+            try {
+                firstBinding.element.select();
+            }
+            catch {
+                // select her input turunde desteklenmeyebilir
+            }
+        }
+    }
+}
+function normalizeSearchText(value) {
+    return String(value || "")
+        .toLowerCase()
+        .replaceAll("ı", "i")
+        .replaceAll("İ", "i")
+        .replaceAll("ş", "s")
+        .replaceAll("Ş", "s")
+        .replaceAll("ğ", "g")
+        .replaceAll("Ğ", "g")
+        .replaceAll("ü", "u")
+        .replaceAll("Ü", "u")
+        .replaceAll("ö", "o")
+        .replaceAll("Ö", "o")
+        .replaceAll("ç", "c")
+        .replaceAll("Ç", "c");
+}
+function parseAuctionValidationIssuesFromMessage(messageRaw) {
+    const message = normalizeSearchText(messageRaw);
+    const issues = [];
+    const seen = new Set();
+    const addIssue = (key, issueMessage) => {
+        if (seen.has(key))
+            return;
+        const binding = getAuctionFieldBinding(key);
+        if (!binding)
+            return;
+        issues.push({ key, label: binding.label, message: issueMessage });
+        seen.add(key);
+    };
+    if (message.includes("ihale no zorunludur") || message.includes("ihale no") && message.includes("kullaniliyor")) {
+        addIssue("lotNo", "Ihale no alanini kontrol edin.");
+    }
+    if (message.includes("ihale basligi zorunludur"))
+        addIssue("title", "Ihale basligi zorunludur.");
+    if (message.includes("baslangic bedeli"))
+        addIssue("startPrice", "Baslangic bedeli alanini kontrol edin.");
+    if (message.includes("min artis"))
+        addIssue("minIncrement", "Minimum artis alanini kontrol edin.");
+    if (message.includes("baslangic tarihi"))
+        addIssue("startsAt", "Baslangic tarihi alanini kontrol edin.");
+    if (message.includes("bitis tarihi"))
+        addIssue("endsAt", "Bitis tarihi alanini kontrol edin.");
+    if (message.includes("urun grubu") && message.includes("zorunlu"))
+        addIssue("groupId", "Urun grubu secimi zorunludur.");
+    if (message.includes("kategori") && message.includes("zorunlu"))
+        addIssue("categoryId", "Kategori secimi zorunludur.");
+    if (message.includes("secilen urun grubu bulunamadi"))
+        addIssue("groupId", "Secilen urun grubu bulunamadi.");
+    if (message.includes("secilen kategori bulunamadi"))
+        addIssue("categoryId", "Secilen kategori bulunamadi.");
+    if (message.includes("kategori secilen urun grubuna ait degil")) {
+        addIssue("groupId", "Urun grubu ile kategori eslesmiyor.");
+        addIssue("categoryId", "Urun grubu ile kategori eslesmiyor.");
+    }
+    return issues;
+}
+function handleAuctionSubmitError(error) {
+    const message = String(error?.message || "Ihale kaydedilemedi. Alanlari kontrol edip tekrar deneyin.");
+    const issues = parseAuctionValidationIssuesFromMessage(message);
+    if (issues.length > 0) {
+        applyAuctionValidationIssues(issues);
+        return;
+    }
+    setStatus(message, "error");
+}
 function resetGroupForm() {
     elements.groupNameInput.value = "";
 }
@@ -966,6 +1179,7 @@ function resetCategoryForm() {
     }
 }
 function resetAuctionForm() {
+    clearAuctionFieldErrors();
     elements.auctionIdInput.value = "";
     elements.auctionLotNoInput.value = "";
     elements.auctionTitleInput.value = "";
@@ -1354,7 +1568,7 @@ function setStatus(text, kind) {
         elements.statusLine.classList.add(kind);
     elements.statusLine.textContent = text || "";
 }
-async function safeAction(control, handler) {
+async function safeAction(control, handler, options = {}) {
     const prevDisabled = control.disabled === true;
     control.classList.add("busy");
     control.disabled = true;
@@ -1363,7 +1577,12 @@ async function safeAction(control, handler) {
     }
     catch (error) {
         console.error(error);
-        setStatus(error.message || "Islem sirasinda hata olustu.", "error");
+        if (typeof options.onError === "function") {
+            options.onError(error);
+        }
+        if (!options.suppressDefaultErrorStatus) {
+            setStatus(error.message || "Islem sirasinda hata olustu.", "error");
+        }
     }
     finally {
         control.disabled = prevDisabled;
@@ -1441,7 +1660,11 @@ async function apiFetch(path, options = {}) {
         data = {};
     }
     if (!response.ok || data.ok === false) {
-        throw new Error(data.error || `Istek basarisiz (${response.status})`);
+        const error = new Error(data.error || `Istek basarisiz (${response.status})`);
+        error.status = response.status;
+        error.payload = data;
+        error.path = path;
+        throw error;
     }
     return data;
 }

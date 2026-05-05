@@ -379,6 +379,30 @@ body {
   color: #35567f;
 }
 
+.fieldWrap.requiredField span::after {
+  content: " *";
+  color: #b02a2a;
+}
+
+.fieldWrap.invalid span {
+  color: #9e2020;
+}
+
+.fieldWrap.invalid input,
+.fieldWrap.invalid select,
+.fieldWrap.invalid textarea {
+  border-color: #dc5a5a;
+  background: #fff3f3;
+  box-shadow: 0 0 0 2px rgba(220, 90, 90, 0.12);
+}
+
+.fieldError {
+  margin-top: 1px;
+  color: #b02a2a;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
 .row2,
 .row3 {
   display: grid;

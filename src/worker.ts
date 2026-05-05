@@ -847,10 +847,8 @@ async function handleApi(request, env, url) {
           await updateAuctionRecord(env, String(existingByLotNo.id), validation);
         } catch (error) {
           console.error("Admin auction upsert update failed:", error);
-          if (isAuctionLotNoUniqueConstraintError(error)) {
-            return json({ ok: false, error: "İhale kaydedilemedi. Bu ihale no başka bir kayıtta kullanılıyor." }, 409);
-          }
-          return json({ ok: false, error: "İhale kaydedilemedi. Lütfen alanları kontrol edip tekrar deneyin." }, 500);
+          const mapped = mapAuctionMutationError(error, "İhale kaydedilemedi. Lütfen alanları kontrol edip tekrar deneyin.");
+          return json({ ok: false, error: mapped.error }, mapped.status);
         }
 
         await writeAdminAuditLog(env, session.user.id, null, "auction.create.upsert", { lotNo: validation.lotNo });
@@ -914,11 +912,14 @@ async function handleApi(request, env, url) {
               return json({ ok: true, message: "Bu ihale no zaten vardi, mevcut kayit guncellendi." });
             } catch (upsertError) {
               console.error("Admin auction create conflict upsert failed:", upsertError);
+              const mapped = mapAuctionMutationError(upsertError, "İhale kaydedilemedi. Lütfen alanları kontrol edip tekrar deneyin.");
+              return json({ ok: false, error: mapped.error }, mapped.status);
             }
           }
           return json({ ok: false, error: "İhale oluşturulamadı. Bu ihale no başka bir ihalede kullanılıyor." }, 409);
         }
-        return json({ ok: false, error: "İhale oluşturulamadı. Lütfen alanları kontrol edip tekrar deneyin." }, 500);
+        const mapped = mapAuctionMutationError(error, "İhale oluşturulamadı. Lütfen alanları kontrol edip tekrar deneyin.");
+        return json({ ok: false, error: mapped.error }, mapped.status);
       }
 
       await writeAdminAuditLog(env, session.user.id, null, "auction.create", { lotNo: validation.lotNo });
@@ -947,10 +948,8 @@ async function handleApi(request, env, url) {
         if ((result.meta?.changes || 0) < 1) return json({ ok: false, error: "İhale bulunamadı." }, 404);
       } catch (error) {
         console.error("Admin auction update failed:", error);
-        if (isAuctionLotNoUniqueConstraintError(error)) {
-          return json({ ok: false, error: "Bu ihale no başka bir kayıtta kullanılıyor." }, 409);
-        }
-        return json({ ok: false, error: "İhale güncellenemedi. Lütfen alanları kontrol edip tekrar deneyin." }, 500);
+        const mapped = mapAuctionMutationError(error, "İhale güncellenemedi. Lütfen alanları kontrol edip tekrar deneyin.");
+        return json({ ok: false, error: mapped.error }, mapped.status);
       }
 
       await writeAdminAuditLog(env, session.user.id, null, "auction.update", { auctionId });
@@ -2454,6 +2453,43 @@ async function updateAuctionRecord(env, auctionId: string, validation: any) {
 function isAuctionLotNoUniqueConstraintError(error: unknown): boolean {
   const message = String((error as any)?.message || "").toLowerCase();
   return message.includes("unique") && message.includes("auctions.lot_no");
+}
+
+function mapAuctionMutationError(error: unknown, fallbackMessage: string): { status: number; error: string } {
+  const rawMessage = String((error as any)?.message || "");
+  const message = rawMessage.toLowerCase();
+
+  if (isAuctionLotNoUniqueConstraintError(error)) {
+    return { status: 409, error: "Bu ihale no başka bir kayıtta kullanılıyor." };
+  }
+
+  if (message.includes("foreign key")) {
+    return { status: 409, error: "Seçilen ürün grubu veya kategori geçersiz. Lütfen tekrar seçin." };
+  }
+
+  if (message.includes("not null constraint failed: auctions.lot_no")) {
+    return { status: 400, error: "İhale no zorunludur." };
+  }
+  if (message.includes("not null constraint failed: auctions.title")) {
+    return { status: 400, error: "İhale başlığı zorunludur." };
+  }
+  if (message.includes("not null constraint failed: auctions.start_price")) {
+    return { status: 400, error: "Başlangıç bedeli zorunludur." };
+  }
+  if (message.includes("not null constraint failed: auctions.min_increment")) {
+    return { status: 400, error: "Minimum artış zorunludur." };
+  }
+  if (message.includes("not null constraint failed: auctions.ends_at")) {
+    return { status: 400, error: "Bitiş tarihi zorunludur." };
+  }
+  if (message.includes("not null constraint failed: auctions.status")) {
+    return { status: 400, error: "İhale durumu zorunludur." };
+  }
+  if (message.includes("no such column")) {
+    return { status: 500, error: "Sistem alanları güncelleniyor. Sayfayı yenileyip tekrar deneyin." };
+  }
+
+  return { status: 500, error: fallbackMessage };
 }
 
 function normalizeGalleryList(rawInput: any, fallbackImageUrl: string = "") {
