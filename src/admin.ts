@@ -17,6 +17,25 @@ const ALLOWED_REPORT_FILE_TYPES = new Set([
   "image/webp",
   "image/jpg",
 ]);
+const VEHICLE_CONDITION_STATUS_KEYS = ["ORIGINAL", "LOCAL_PAINTED", "PAINTED", "CHANGED"] as const;
+const VEHICLE_CONDITION_DEFAULT_STATUS = "ORIGINAL" as const;
+const VEHICLE_CONDITION_PARTS = [
+  { key: "on_tampon", label: "On Tampon" },
+  { key: "kaput", label: "Kaput" },
+  { key: "sol_on_camurluk", label: "Sol On Camurluk" },
+  { key: "sag_on_camurluk", label: "Sag On Camurluk" },
+  { key: "sol_on_kapi", label: "Sol On Kapi" },
+  { key: "sag_on_kapi", label: "Sag On Kapi" },
+  { key: "tavan", label: "Tavan" },
+  { key: "sol_arka_kapi", label: "Sol Arka Kapi" },
+  { key: "sag_arka_kapi", label: "Sag Arka Kapi" },
+  { key: "sol_arka_camurluk", label: "Sol Arka Camurluk" },
+  { key: "sag_arka_camurluk", label: "Sag Arka Camurluk" },
+  { key: "bagaj", label: "Bagaj" },
+  { key: "arka_tampon", label: "Arka Tampon" },
+  { key: "sol_ayna", label: "Sol Ayna" },
+  { key: "sag_ayna", label: "Sag Ayna" },
+] as const;
 
 const defaultPermissionDefs = [
   { key: "admin.panel.access", label: "Admin panel erisimi" },
@@ -44,6 +63,8 @@ const state: any = {
   auctionImageDataUrls: [],
   auctionExpertiseFiles: [],
   auctionDocumentFiles: [],
+  auctionVehicleConditionMap: {},
+  auctionVehicleConditionSelectedStatus: VEHICLE_CONDITION_DEFAULT_STATUS,
   permissionDefs: defaultPermissionDefs,
   query: "",
   catalogQuery: "",
@@ -56,6 +77,10 @@ type UploadedFileEntry = {
   size: number;
   dataUrl: string;
 };
+
+type VehicleConditionStatusKey = (typeof VEHICLE_CONDITION_STATUS_KEYS)[number];
+type VehicleConditionPartKey = (typeof VEHICLE_CONDITION_PARTS)[number]["key"];
+type VehicleConditionMap = Record<string, VehicleConditionStatusKey>;
 
 type SafeActionOptions = {
   onError?: (error: any) => void;
@@ -181,6 +206,9 @@ const elements = {
   auctionVehicleEngineVolumeInput: byId("auctionVehicleEngineVolumeInput"),
   auctionVehicleEnginePowerInput: byId("auctionVehicleEnginePowerInput"),
   auctionVehicleDriveTypeInput: byId("auctionVehicleDriveTypeInput"),
+  auctionVehicleConditionToolbar: byId("auctionVehicleConditionToolbar"),
+  auctionVehicleConditionResetBtn: byId("auctionVehicleConditionResetBtn"),
+  auctionVehicleConditionMap: byId("auctionVehicleConditionMap"),
   auctionResetBtn: byId("auctionResetBtn"),
   auctionFormTitle: byId("auctionFormTitle"),
   auctionSaveBtn: byId("auctionSaveBtn"),
@@ -554,6 +582,31 @@ function bindAuctionEvents() {
   };
   closeDatePicker(elements.auctionStartsAtInput);
   closeDatePicker(elements.auctionEndsAtInput);
+
+  elements.auctionVehicleConditionToolbar.addEventListener("click", (event: any) => {
+    const btn = event.target.closest("button[data-condition-status]") as HTMLButtonElement | null;
+    if (!btn) return;
+    const nextStatus = normalizeVehicleConditionStatusKey(btn.dataset.conditionStatus);
+    if (!nextStatus) return;
+    state.auctionVehicleConditionSelectedStatus = nextStatus;
+    renderAuctionVehicleConditionMap();
+  });
+
+  elements.auctionVehicleConditionMap.addEventListener("click", (event: any) => {
+    const btn = event.target.closest("button[data-part-key]") as HTMLButtonElement | null;
+    if (!btn) return;
+    const partKey = String(btn.dataset.partKey || "").trim();
+    if (!isVehicleConditionPartKey(partKey)) return;
+    const selectedStatus = normalizeVehicleConditionStatusKey(state.auctionVehicleConditionSelectedStatus) || VEHICLE_CONDITION_DEFAULT_STATUS;
+    setVehicleConditionPartStatus(partKey, selectedStatus);
+    renderAuctionVehicleConditionMap();
+  });
+
+  elements.auctionVehicleConditionResetBtn.addEventListener("click", () => {
+    state.auctionVehicleConditionMap = {};
+    renderAuctionVehicleConditionMap();
+    setStatus("Kaporta haritasi orijinal duruma cekildi.", "ok");
+  });
 
   elements.auctionImagePickBtn.addEventListener("click", () => {
     elements.auctionImageFileInput.click();
@@ -1081,6 +1134,11 @@ function fillAuctionForm(auction: any) {
   elements.auctionVehicleEngineVolumeInput.value = String(auction.vehicle_engine_volume || "");
   elements.auctionVehicleEnginePowerInput.value = String(auction.vehicle_engine_power || "");
   elements.auctionVehicleDriveTypeInput.value = String(auction.vehicle_drive_type || "");
+  state.auctionVehicleConditionMap = normalizeVehicleConditionMap(
+    auction.vehicle_condition_map_json || auction.vehicle_condition_map || auction.vehicleConditionMap || {}
+  );
+  state.auctionVehicleConditionSelectedStatus = VEHICLE_CONDITION_DEFAULT_STATUS;
+  renderAuctionVehicleConditionMap();
   updateFormHeadings();
 }
 
@@ -1115,6 +1173,7 @@ function readAuctionFormPayload() {
     vehicleEngineVolume: String(elements.auctionVehicleEngineVolumeInput.value || "").trim(),
     vehicleEnginePower: String(elements.auctionVehicleEnginePowerInput.value || "").trim(),
     vehicleDriveType: String(elements.auctionVehicleDriveTypeInput.value || "").trim(),
+    vehicleConditionMap: normalizeVehicleConditionMap(state.auctionVehicleConditionMap || {}),
     imageUrl: imageList[0] || "",
     images: imageList,
     expertiseFiles: normalizeUploadedFileList(state.auctionExpertiseFiles || []),
@@ -1372,6 +1431,9 @@ function resetAuctionForm() {
   elements.auctionVehicleEngineVolumeInput.value = "";
   elements.auctionVehicleEnginePowerInput.value = "";
   elements.auctionVehicleDriveTypeInput.value = "";
+  state.auctionVehicleConditionMap = {};
+  state.auctionVehicleConditionSelectedStatus = VEHICLE_CONDITION_DEFAULT_STATUS;
+  renderAuctionVehicleConditionMap();
   updateFormHeadings();
 }
 
@@ -1620,6 +1682,81 @@ function renderAuctionFileList(mode: "expertise" | "document") {
     .join("");
 }
 
+function renderAuctionVehicleConditionMap() {
+  const selectedStatus =
+    normalizeVehicleConditionStatusKey(state.auctionVehicleConditionSelectedStatus) || VEHICLE_CONDITION_DEFAULT_STATUS;
+  state.auctionVehicleConditionSelectedStatus = selectedStatus;
+  const map = normalizeVehicleConditionMap(state.auctionVehicleConditionMap || {});
+  state.auctionVehicleConditionMap = map;
+
+  const statusButtons = Array.from(
+    elements.auctionVehicleConditionToolbar.querySelectorAll("button[data-condition-status]")
+  ) as HTMLButtonElement[];
+  for (const button of statusButtons) {
+    const key = normalizeVehicleConditionStatusKey(button.dataset.conditionStatus);
+    button.classList.toggle("active", key === selectedStatus);
+  }
+
+  elements.auctionVehicleConditionMap.innerHTML = VEHICLE_CONDITION_PARTS.map((part) => {
+    const status = map[part.key] || VEHICLE_CONDITION_DEFAULT_STATUS;
+    const statusClass = status.toLowerCase();
+    return `
+      <button class="conditionPart ${statusClass}" type="button" data-part-key="${part.key}" aria-label="${escapeHtml(
+      part.label
+    )} ${escapeHtml(getVehicleConditionStatusLabel(status))}">
+        <span class="partName">${escapeHtml(part.label)}</span>
+        <span class="partState">${escapeHtml(getVehicleConditionStatusLabel(status))}</span>
+      </button>
+    `;
+  }).join("");
+}
+
+function getVehicleConditionStatusLabel(status: VehicleConditionStatusKey) {
+  if (status === "LOCAL_PAINTED") return "Lokal Boyali";
+  if (status === "PAINTED") return "Boyali";
+  if (status === "CHANGED") return "Degisen";
+  return "Orijinal";
+}
+
+function normalizeVehicleConditionMap(input: any): VehicleConditionMap {
+  const source = parseJsonObjectMaybe(input);
+  const out: VehicleConditionMap = {};
+  for (const part of VEHICLE_CONDITION_PARTS) {
+    const normalizedStatus = normalizeVehicleConditionStatusKey(source[part.key]);
+    if (!normalizedStatus || normalizedStatus === VEHICLE_CONDITION_DEFAULT_STATUS) continue;
+    out[part.key] = normalizedStatus;
+  }
+  return out;
+}
+
+function setVehicleConditionPartStatus(partKey: VehicleConditionPartKey, status: VehicleConditionStatusKey) {
+  const nextMap = normalizeVehicleConditionMap(state.auctionVehicleConditionMap || {});
+  if (status === VEHICLE_CONDITION_DEFAULT_STATUS) {
+    delete nextMap[partKey];
+  } else {
+    nextMap[partKey] = status;
+  }
+  state.auctionVehicleConditionMap = nextMap;
+}
+
+function normalizeVehicleConditionStatusKey(input: any): VehicleConditionStatusKey | null {
+  const raw = String(input || "").trim();
+  if (!raw) return null;
+  const folded = raw
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (folded === "ORIGINAL" || folded === "ORIJINAL") return "ORIGINAL";
+  if (folded === "LOCAL_PAINTED" || folded === "LOKAL BOYALI" || folded === "LOKALBOYALI") return "LOCAL_PAINTED";
+  if (folded === "PAINTED" || folded === "BOYALI") return "PAINTED";
+  if (folded === "CHANGED" || folded === "DEGISEN") return "CHANGED";
+  return null;
+}
+
+function isVehicleConditionPartKey(input: string): input is VehicleConditionPartKey {
+  return VEHICLE_CONDITION_PARTS.some((part) => part.key === input);
+}
+
 function normalizeAuctionImageList(input: any) {
   const values = parseJsonArrayMaybe(input);
   const out: string[] = [];
@@ -1688,6 +1825,21 @@ function parseJsonArrayMaybe(input: any) {
     return [text];
   }
   return [];
+}
+
+function parseJsonObjectMaybe(input: any) {
+  if (input && typeof input === "object" && !Array.isArray(input)) return input;
+  if (typeof input === "string") {
+    const text = String(input || "").trim();
+    if (!text || !text.startsWith("{")) return {};
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+    } catch {
+      return {};
+    }
+  }
+  return {};
 }
 
 function clearAuctionImageSelection() {

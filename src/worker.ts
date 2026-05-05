@@ -50,6 +50,24 @@ const MAX_ATTACHMENT_COUNT = 15;
 const MAX_ATTACHMENT_DATA_URL_LENGTH = 2_700_000;
 const MAX_GALLERY_TOTAL_DATA_URL_LENGTH = 2_400_000;
 const MAX_ATTACHMENT_TOTAL_DATA_URL_LENGTH = 3_200_000;
+const MAX_VEHICLE_CONDITION_JSON_LENGTH = 5000;
+const VEHICLE_CONDITION_PART_KEYS = [
+  "on_tampon",
+  "kaput",
+  "sol_on_camurluk",
+  "sag_on_camurluk",
+  "sol_on_kapi",
+  "sag_on_kapi",
+  "tavan",
+  "sol_arka_kapi",
+  "sag_arka_kapi",
+  "sol_arka_camurluk",
+  "sag_arka_camurluk",
+  "bagaj",
+  "arka_tampon",
+  "sol_ayna",
+  "sag_ayna",
+] as const;
 
 type RuntimeSchemaState = {
   adminReadyAt: number;
@@ -865,8 +883,9 @@ async function handleApi(request, env, url) {
             expertise_files_json, document_files_json,
             vehicle_brand, vehicle_model, vehicle_model_detail, vehicle_year, vehicle_km, vehicle_fuel_type,
             vehicle_transmission, vehicle_body_type, vehicle_color, vehicle_engine_volume, vehicle_engine_power, vehicle_drive_type,
+            vehicle_condition_map_json,
             created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, NULL, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+          ) VALUES (?, ?, ?, ?, ?, NULL, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
         )
           .bind(
             crypto.randomUUID(),
@@ -900,7 +919,8 @@ async function handleApi(request, env, url) {
             validation.vehicleColor,
             validation.vehicleEngineVolume,
             validation.vehicleEnginePower,
-            validation.vehicleDriveType
+            validation.vehicleDriveType,
+            validation.vehicleConditionMapJson
           )
           .run();
       } catch (error) {
@@ -1689,6 +1709,7 @@ async function ensureMarketplaceSchema(env, options: { runLegacyRepair?: boolean
     "ALTER TABLE auctions ADD COLUMN vehicle_engine_volume TEXT",
     "ALTER TABLE auctions ADD COLUMN vehicle_engine_power TEXT",
     "ALTER TABLE auctions ADD COLUMN vehicle_drive_type TEXT",
+    "ALTER TABLE auctions ADD COLUMN vehicle_condition_map_json TEXT",
   ];
 
   for (const sql of baseStatements) {
@@ -1755,7 +1776,7 @@ async function getAdminAuctionsList(env) {
       a.gallery_json, a.extra_equipment, a.expertise_files_json, a.document_files_json,
       a.description, a.vehicle_brand, a.vehicle_model, a.vehicle_model_detail, a.vehicle_year, a.vehicle_km,
       a.vehicle_fuel_type, a.vehicle_transmission, a.vehicle_body_type, a.vehicle_color, a.vehicle_engine_volume,
-      a.vehicle_engine_power, a.vehicle_drive_type,
+      a.vehicle_engine_power, a.vehicle_drive_type, a.vehicle_condition_map_json,
       pg.name AS product_group, c.name AS category
      FROM auctions a
      LEFT JOIN product_groups pg ON pg.id = a.product_group_id
@@ -1790,7 +1811,7 @@ async function getPublicAuctionDetailByLotNo(env, lotNo: string) {
       a.description, a.extra_equipment, a.expertise_files_json, a.document_files_json,
       a.vehicle_brand, a.vehicle_model, a.vehicle_model_detail, a.vehicle_year, a.vehicle_km,
       a.vehicle_fuel_type, a.vehicle_transmission, a.vehicle_body_type, a.vehicle_color, a.vehicle_engine_volume,
-      a.vehicle_engine_power, a.vehicle_drive_type,
+      a.vehicle_engine_power, a.vehicle_drive_type, a.vehicle_condition_map_json,
       pg.name AS product_group, c.name AS category
      FROM auctions a
      LEFT JOIN product_groups pg ON pg.id = a.product_group_id
@@ -2296,6 +2317,9 @@ async function validateAuctionPayload(env, body) {
   const vehicleEngineVolume = String(body.vehicleEngineVolume || "").trim().slice(0, 80);
   const vehicleEnginePower = String(body.vehicleEnginePower || "").trim().slice(0, 80);
   const vehicleDriveType = String(body.vehicleDriveType || "").trim().slice(0, 80);
+  const vehicleConditionMap = normalizeVehicleConditionMapInput(
+    body.vehicleConditionMap || body.vehicle_condition_map || body.vehicle_condition_map_json || {}
+  );
   const description = String(body.description || "").trim().slice(0, 5000);
   const extraEquipment = String(body.extraEquipment || body.extra_equipment || "").trim().slice(0, 5000);
   const rawImageUrl = String(body.imageUrl || "").trim();
@@ -2354,6 +2378,10 @@ async function validateAuctionPayload(env, body) {
   if (documentTotalLength > MAX_ATTACHMENT_TOTAL_DATA_URL_LENGTH) {
     return { error: "Dokumanlarin toplam boyutu cok buyuk. Lutfen dosya sayisini veya boyutunu azaltin." };
   }
+  const vehicleConditionMapJson = JSON.stringify(vehicleConditionMap);
+  if (vehicleConditionMapJson.length > MAX_VEHICLE_CONDITION_JSON_LENGTH) {
+    return { error: "Kaporta durum haritasi kaydedilemedi. Lutfen daha az parca secimi yapin." };
+  }
 
   let groupId = groupIdRaw;
   let categoryId = categoryIdRaw;
@@ -2405,6 +2433,7 @@ async function validateAuctionPayload(env, body) {
     vehicleEngineVolume,
     vehicleEnginePower,
     vehicleDriveType,
+    vehicleConditionMapJson,
     imageUrl,
     galleryJson: JSON.stringify(imageList),
     expertiseFilesJson: JSON.stringify(expertiseFiles),
@@ -2432,6 +2461,7 @@ async function updateAuctionRecord(env, auctionId: string, validation: any) {
          description = ?, extra_equipment = ?, expertise_files_json = ?, document_files_json = ?,
          vehicle_brand = ?, vehicle_model = ?, vehicle_model_detail = ?, vehicle_year = ?, vehicle_km = ?, vehicle_fuel_type = ?,
          vehicle_transmission = ?, vehicle_body_type = ?, vehicle_color = ?, vehicle_engine_volume = ?, vehicle_engine_power = ?, vehicle_drive_type = ?,
+         vehicle_condition_map_json = ?,
          updated_at = CURRENT_TIMESTAMP
      WHERE id = ?`
   )
@@ -2466,6 +2496,7 @@ async function updateAuctionRecord(env, auctionId: string, validation: any) {
       validation.vehicleEngineVolume,
       validation.vehicleEnginePower,
       validation.vehicleDriveType,
+      validation.vehicleConditionMapJson,
       auctionId
     )
     .run();
@@ -2579,6 +2610,31 @@ function normalizeAttachmentList(rawInput: any) {
   return out;
 }
 
+function normalizeVehicleConditionMapInput(rawInput: any) {
+  const source = parseJsonObjectFromUnknown(rawInput);
+  const out: Record<string, "ORIGINAL" | "LOCAL_PAINTED" | "PAINTED" | "CHANGED"> = {};
+  for (const partKey of VEHICLE_CONDITION_PART_KEYS) {
+    const normalized = normalizeVehicleConditionStatusValue(source[partKey]);
+    if (!normalized || normalized === "ORIGINAL") continue;
+    out[partKey] = normalized;
+  }
+  return out;
+}
+
+function normalizeVehicleConditionStatusValue(rawInput: any): "ORIGINAL" | "LOCAL_PAINTED" | "PAINTED" | "CHANGED" | null {
+  const text = String(rawInput || "").trim();
+  if (!text) return null;
+  const folded = text
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (folded === "ORIGINAL" || folded === "ORIJINAL") return "ORIGINAL";
+  if (folded === "LOCAL_PAINTED" || folded === "LOKAL BOYALI" || folded === "LOKALBOYALI") return "LOCAL_PAINTED";
+  if (folded === "PAINTED" || folded === "BOYALI") return "PAINTED";
+  if (folded === "CHANGED" || folded === "DEGISEN") return "CHANGED";
+  return null;
+}
+
 function isAllowedAttachmentDataSource(value: string) {
   const input = String(value || "").trim().toLowerCase();
   if (!input) return false;
@@ -2604,6 +2660,20 @@ function parseJsonArrayFromUnknown(rawInput: any) {
     return [text];
   }
   return [];
+}
+
+function parseJsonObjectFromUnknown(rawInput: any) {
+  if (rawInput && typeof rawInput === "object" && !Array.isArray(rawInput)) return rawInput;
+  if (typeof rawInput !== "string") return {};
+  const text = String(rawInput || "").trim();
+  if (!text || !text.startsWith("{")) return {};
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+  } catch {
+    return {};
+  }
+  return {};
 }
 
 async function createEmailVerifyToken(env, userId) {

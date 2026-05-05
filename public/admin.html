@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-  <link rel="stylesheet" href="./admin.css?v=20260505-4">
-  <script src="./admin.js?v=20260505-4" defer></script>
+  <link rel="stylesheet" href="./admin.css?v=20260505-6">
+  <script src="./admin.js?v=20260505-6" defer></script>
 </head>
 <body>
   <div class="shell">
@@ -271,6 +271,20 @@
                       <option value="4x4">4x4</option>
                     </select>
                   </label>
+                </div>
+                <div class="conditionEditor" id="auctionVehicleConditionEditor">
+                  <div class="conditionHead">
+                    <strong>Kaporta Durum Haritasi</strong>
+                    <span class="uploadHint">Parcalari orijinal, boyali veya degisen olarak isaretleyin.</span>
+                  </div>
+                  <div class="conditionToolbar" id="auctionVehicleConditionToolbar">
+                    <button class="conditionStateBtn active" type="button" data-condition-status="ORIGINAL">Orijinal</button>
+                    <button class="conditionStateBtn" type="button" data-condition-status="LOCAL_PAINTED">Lokal Boyali</button>
+                    <button class="conditionStateBtn" type="button" data-condition-status="PAINTED">Boyali</button>
+                    <button class="conditionStateBtn" type="button" data-condition-status="CHANGED">Degisen</button>
+                    <button class="miniBtn" type="button" id="auctionVehicleConditionResetBtn">Tumunu Orijinal Yap</button>
+                  </div>
+                  <div class="conditionMap" id="auctionVehicleConditionMap" aria-label="Arac parca durum haritasi"></div>
                 </div>
                 <label class="fieldWrap">
                   <span>Aciklama</span>

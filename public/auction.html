@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-  <link rel="stylesheet" href="./auction.css?v=20260505-1">
-  <script src="./auction.js?v=20260505-1" defer></script>
+  <link rel="stylesheet" href="./auction.css?v=20260505-3">
+  <script src="./auction.js?v=20260505-3" defer></script>
 </head>
 <body>
   <div class="detailPage">
@@ -69,6 +69,28 @@
 
         <article class="tabPanel hide" data-panel="expertise">
           <h2>Ekspertiz Raporları</h2>
+          <div class="vehicleConditionBlock">
+            <h3>Kaporta Durumu</h3>
+            <div class="conditionLegend">
+              <span class="legendItem"><i class="legendDot original"></i> Orijinal</span>
+              <span class="legendItem"><i class="legendDot local_painted"></i> Lokal Boyali</span>
+              <span class="legendItem"><i class="legendDot painted"></i> Boyali</span>
+              <span class="legendItem"><i class="legendDot changed"></i> Degisen</span>
+            </div>
+            <div class="conditionLayout">
+              <div class="conditionMap conditionReadonly" id="expertiseConditionMap"></div>
+              <div class="conditionLists">
+                <article class="conditionListCard">
+                  <h4>Boyali Parcalar</h4>
+                  <ul class="conditionPartList" id="paintedPartsList"></ul>
+                </article>
+                <article class="conditionListCard">
+                  <h4>Degisen Parcalar</h4>
+                  <ul class="conditionPartList" id="changedPartsList"></ul>
+                </article>
+              </div>
+            </div>
+          </div>
           <div class="fileGrid" id="expertiseFiles"></div>
         </article>
 

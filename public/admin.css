@@ -417,6 +417,182 @@ body {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.conditionEditor {
+  border: 1px dashed #c6d7f1;
+  background: #f4f8ff;
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.conditionHead {
+  display: grid;
+  gap: 2px;
+}
+
+.conditionHead strong {
+  font-size: 0.83rem;
+  color: #23456f;
+}
+
+.conditionToolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.conditionStateBtn {
+  border: 1px solid #c8d6ec;
+  background: #fff;
+  color: #203d61;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.conditionStateBtn:hover {
+  border-color: #9fb6dc;
+}
+
+.conditionStateBtn.active {
+  border-color: #0d49ba;
+  background: #e8f0ff;
+  color: #0e3f94;
+}
+
+.conditionMap {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-areas:
+    "sol_ayna on_tampon on_tampon sag_ayna"
+    "sol_on_camurluk kaput kaput sag_on_camurluk"
+    "sol_on_kapi tavan tavan sag_on_kapi"
+    "sol_arka_kapi tavan tavan sag_arka_kapi"
+    "sol_arka_camurluk bagaj bagaj sag_arka_camurluk"
+    ". arka_tampon arka_tampon .";
+  gap: 6px;
+}
+
+.conditionPart {
+  appearance: none;
+  border: 1px solid #b7c8e4;
+  border-radius: 10px;
+  min-height: 44px;
+  background: #f8fbff;
+  color: #213f63;
+  padding: 6px;
+  text-align: center;
+  display: grid;
+  gap: 1px;
+  place-content: center;
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.conditionPart:hover,
+.conditionPart:focus-visible {
+  border-color: #0d49ba;
+  box-shadow: 0 0 0 2px rgba(13, 73, 186, 0.12);
+  outline: none;
+}
+
+.conditionPart .partName {
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.conditionPart .partState {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #556c8d;
+}
+
+.conditionPart.original {
+  background: #f4f7fc;
+  border-color: #becce2;
+}
+
+.conditionPart.painted {
+  background: #fff3cc;
+  border-color: #e3bf55;
+}
+
+.conditionPart.local_painted {
+  background: #ffe6cc;
+  border-color: #e5ab63;
+}
+
+.conditionPart.changed {
+  background: #fee2e2;
+  border-color: #dd7f7f;
+}
+
+.conditionPart[data-part-key="on_tampon"] {
+  grid-area: on_tampon;
+}
+
+.conditionPart[data-part-key="kaput"] {
+  grid-area: kaput;
+}
+
+.conditionPart[data-part-key="tavan"] {
+  grid-area: tavan;
+}
+
+.conditionPart[data-part-key="bagaj"] {
+  grid-area: bagaj;
+}
+
+.conditionPart[data-part-key="arka_tampon"] {
+  grid-area: arka_tampon;
+}
+
+.conditionPart[data-part-key="sol_on_camurluk"] {
+  grid-area: sol_on_camurluk;
+}
+
+.conditionPart[data-part-key="sag_on_camurluk"] {
+  grid-area: sag_on_camurluk;
+}
+
+.conditionPart[data-part-key="sol_on_kapi"] {
+  grid-area: sol_on_kapi;
+}
+
+.conditionPart[data-part-key="sag_on_kapi"] {
+  grid-area: sag_on_kapi;
+}
+
+.conditionPart[data-part-key="sol_arka_kapi"] {
+  grid-area: sol_arka_kapi;
+}
+
+.conditionPart[data-part-key="sag_arka_kapi"] {
+  grid-area: sag_arka_kapi;
+}
+
+.conditionPart[data-part-key="sol_arka_camurluk"] {
+  grid-area: sol_arka_camurluk;
+}
+
+.conditionPart[data-part-key="sag_arka_camurluk"] {
+  grid-area: sag_arka_camurluk;
+}
+
+.conditionPart[data-part-key="sol_ayna"] {
+  grid-area: sol_ayna;
+}
+
+.conditionPart[data-part-key="sag_ayna"] {
+  grid-area: sag_ayna;
+}
+
 .checkWrap {
   display: inline-flex;
   align-items: center;
@@ -950,6 +1126,21 @@ th {
   .row2,
   .row3 {
     grid-template-columns: 1fr;
+  }
+
+  .conditionMap {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "on_tampon on_tampon"
+      "kaput kaput"
+      "sol_on_camurluk sag_on_camurluk"
+      "sol_on_kapi sag_on_kapi"
+      "tavan tavan"
+      "sol_arka_kapi sag_arka_kapi"
+      "sol_arka_camurluk sag_arka_camurluk"
+      "bagaj bagaj"
+      "arka_tampon arka_tampon"
+      "sol_ayna sag_ayna";
   }
 
   #groupForm.quickForm,

@@ -240,6 +240,159 @@ body {
   color: #2a4058;
 }
 
+.vehicleConditionBlock {
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #f6f2e8;
+  padding: 12px;
+  margin-bottom: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.vehicleConditionBlock h3 {
+  margin: 0;
+  font-size: 0.92rem;
+  color: #1f3f63;
+}
+
+.conditionLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 0.78rem;
+  color: #34567f;
+  font-weight: 700;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid #9eb1ce;
+  background: #e5edf9;
+}
+
+.legendDot.original {
+  background: #f4f7fc;
+}
+
+.legendDot.local_painted {
+  background: #ffe6cc;
+  border-color: #ddae72;
+}
+
+.legendDot.painted {
+  background: #3f79bf;
+  border-color: #3568a2;
+}
+
+.legendDot.changed {
+  background: #ff5a36;
+  border-color: #d5472a;
+}
+
+.conditionLayout {
+  display: grid;
+  grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.conditionMap {
+  border: 1px solid #d9ceb5;
+  border-radius: 10px;
+  background: #f2ecde;
+  padding: 8px;
+}
+
+.conditionSvg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.conditionBase path {
+  fill: #cbcbcb;
+  stroke: #b6b6b6;
+  stroke-width: 2;
+}
+
+.conditionBase circle {
+  fill: #c4c4c4;
+  stroke: #dedede;
+  stroke-width: 3;
+}
+
+.conditionSvgPart path {
+  stroke: #e6e6e6;
+  stroke-width: 2.5;
+  transition: fill 120ms ease;
+}
+
+.conditionSvgPart text {
+  fill: #ffffff;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  font-family: "Manrope", sans-serif;
+}
+
+.conditionSvgPart.original path {
+  fill: #9f9f9f;
+}
+
+.conditionSvgPart.local_painted path {
+  fill: #f1984a;
+}
+
+.conditionSvgPart.painted path {
+  fill: #3f79bf;
+}
+
+.conditionSvgPart.changed path {
+  fill: #ff5a36;
+}
+
+.conditionLists {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.conditionListCard {
+  border: 1px solid #ded5c0;
+  border-radius: 10px;
+  background: #fbf8f1;
+  padding: 10px;
+  min-height: 100%;
+}
+
+.conditionListCard h4 {
+  margin: 0 0 8px;
+  font-size: 1.02rem;
+  color: #1c3553;
+}
+
+.conditionPartList {
+  margin: 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 6px;
+}
+
+.conditionPartList li {
+  font-size: 1.03rem;
+  color: #243d5d;
+  font-weight: 700;
+}
+
 .fileGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -311,5 +464,10 @@ body {
   .tabBtn {
     width: 100%;
     justify-content: center;
+  }
+
+  .conditionLayout,
+  .conditionLists {
+    grid-template-columns: 1fr;
   }
 }
