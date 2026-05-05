@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-  <link rel="stylesheet" href="./admin.css?v=20260503-3">
-  <script src="./admin.js?v=20260503-3" defer></script>
+  <link rel="stylesheet" href="./admin.css?v=20260505-1">
+  <script src="./admin.js?v=20260505-1" defer></script>
 </head>
 <body>
   <div class="shell">
@@ -73,59 +73,43 @@
         </section>
 
         <section class="panel hide" id="panelCatalog">
-      <div class="panelTools">
-        <div class="inputWrap compact">
-          <i class="fas fa-filter"></i>
-          <input type="search" id="catalogSearchInput" placeholder="Urun grubu veya kategori ara">
-        </div>
-        <div class="hintChip">Hizli kullanim: listeden Duzenle ile formu doldur, Kaydet ile guncelle.</div>
-      </div>
-      <div class="grid2">
-        <article class="panelCard">
-          <h3 id="groupFormTitle">Urun Grubu Ekle</h3>
-          <form id="groupForm" class="stackForm">
-            <input type="hidden" id="groupIdInput">
-            <input id="groupNameInput" type="text" placeholder="Urun grubu adi" required>
-            <div class="row2">
-              <input id="groupSortInput" type="number" placeholder="Sira" value="0">
-              <label class="checkWrap"><input id="groupActiveInput" type="checkbox" checked> Aktif</label>
+          <div class="panelTools">
+            <div class="inputWrap compact">
+              <i class="fas fa-filter"></i>
+              <input type="search" id="catalogSearchInput" placeholder="Urun grubu veya kategori ara">
             </div>
-            <div class="row2">
-              <button class="miniBtn success" type="submit" id="groupSaveBtn">Kaydet</button>
-              <button class="miniBtn" type="button" id="groupResetBtn">Temizle</button>
-            </div>
-          </form>
-          <div class="tableWrap">
-            <table>
-              <thead><tr><th>Ad</th><th>Durum</th><th>Islem</th></tr></thead>
-              <tbody id="groupRows"></tbody>
-            </table>
           </div>
-        </article>
 
-        <article class="panelCard">
-          <h3 id="categoryFormTitle">Kategori Ekle</h3>
-          <form id="categoryForm" class="stackForm">
-            <input type="hidden" id="categoryIdInput">
-            <select id="categoryGroupSelect" required></select>
-            <input id="categoryNameInput" type="text" placeholder="Kategori adi" required>
-            <div class="row2">
-              <input id="categorySortInput" type="number" placeholder="Sira" value="0">
-              <label class="checkWrap"><input id="categoryActiveInput" type="checkbox" checked> Aktif</label>
-            </div>
-            <div class="row2">
-              <button class="miniBtn success" type="submit" id="categorySaveBtn">Kaydet</button>
-              <button class="miniBtn" type="button" id="categoryResetBtn">Temizle</button>
-            </div>
-          </form>
-          <div class="tableWrap">
-            <table>
-              <thead><tr><th>Kategori</th><th>Grup</th><th>Durum</th><th>Islem</th></tr></thead>
-              <tbody id="categoryRows"></tbody>
-            </table>
+          <div class="grid2">
+            <article class="panelCard">
+              <h3>Urun Grubu</h3>
+              <form id="groupForm" class="stackForm quickForm">
+                <input id="groupNameInput" type="text" placeholder="Yeni urun grubu adi" required>
+                <button class="miniBtn success" type="submit">Urun Grubu Ekle</button>
+              </form>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Ad</th><th>Durum</th><th>Islem</th></tr></thead>
+                  <tbody id="groupRows"></tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="panelCard">
+              <h3>Kategori</h3>
+              <form id="categoryForm" class="stackForm quickForm">
+                <select id="categoryGroupSelect" required></select>
+                <input id="categoryNameInput" type="text" placeholder="Yeni kategori adi" required>
+                <button class="miniBtn success" type="submit">Kategori Ekle</button>
+              </form>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Kategori</th><th>Grup</th><th>Durum</th><th>Islem</th></tr></thead>
+                  <tbody id="categoryRows"></tbody>
+                </table>
+              </div>
+            </article>
           </div>
-        </article>
-      </div>
         </section>
 
         <section class="panel hide" id="panelAuctions">

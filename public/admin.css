@@ -309,6 +309,23 @@ body {
   margin-bottom: 12px;
 }
 
+.quickForm {
+  align-items: center;
+}
+
+#groupForm.quickForm {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+#categoryForm.quickForm {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+
+.quickForm .miniBtn {
+  min-height: 40px;
+  white-space: nowrap;
+}
+
 .stackForm input,
 .stackForm select {
   border: 1px solid #c8d5ea;
@@ -770,6 +787,11 @@ th {
   .grid2,
   .row2,
   .row3 {
+    grid-template-columns: 1fr;
+  }
+
+  #groupForm.quickForm,
+  #categoryForm.quickForm {
     grid-template-columns: 1fr;
   }
 

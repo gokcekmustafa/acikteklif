@@ -60,24 +60,12 @@ const elements = {
   statAuctions: byId("statAuctions"),
 
   groupForm: byId("groupForm"),
-  groupIdInput: byId("groupIdInput"),
   groupNameInput: byId("groupNameInput"),
-  groupSortInput: byId("groupSortInput"),
-  groupActiveInput: byId("groupActiveInput"),
-  groupResetBtn: byId("groupResetBtn"),
-  groupFormTitle: byId("groupFormTitle"),
-  groupSaveBtn: byId("groupSaveBtn"),
   groupRows: byId("groupRows"),
 
   categoryForm: byId("categoryForm"),
-  categoryIdInput: byId("categoryIdInput"),
   categoryGroupSelect: byId("categoryGroupSelect"),
   categoryNameInput: byId("categoryNameInput"),
-  categorySortInput: byId("categorySortInput"),
-  categoryActiveInput: byId("categoryActiveInput"),
-  categoryResetBtn: byId("categoryResetBtn"),
-  categoryFormTitle: byId("categoryFormTitle"),
-  categorySaveBtn: byId("categorySaveBtn"),
   categoryRows: byId("categoryRows"),
 
   auctionForm: byId("auctionForm"),
@@ -272,32 +260,25 @@ function bindUserEvents() {
 function bindCatalogEvents() {
   elements.groupForm.addEventListener("submit", async (event: any) => {
     event.preventDefault();
-    const groupId = String(elements.groupIdInput.value || "").trim();
-    const payload = {
-      name: String(elements.groupNameInput.value || "").trim(),
-      sortOrder: Number(elements.groupSortInput.value || 0),
-      isActive: elements.groupActiveInput.checked === true,
-    };
-    if (!payload.name) {
+    const name = String(elements.groupNameInput.value || "").trim();
+    if (!name) {
       setStatus("Urun grubu adi zorunludur.", "error");
       return;
     }
 
+    const sortOrder =
+      (state.groups.reduce((max: number, row: any) => Math.max(max, Number(row.sort_order || 0)), 0) || 0) + 10;
+    const payload = { name, sortOrder, isActive: true };
+
     await safeAction(elements.groupForm, async () => {
-      if (groupId) {
-        await apiFetch(`/api/admin/product-groups/${encodeURIComponent(groupId)}`, { method: "PUT", body: payload });
-      } else {
-        await apiFetch("/api/admin/product-groups", { method: "POST", body: payload });
-      }
+      await apiFetch("/api/admin/product-groups", { method: "POST", body: payload });
       resetGroupForm();
       await loadCatalog();
       renderCatalog();
       renderStats();
-      setStatus(groupId ? "Urun grubu guncellendi." : "Urun grubu eklendi.", "ok");
+      setStatus("Urun grubu eklendi.", "ok");
     });
   });
-
-  elements.groupResetBtn.addEventListener("click", () => resetGroupForm());
 
   elements.groupRows.addEventListener("click", async (event: any) => {
     const btn = event.target.closest("button[data-action]") as HTMLButtonElement | null;
@@ -307,12 +288,19 @@ function bindCatalogEvents() {
     const group = state.groups.find((x: any) => x.id === groupId);
     if (!group) return;
 
-    if (action === "edit-group") {
-      elements.groupIdInput.value = group.id;
-      elements.groupNameInput.value = group.name || "";
-      elements.groupSortInput.value = String(group.sort_order ?? 0);
-      elements.groupActiveInput.checked = Number(group.is_active || 0) === 1;
-      updateFormHeadings();
+    if (action === "rename-group") {
+      const nextName = prompt("Yeni urun grubu adini girin:", String(group.name || "")) || "";
+      const name = String(nextName || "").trim();
+      if (!name || name === String(group.name || "").trim()) return;
+      await safeAction(btn, async () => {
+        await apiFetch(`/api/admin/product-groups/${encodeURIComponent(groupId)}`, {
+          method: "PUT",
+          body: { name },
+        });
+        await loadCatalog();
+        renderCatalog();
+        setStatus("Urun grubu adi guncellendi.", "ok");
+      });
       return;
     }
 
@@ -343,33 +331,28 @@ function bindCatalogEvents() {
 
   elements.categoryForm.addEventListener("submit", async (event: any) => {
     event.preventDefault();
-    const categoryId = String(elements.categoryIdInput.value || "").trim();
-    const payload = {
-      groupId: String(elements.categoryGroupSelect.value || "").trim(),
-      name: String(elements.categoryNameInput.value || "").trim(),
-      sortOrder: Number(elements.categorySortInput.value || 0),
-      isActive: elements.categoryActiveInput.checked === true,
-    };
-    if (!payload.groupId || !payload.name) {
+    const groupId = String(elements.categoryGroupSelect.value || "").trim();
+    const name = String(elements.categoryNameInput.value || "").trim();
+    if (!groupId || !name) {
       setStatus("Kategori grubu ve adi zorunludur.", "error");
       return;
     }
 
+    const sortOrder =
+      (state.categories
+        .filter((row: any) => String(row.group_id || "") === groupId)
+        .reduce((max: number, row: any) => Math.max(max, Number(row.sort_order || 0)), 0) || 0) + 10;
+    const payload = { groupId, name, sortOrder, isActive: true };
+
     await safeAction(elements.categoryForm, async () => {
-      if (categoryId) {
-        await apiFetch(`/api/admin/categories/${encodeURIComponent(categoryId)}`, { method: "PUT", body: payload });
-      } else {
-        await apiFetch("/api/admin/categories", { method: "POST", body: payload });
-      }
+      await apiFetch("/api/admin/categories", { method: "POST", body: payload });
       resetCategoryForm();
       await loadCatalog();
       renderCatalog();
       renderStats();
-      setStatus(categoryId ? "Kategori guncellendi." : "Kategori eklendi.", "ok");
+      setStatus("Kategori eklendi.", "ok");
     });
   });
-
-  elements.categoryResetBtn.addEventListener("click", () => resetCategoryForm());
 
   elements.categoryRows.addEventListener("click", async (event: any) => {
     const btn = event.target.closest("button[data-action]") as HTMLButtonElement | null;
@@ -379,13 +362,19 @@ function bindCatalogEvents() {
     const category = state.categories.find((x: any) => x.id === categoryId);
     if (!category) return;
 
-    if (action === "edit-category") {
-      elements.categoryIdInput.value = category.id;
-      elements.categoryGroupSelect.value = category.group_id || "";
-      elements.categoryNameInput.value = category.name || "";
-      elements.categorySortInput.value = String(category.sort_order ?? 0);
-      elements.categoryActiveInput.checked = Number(category.is_active || 0) === 1;
-      updateFormHeadings();
+    if (action === "rename-category") {
+      const nextName = prompt("Yeni kategori adini girin:", String(category.name || "")) || "";
+      const name = String(nextName || "").trim();
+      if (!name || name === String(category.name || "").trim()) return;
+      await safeAction(btn, async () => {
+        await apiFetch(`/api/admin/categories/${encodeURIComponent(categoryId)}`, {
+          method: "PUT",
+          body: { name },
+        });
+        await loadCatalog();
+        renderCatalog();
+        setStatus("Kategori adi guncellendi.", "ok");
+      });
       return;
     }
 
@@ -668,6 +657,12 @@ function renderUserDetail(user: any) {
 
 function renderCatalog() {
   fillGroupSelect(elements.categoryGroupSelect, true);
+  if (!String(elements.categoryGroupSelect.value || "").trim()) {
+    const firstActiveGroup = state.groups.find((x: any) => Number(x.is_active || 0) === 1) || state.groups[0] || null;
+    if (firstActiveGroup) {
+      elements.categoryGroupSelect.value = String(firstActiveGroup.id || "");
+    }
+  }
   fillGroupSelect(elements.auctionGroupSelect, false);
   ensureAuctionSelectionDefaults();
   fillAuctionCategorySelect();
@@ -697,7 +692,7 @@ function renderCatalog() {
           <td><span class="pill ${active ? "ok" : "danger"}">${active ? "Aktif" : "Pasif"}</span></td>
           <td>
             <div class="rowActions">
-              <button class="miniBtn" data-action="edit-group" data-id="${escapeHtml(group.id)}">Duzenle</button>
+              <button class="miniBtn" data-action="rename-group" data-id="${escapeHtml(group.id)}">Adi Duzenle</button>
               <button class="miniBtn" data-action="toggle-group" data-id="${escapeHtml(group.id)}">${
                 active ? "Pasif Et" : "Aktif Et"
               }</button>
@@ -724,7 +719,7 @@ function renderCatalog() {
             <td><span class="pill ${active ? "ok" : "danger"}">${active ? "Aktif" : "Pasif"}</span></td>
             <td>
               <div class="rowActions">
-                <button class="miniBtn" data-action="edit-category" data-id="${escapeHtml(category.id)}">Duzenle</button>
+                <button class="miniBtn" data-action="rename-category" data-id="${escapeHtml(category.id)}">Adi Duzenle</button>
                 <button class="miniBtn" data-action="toggle-category" data-id="${escapeHtml(category.id)}">${
                   active ? "Pasif Et" : "Aktif Et"
                 }</button>
@@ -881,22 +876,14 @@ function readAuctionFormPayload() {
 }
 
 function resetGroupForm() {
-  elements.groupIdInput.value = "";
   elements.groupNameInput.value = "";
-  elements.groupSortInput.value = "0";
-  elements.groupActiveInput.checked = true;
-  updateFormHeadings();
 }
 
 function resetCategoryForm() {
-  elements.categoryIdInput.value = "";
   elements.categoryNameInput.value = "";
-  elements.categorySortInput.value = "0";
-  elements.categoryActiveInput.checked = true;
   if (state.groups.length > 0) {
     elements.categoryGroupSelect.value = String(state.groups[0].id || "");
   }
-  updateFormHeadings();
 }
 
 function resetAuctionForm() {
@@ -1050,16 +1037,10 @@ function normalizeRole(role: string) {
 }
 
 function updateFormHeadings() {
-  const isEditingGroup = String(elements.groupIdInput.value || "").trim().length > 0;
-  const isEditingCategory = String(elements.categoryIdInput.value || "").trim().length > 0;
   const isEditingAuction = String(elements.auctionIdInput.value || "").trim().length > 0;
 
-  elements.groupFormTitle.textContent = isEditingGroup ? "Urun Grubu Duzenle" : "Urun Grubu Ekle";
-  elements.categoryFormTitle.textContent = isEditingCategory ? "Kategori Duzenle" : "Kategori Ekle";
   elements.auctionFormTitle.textContent = isEditingAuction ? "Ihale Duzenle" : "Ihale Ekle";
 
-  elements.groupSaveBtn.textContent = isEditingGroup ? "Guncelle" : "Kaydet";
-  elements.categorySaveBtn.textContent = isEditingCategory ? "Guncelle" : "Kaydet";
   elements.auctionSaveBtn.textContent = isEditingAuction ? "Guncelle" : "Kaydet";
 }
 
