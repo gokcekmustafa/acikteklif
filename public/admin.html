@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-  <link rel="stylesheet" href="./admin.css?v=20260505-3">
-  <script src="./admin.js?v=20260505-3" defer></script>
+  <link rel="stylesheet" href="./admin.css?v=20260505-4">
+  <script src="./admin.js?v=20260505-4" defer></script>
 </head>
 <body>
   <div class="shell">
@@ -113,8 +113,11 @@
         </section>
 
         <section class="panel hide" id="panelAuctions">
-          <article class="panelCard">
-            <h3 id="auctionFormTitle">Ihale Ekle</h3>
+          <article class="panelCard" id="auctionFormCard">
+            <div class="panelHead">
+              <h3 id="auctionFormTitle">Ihale Ekle</h3>
+              <button class="miniBtn" type="button" id="auctionFormCloseBtn">Formu Kapat</button>
+            </div>
             <form id="auctionForm" class="stackForm">
               <input type="hidden" id="auctionIdInput">
               <div class="formSection">
@@ -349,8 +352,11 @@
             </form>
           </article>
 
-          <article class="panelCard">
-            <h3>Ihale Listesi</h3>
+          <article class="panelCard" id="auctionListCard">
+            <div class="panelHead">
+              <h3>Ihale Listesi</h3>
+              <button class="miniBtn success" type="button" id="openAuctionFormBtn">Yeni Ihale Ekle</button>
+            </div>
             <div class="tableTools">
               <div class="inputWrap compact">
                 <i class="fas fa-magnifying-glass"></i>

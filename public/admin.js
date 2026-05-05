@@ -60,6 +60,10 @@ const elements = {
     panelLogs: byId("panelLogs"),
     catalogSearchInput: byId("catalogSearchInput"),
     auctionSearchInput: byId("auctionSearchInput"),
+    auctionFormCard: byId("auctionFormCard"),
+    auctionListCard: byId("auctionListCard"),
+    auctionFormCloseBtn: byId("auctionFormCloseBtn"),
+    openAuctionFormBtn: byId("openAuctionFormBtn"),
     userList: byId("userList"),
     userDetail: byId("userDetail"),
     statTotalUsers: byId("statTotalUsers"),
@@ -418,6 +422,15 @@ function bindCatalogEvents() {
     });
 }
 function bindAuctionEvents() {
+    elements.openAuctionFormBtn.addEventListener("click", () => {
+        showAuctionForm();
+        resetAuctionForm();
+        setStatus("Yeni ihale formu acildi.", "ok");
+    });
+    elements.auctionFormCloseBtn.addEventListener("click", () => {
+        hideAuctionForm();
+        setStatus("Ihale formu kapatildi.", "ok");
+    });
     elements.auctionGroupSelect.addEventListener("change", () => {
         fillAuctionCategorySelect();
         renderAuctionVehicleSection();
@@ -430,6 +443,13 @@ function bindAuctionEvents() {
             elements.auctionLotNoInput.setSelectionRange(start, end);
         }
     });
+    const closeDatePicker = (input) => {
+        input.addEventListener("change", () => {
+            window.setTimeout(() => input.blur(), 0);
+        });
+    };
+    closeDatePicker(elements.auctionStartsAtInput);
+    closeDatePicker(elements.auctionEndsAtInput);
     elements.auctionImagePickBtn.addEventListener("click", () => {
         elements.auctionImageFileInput.click();
     });
@@ -528,7 +548,11 @@ function bindAuctionEvents() {
             await loadAuctions();
             renderAuctions();
             renderStats();
-            setStatus(auctionId ? "Ihale guncellendi." : "Ihale eklendi.", "ok");
+            const message = auctionId ? "Ihale guncellendi." : "Ihale eklendi.";
+            setStatus(message, "ok");
+            alert(`${message} Kaydetme basarili.`);
+            hideAuctionForm();
+            elements.auctionListCard.scrollIntoView({ behavior: "smooth", block: "start" });
         });
     });
     elements.auctionResetBtn.addEventListener("click", () => resetAuctionForm());
@@ -543,6 +567,7 @@ function bindAuctionEvents() {
             return;
         if (action === "edit-auction") {
             fillAuctionForm(auction);
+            showAuctionForm();
             state.activeTab = "auctions";
             renderTabs();
             updateFormHeadings();
@@ -996,6 +1021,12 @@ function renderAuctionVehicleSection() {
     const groupName = String(selectedGroup?.name || "").toLowerCase();
     const isVehicleGroup = groupName.includes("vasita") || groupName.includes("otomotiv");
     elements.auctionVehicleSection.classList.toggle("hide", !isVehicleGroup);
+}
+function showAuctionForm() {
+    elements.auctionFormCard.classList.remove("hide");
+}
+function hideAuctionForm() {
+    elements.auctionFormCard.classList.add("hide");
 }
 function bindDropzoneUpload(dropzone, input, onFiles) {
     dropzone.addEventListener("click", () => input.click());

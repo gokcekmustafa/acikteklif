@@ -303,6 +303,18 @@ body {
   font-size: 1rem;
 }
 
+.panelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.panelHead h3 {
+  margin: 0;
+}
+
 .stackForm {
   display: grid;
   gap: 8px;
