@@ -841,57 +841,16 @@ async function handleApi(request, env, url) {
       const validation = await validateAuctionPayload(env, body);
       if (validation.error) return json({ ok: false, error: validation.error }, 400);
 
-      const existingByLotNo = await env.DB.prepare("SELECT id FROM auctions WHERE lot_no = ? LIMIT 1")
-        .bind(validation.lotNo)
-        .first();
+      const existingByLotNo = await findAuctionIdByLotNo(env, validation.lotNo);
       if (existingByLotNo?.id) {
         try {
-          await env.DB.prepare(
-            `UPDATE auctions
-             SET lot_no = ?, title = ?, start_price = ?, min_increment = ?, starts_at = ?, ends_at = ?, status = ?,
-                 product_group_id = ?, category_id = ?, city = ?, district = ?, neighborhood = ?, image_url = ?, gallery_json = ?,
-                 description = ?, extra_equipment = ?, expertise_files_json = ?, document_files_json = ?,
-                 vehicle_brand = ?, vehicle_model = ?, vehicle_model_detail = ?, vehicle_year = ?, vehicle_km = ?, vehicle_fuel_type = ?,
-                 vehicle_transmission = ?, vehicle_body_type = ?, vehicle_color = ?, vehicle_engine_volume = ?, vehicle_engine_power = ?, vehicle_drive_type = ?,
-                 updated_at = CURRENT_TIMESTAMP
-             WHERE id = ?`
-          )
-            .bind(
-              validation.lotNo,
-              validation.title,
-              validation.startPrice,
-              validation.minIncrement,
-              validation.startsAt,
-              validation.endsAt,
-              validation.status,
-              validation.groupId,
-              validation.categoryId,
-              validation.city,
-              validation.district,
-              validation.neighborhood,
-              validation.imageUrl,
-              validation.galleryJson,
-              validation.description,
-              validation.extraEquipment,
-              validation.expertiseFilesJson,
-              validation.documentFilesJson,
-              validation.vehicleBrand,
-              validation.vehicleModel,
-              validation.vehicleModelDetail,
-              validation.vehicleYear,
-              validation.vehicleKm,
-              validation.vehicleFuelType,
-              validation.vehicleTransmission,
-              validation.vehicleBodyType,
-              validation.vehicleColor,
-              validation.vehicleEngineVolume,
-              validation.vehicleEnginePower,
-              validation.vehicleDriveType,
-              String(existingByLotNo.id)
-            )
-            .run();
-        } catch {
-          return json({ ok: false, error: "Ayni ihale no bulundu ancak kayit guncellenemedi." }, 409);
+          await updateAuctionRecord(env, String(existingByLotNo.id), validation);
+        } catch (error) {
+          console.error("Admin auction upsert update failed:", error);
+          if (isAuctionLotNoUniqueConstraintError(error)) {
+            return json({ ok: false, error: "İhale kaydedilemedi. Bu ihale no başka bir kayıtta kullanılıyor." }, 409);
+          }
+          return json({ ok: false, error: "İhale kaydedilemedi. Lütfen alanları kontrol edip tekrar deneyin." }, 500);
         }
 
         await writeAdminAuditLog(env, session.user.id, null, "auction.create.upsert", { lotNo: validation.lotNo });
@@ -944,8 +903,22 @@ async function handleApi(request, env, url) {
             validation.vehicleDriveType
           )
           .run();
-      } catch {
-        return json({ ok: false, error: "İhale oluşturulamadı. İhale no benzersiz olmalıdır." }, 409);
+      } catch (error) {
+        console.error("Admin auction create failed:", error);
+        if (isAuctionLotNoUniqueConstraintError(error)) {
+          const conflictingLot = await findAuctionIdByLotNo(env, validation.lotNo);
+          if (conflictingLot?.id) {
+            try {
+              await updateAuctionRecord(env, String(conflictingLot.id), validation);
+              await writeAdminAuditLog(env, session.user.id, null, "auction.create.upsert", { lotNo: validation.lotNo });
+              return json({ ok: true, message: "Bu ihale no zaten vardi, mevcut kayit guncellendi." });
+            } catch (upsertError) {
+              console.error("Admin auction create conflict upsert failed:", upsertError);
+            }
+          }
+          return json({ ok: false, error: "İhale oluşturulamadı. Bu ihale no başka bir ihalede kullanılıyor." }, 409);
+        }
+        return json({ ok: false, error: "İhale oluşturulamadı. Lütfen alanları kontrol edip tekrar deneyin." }, 500);
       }
 
       await writeAdminAuditLog(env, session.user.id, null, "auction.create", { lotNo: validation.lotNo });
@@ -963,55 +936,21 @@ async function handleApi(request, env, url) {
       const validation = await validateAuctionPayload(env, body);
       if (validation.error) return json({ ok: false, error: validation.error }, 400);
 
+      const existingByLotNo = await findAuctionIdByLotNo(env, validation.lotNo);
+      if (existingByLotNo?.id && String(existingByLotNo.id) !== auctionId) {
+        return json({ ok: false, error: "Bu ihale no başka bir kayıtta kullanılıyor." }, 409);
+      }
+
       try {
-        const result = await env.DB.prepare(
-          `UPDATE auctions
-           SET lot_no = ?, title = ?, start_price = ?, min_increment = ?, starts_at = ?, ends_at = ?, status = ?,
-               product_group_id = ?, category_id = ?, city = ?, district = ?, neighborhood = ?, image_url = ?, gallery_json = ?,
-               description = ?, extra_equipment = ?, expertise_files_json = ?, document_files_json = ?,
-               vehicle_brand = ?, vehicle_model = ?, vehicle_model_detail = ?, vehicle_year = ?, vehicle_km = ?, vehicle_fuel_type = ?,
-               vehicle_transmission = ?, vehicle_body_type = ?, vehicle_color = ?, vehicle_engine_volume = ?, vehicle_engine_power = ?, vehicle_drive_type = ?,
-               updated_at = CURRENT_TIMESTAMP
-           WHERE id = ?`
-        )
-          .bind(
-            validation.lotNo,
-            validation.title,
-            validation.startPrice,
-            validation.minIncrement,
-            validation.startsAt,
-            validation.endsAt,
-            validation.status,
-            validation.groupId,
-            validation.categoryId,
-            validation.city,
-            validation.district,
-            validation.neighborhood,
-            validation.imageUrl,
-            validation.galleryJson,
-            validation.description,
-            validation.extraEquipment,
-            validation.expertiseFilesJson,
-            validation.documentFilesJson,
-            validation.vehicleBrand,
-            validation.vehicleModel,
-            validation.vehicleModelDetail,
-            validation.vehicleYear,
-            validation.vehicleKm,
-            validation.vehicleFuelType,
-            validation.vehicleTransmission,
-            validation.vehicleBodyType,
-            validation.vehicleColor,
-            validation.vehicleEngineVolume,
-            validation.vehicleEnginePower,
-            validation.vehicleDriveType,
-            auctionId
-          )
-          .run();
+        const result = await updateAuctionRecord(env, auctionId, validation);
 
         if ((result.meta?.changes || 0) < 1) return json({ ok: false, error: "İhale bulunamadı." }, 404);
-      } catch {
-        return json({ ok: false, error: "İhale güncellenemedi. İhale no benzersiz olmalıdır." }, 409);
+      } catch (error) {
+        console.error("Admin auction update failed:", error);
+        if (isAuctionLotNoUniqueConstraintError(error)) {
+          return json({ ok: false, error: "Bu ihale no başka bir kayıtta kullanılıyor." }, 409);
+        }
+        return json({ ok: false, error: "İhale güncellenemedi. Lütfen alanları kontrol edip tekrar deneyin." }, 500);
       }
 
       await writeAdminAuditLog(env, session.user.id, null, "auction.update", { auctionId });
@@ -2452,6 +2391,69 @@ async function validateAuctionPayload(env, body) {
     documentFilesJson: JSON.stringify(documentFiles),
     error: null,
   };
+}
+
+async function findAuctionIdByLotNo(env, lotNo: string) {
+  return await env.DB.prepare(
+    `SELECT id
+     FROM auctions
+     WHERE UPPER(TRIM(lot_no)) = UPPER(TRIM(?))
+     LIMIT 1`
+  )
+    .bind(lotNo)
+    .first();
+}
+
+async function updateAuctionRecord(env, auctionId: string, validation: any) {
+  return await env.DB.prepare(
+    `UPDATE auctions
+     SET lot_no = ?, title = ?, start_price = ?, min_increment = ?, starts_at = ?, ends_at = ?, status = ?,
+         product_group_id = ?, category_id = ?, city = ?, district = ?, neighborhood = ?, image_url = ?, gallery_json = ?,
+         description = ?, extra_equipment = ?, expertise_files_json = ?, document_files_json = ?,
+         vehicle_brand = ?, vehicle_model = ?, vehicle_model_detail = ?, vehicle_year = ?, vehicle_km = ?, vehicle_fuel_type = ?,
+         vehicle_transmission = ?, vehicle_body_type = ?, vehicle_color = ?, vehicle_engine_volume = ?, vehicle_engine_power = ?, vehicle_drive_type = ?,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`
+  )
+    .bind(
+      validation.lotNo,
+      validation.title,
+      validation.startPrice,
+      validation.minIncrement,
+      validation.startsAt,
+      validation.endsAt,
+      validation.status,
+      validation.groupId,
+      validation.categoryId,
+      validation.city,
+      validation.district,
+      validation.neighborhood,
+      validation.imageUrl,
+      validation.galleryJson,
+      validation.description,
+      validation.extraEquipment,
+      validation.expertiseFilesJson,
+      validation.documentFilesJson,
+      validation.vehicleBrand,
+      validation.vehicleModel,
+      validation.vehicleModelDetail,
+      validation.vehicleYear,
+      validation.vehicleKm,
+      validation.vehicleFuelType,
+      validation.vehicleTransmission,
+      validation.vehicleBodyType,
+      validation.vehicleColor,
+      validation.vehicleEngineVolume,
+      validation.vehicleEnginePower,
+      validation.vehicleDriveType,
+      auctionId
+    )
+    .run();
+}
+
+function isAuctionLotNoUniqueConstraintError(error: unknown): boolean {
+  const message = String((error as any)?.message || "").toLowerCase();
+  return message.includes("unique") && message.includes("auctions.lot_no");
 }
 
 function normalizeGalleryList(rawInput: any, fallbackImageUrl: string = "") {
