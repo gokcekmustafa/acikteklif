@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-  <link rel="stylesheet" href="./admin.css?v=20260505-2">
-  <script src="./admin.js?v=20260505-2" defer></script>
+  <link rel="stylesheet" href="./admin.css?v=20260505-3">
+  <script src="./admin.js?v=20260505-3" defer></script>
 </head>
 <body>
   <div class="shell">
@@ -275,29 +275,72 @@
                 </label>
               </div>
 
-              <label class="fieldWrap">
-                <span>Gorsel URL (Opsiyonel)</span>
-                <input id="auctionImageUrlInput" type="url" placeholder="https://...">
-              </label>
-
               <div class="uploadBlock">
                 <div class="uploadHead">
-                  <strong>Urun Gorseli Yukle</strong>
-                  <span class="uploadHint">Dosya sec veya surukle birak (JPG, PNG, WEBP)</span>
+                  <strong>Arac Gorselleri Yukle</strong>
+                  <span class="uploadHint">Coklu secim veya surukle birak (JPG, PNG, WEBP)</span>
                 </div>
                 <div class="uploadDropzone" id="auctionImageDropzone" tabindex="0" role="button" aria-label="Gorsel yukleme alani">
                   <div class="uploadDropzoneText">
                     <i class="fas fa-cloud-arrow-up"></i>
-                    <span>Gorseli buraya surukleyip birak veya dosya sec</span>
+                    <span>Gorselleri buraya surukleyip birak veya dosya sec</span>
                   </div>
-                  <input id="auctionImageFileInput" type="file" accept="image/*" class="visuallyHidden">
+                  <input id="auctionImageFileInput" type="file" accept="image/*" multiple class="visuallyHidden">
                 </div>
                 <div class="row2">
-                  <button class="miniBtn" type="button" id="auctionImagePickBtn">Dosyadan Sec</button>
-                  <button class="miniBtn danger" type="button" id="auctionImageClearBtn">Gorseli Temizle</button>
+                  <button class="miniBtn" type="button" id="auctionImagePickBtn">Dosyadan Coklu Sec</button>
+                  <button class="miniBtn danger" type="button" id="auctionImageClearBtn">Tumunu Temizle</button>
                 </div>
                 <div class="uploadMeta" id="auctionImageMeta">Henuz dosya secilmedi.</div>
-                <img class="uploadPreview hide" id="auctionImagePreview" alt="Secilen gorsel onizleme">
+                <div class="uploadGallery" id="auctionImageGallery"></div>
+              </div>
+
+              <div class="formSection">
+                <h4>Ek Donanim</h4>
+                <label class="fieldWrap">
+                  <span>Ek Donanim Notlari</span>
+                  <textarea id="auctionExtraEquipmentInput" rows="4" placeholder="Ornek: Geri gorus kamerasi, deri koltuk, navigasyon, cam tavan..."></textarea>
+                </label>
+              </div>
+
+              <div class="uploadBlock">
+                <div class="uploadHead">
+                  <strong>Ekspertiz Dosyalari</strong>
+                  <span class="uploadHint">PDF veya gorsel yukleyin (coklu secim desteklenir)</span>
+                </div>
+                <div class="uploadDropzone" id="auctionExpertiseDropzone" tabindex="0" role="button" aria-label="Ekspertiz dosya yukleme alani">
+                  <div class="uploadDropzoneText">
+                    <i class="fas fa-file-circle-check"></i>
+                    <span>Ekspertiz dosyalarini surukleyip birak veya dosya sec</span>
+                  </div>
+                  <input id="auctionExpertiseFileInput" type="file" accept="application/pdf,image/*" multiple class="visuallyHidden">
+                </div>
+                <div class="row2">
+                  <button class="miniBtn" type="button" id="auctionExpertisePickBtn">Dosyadan Coklu Sec</button>
+                  <button class="miniBtn danger" type="button" id="auctionExpertiseClearBtn">Tumunu Temizle</button>
+                </div>
+                <div class="uploadMeta" id="auctionExpertiseMeta">Henuz dosya secilmedi.</div>
+                <div class="fileList" id="auctionExpertiseList"></div>
+              </div>
+
+              <div class="uploadBlock">
+                <div class="uploadHead">
+                  <strong>Dokumanlar</strong>
+                  <span class="uploadHint">PDF veya gorsel yukleyin (coklu secim desteklenir)</span>
+                </div>
+                <div class="uploadDropzone" id="auctionDocumentDropzone" tabindex="0" role="button" aria-label="Dokuman dosya yukleme alani">
+                  <div class="uploadDropzoneText">
+                    <i class="fas fa-folder-open"></i>
+                    <span>Dokumanlari surukleyip birak veya dosya sec</span>
+                  </div>
+                  <input id="auctionDocumentFileInput" type="file" accept="application/pdf,image/*" multiple class="visuallyHidden">
+                </div>
+                <div class="row2">
+                  <button class="miniBtn" type="button" id="auctionDocumentPickBtn">Dosyadan Coklu Sec</button>
+                  <button class="miniBtn danger" type="button" id="auctionDocumentClearBtn">Tumunu Temizle</button>
+                </div>
+                <div class="uploadMeta" id="auctionDocumentMeta">Henuz dosya secilmedi.</div>
+                <div class="fileList" id="auctionDocumentList"></div>
               </div>
               <div class="row2">
                 <button class="miniBtn success" type="submit" id="auctionSaveBtn">Kaydet</button>

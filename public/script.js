@@ -307,12 +307,14 @@ function toListingModel(item, index) {
     const city = String(item?.city || fallback.city || "Belirtilmemis");
     const district = String(item?.district || fallback.district || "-");
     const neighborhood = String(item?.neighborhood || fallback.neighborhood || "-");
-    const image = String(item?.image_url || item?.imageUrl || fallback.image || DEFAULT_LISTING_IMAGE);
+    const gallery = extractGalleryFromItem(item, fallback.image);
+    const image = String(gallery[0] || item?.image_url || item?.imageUrl || fallback.image || DEFAULT_LISTING_IMAGE);
     const vehicleBrand = String(item?.vehicle_brand || item?.vehicleBrand || "");
     const vehicleModel = String(item?.vehicle_model || item?.vehicleModel || "");
     const vehicleModelDetail = String(item?.vehicle_model_detail || item?.vehicleModelDetail || "");
     const vehicleYear = Number(item?.vehicle_year || item?.vehicleYear || 0);
     const vehicleKm = Number(item?.vehicle_km || item?.vehicleKm || 0);
+    const detailUrl = buildAuctionDetailUrl(lotNo || fallback.lotNo || `LOT${String(index + 1).padStart(3, "0")}`);
     return {
         id: item?.id || fallback.id || lotNo || String(index + 1),
         lotNo: lotNo || fallback.lotNo || `LOT${String(index + 1).padStart(3, "0")}`,
@@ -330,6 +332,8 @@ function toListingModel(item, index) {
         priceDropped: fallback.priceDropped ?? false,
         endAt,
         image,
+        gallery,
+        detailUrl,
         createdAt,
         status,
         minIncrement,
@@ -339,6 +343,42 @@ function toListingModel(item, index) {
         vehicleYear: Number.isFinite(vehicleYear) && vehicleYear > 0 ? vehicleYear : null,
         vehicleKm: Number.isFinite(vehicleKm) && vehicleKm >= 0 ? vehicleKm : null,
     };
+}
+function buildAuctionDetailUrl(lotNo) {
+    const value = String(lotNo || "").trim().toUpperCase();
+    return value ? `/ilan/${encodeURIComponent(value)}` : "/auction.html";
+}
+function extractGalleryFromItem(item, fallbackImage) {
+    const candidates = item?.gallery || item?.images || item?.gallery_json || [];
+    let values = [];
+    if (Array.isArray(candidates)) {
+        values = candidates;
+    }
+    else if (typeof candidates === "string") {
+        const text = String(candidates || "").trim();
+        if (text.startsWith("[")) {
+            try {
+                const parsed = JSON.parse(text);
+                values = Array.isArray(parsed) ? parsed : [];
+            }
+            catch {
+                values = [];
+            }
+        }
+        else if (text) {
+            values = [text];
+        }
+    }
+    const out = values
+        .map((entry) => String(entry || "").trim())
+        .filter((entry) => entry.startsWith("data:image/") || /^https?:\/\//i.test(entry))
+        .slice(0, 20);
+    if (out.length < 1) {
+        const fallback = String(item?.image_url || item?.imageUrl || fallbackImage || DEFAULT_LISTING_IMAGE).trim();
+        if (fallback)
+            out.push(fallback);
+    }
+    return out;
 }
 async function hydrateTurnstileConfig() {
     try {
@@ -746,12 +786,12 @@ function renderCard(item) {
       <div class="iContent">
         <div class="imgHead">
           <h3 class="reNo">No: <span>${escapeHtml(item.lotNo)}</span></h3>
-          <a href="#" class="mainImg">
+          <a href="${escapeHtml(item.detailUrl || buildAuctionDetailUrl(item.lotNo))}" class="mainImg">
             <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}">
           </a>
         </div>
         <div class="reInfo">
-          <a href="#" class="headline">
+          <a href="${escapeHtml(item.detailUrl || buildAuctionDetailUrl(item.lotNo))}" class="headline">
             <h1><span>${escapeHtml(item.title)} (${escapeHtml(item.lotNo)})</span></h1>
           </a>
           <div class="location"><i class="fas fa-map-marker-alt"></i> <span>${escapeHtml(`${item.city} / ${item.district} / ${item.neighborhood}`)}</span></div>

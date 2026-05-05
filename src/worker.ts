@@ -44,6 +44,10 @@ const DEFAULT_CATALOG_GROUPS = [
 ] as const;
 const FALLBACK_CATALOG_GROUP_ID = "grp-genel";
 const SCHEMA_WARM_TTL_MS = 15 * 60 * 1000;
+const MAX_GALLERY_IMAGE_COUNT = 20;
+const MAX_GALLERY_IMAGE_DATA_URL_LENGTH = 1_200_000;
+const MAX_ATTACHMENT_COUNT = 15;
+const MAX_ATTACHMENT_DATA_URL_LENGTH = 2_700_000;
 
 type RuntimeSchemaState = {
   adminReadyAt: number;
@@ -80,6 +84,14 @@ export default {
         const adminResponse = await env.ASSETS.fetch(rewrittenRequest);
         return withNoStoreHeaders(adminResponse);
       }
+      const listingMatch = url.pathname.match(/^\/ilan\/([^/]+)\/?$/i);
+      if (listingMatch) {
+        const lotNo = decodeURIComponent(String(listingMatch[1] || "")).trim().toUpperCase();
+        const listingUrl = new URL("/auction.html", url);
+        if (lotNo) listingUrl.searchParams.set("lotNo", lotNo);
+        const listingResponse = await env.ASSETS.fetch(new Request(listingUrl.toString(), request));
+        return listingResponse;
+      }
 
       const assetResponse = await env.ASSETS.fetch(request);
       if (isAdminAssetPath(url.pathname)) {
@@ -108,7 +120,7 @@ async function handleApi(request, env, url) {
   if (method === "GET" && path === "/api/config") {
     return json({
       ok: true,
-      release: "2026-05-02-admin-crud",
+      release: "2026-05-05-auction-detail-media",
       turnstileSiteKey: String(env.TURNSTILE_SITE_KEY || "").trim(),
       requireTurnstile: isTurnstileRequired(env),
       requireEmailVerification: isEmailVerificationRequired(env),
@@ -423,7 +435,15 @@ async function handleApi(request, env, url) {
   }
 
   if (method === "GET" && path === "/api/auctions") {
-    return json({ ok: true, items: await getAdminAuctionsListSafe(env) });
+    return json({ ok: true, items: await getPublicAuctionsListSafe(env) });
+  }
+  const auctionDetailMatch = path.match(/^\/api\/auctions\/([^/]+)$/);
+  if (method === "GET" && auctionDetailMatch) {
+    const lotNo = decodeURIComponent(String(auctionDetailMatch[1] || "")).trim().toUpperCase();
+    if (!lotNo) return json({ ok: false, error: "Ihale no zorunludur." }, 400);
+    const detail = await getPublicAuctionDetailByLotNoSafe(env, lotNo);
+    if (!detail) return json({ ok: false, error: "Ihale bulunamadi." }, 404);
+    return json({ ok: true, item: detail });
   }
 
   if (method === "POST" && path === "/api/bids") {
@@ -825,11 +845,12 @@ async function handleApi(request, env, url) {
         await env.DB.prepare(
           `INSERT INTO auctions (
             id, lot_no, title, start_price, current_bid, current_bid_user_id, min_increment, bid_count, starts_at, ends_at, status,
-            product_group_id, category_id, city, district, neighborhood, image_url, description,
+            product_group_id, category_id, city, district, neighborhood, image_url, gallery_json, description, extra_equipment,
+            expertise_files_json, document_files_json,
             vehicle_brand, vehicle_model, vehicle_model_detail, vehicle_year, vehicle_km, vehicle_fuel_type,
             vehicle_transmission, vehicle_body_type, vehicle_color, vehicle_engine_volume, vehicle_engine_power, vehicle_drive_type,
             created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, NULL, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+          ) VALUES (?, ?, ?, ?, ?, NULL, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
         )
           .bind(
             crypto.randomUUID(),
@@ -847,7 +868,11 @@ async function handleApi(request, env, url) {
             validation.district,
             validation.neighborhood,
             validation.imageUrl,
+            validation.galleryJson,
             validation.description,
+            validation.extraEquipment,
+            validation.expertiseFilesJson,
+            validation.documentFilesJson,
             validation.vehicleBrand,
             validation.vehicleModel,
             validation.vehicleModelDetail,
@@ -885,7 +910,8 @@ async function handleApi(request, env, url) {
         const result = await env.DB.prepare(
           `UPDATE auctions
            SET lot_no = ?, title = ?, start_price = ?, min_increment = ?, starts_at = ?, ends_at = ?, status = ?,
-               product_group_id = ?, category_id = ?, city = ?, district = ?, neighborhood = ?, image_url = ?, description = ?,
+               product_group_id = ?, category_id = ?, city = ?, district = ?, neighborhood = ?, image_url = ?, gallery_json = ?,
+               description = ?, extra_equipment = ?, expertise_files_json = ?, document_files_json = ?,
                vehicle_brand = ?, vehicle_model = ?, vehicle_model_detail = ?, vehicle_year = ?, vehicle_km = ?, vehicle_fuel_type = ?,
                vehicle_transmission = ?, vehicle_body_type = ?, vehicle_color = ?, vehicle_engine_volume = ?, vehicle_engine_power = ?, vehicle_drive_type = ?,
                updated_at = CURRENT_TIMESTAMP
@@ -905,7 +931,11 @@ async function handleApi(request, env, url) {
             validation.district,
             validation.neighborhood,
             validation.imageUrl,
+            validation.galleryJson,
             validation.description,
+            validation.extraEquipment,
+            validation.expertiseFilesJson,
+            validation.documentFilesJson,
             validation.vehicleBrand,
             validation.vehicleModel,
             validation.vehicleModelDetail,
@@ -1644,8 +1674,12 @@ async function ensureMarketplaceSchema(env, options: { runLegacyRepair?: boolean
     "ALTER TABLE auctions ADD COLUMN district TEXT",
     "ALTER TABLE auctions ADD COLUMN neighborhood TEXT",
     "ALTER TABLE auctions ADD COLUMN image_url TEXT",
+    "ALTER TABLE auctions ADD COLUMN gallery_json TEXT",
     "ALTER TABLE auctions ADD COLUMN starts_at TEXT",
     "ALTER TABLE auctions ADD COLUMN description TEXT",
+    "ALTER TABLE auctions ADD COLUMN extra_equipment TEXT",
+    "ALTER TABLE auctions ADD COLUMN expertise_files_json TEXT",
+    "ALTER TABLE auctions ADD COLUMN document_files_json TEXT",
     "ALTER TABLE auctions ADD COLUMN vehicle_brand TEXT",
     "ALTER TABLE auctions ADD COLUMN vehicle_model TEXT",
     "ALTER TABLE auctions ADD COLUMN vehicle_model_detail TEXT",
@@ -1721,6 +1755,7 @@ async function getAdminAuctionsList(env) {
     `SELECT
       a.id, a.lot_no, a.title, a.start_price, a.current_bid, a.min_increment, a.bid_count, COALESCE(a.starts_at, a.created_at) AS starts_at, a.ends_at, a.status,
       a.created_at, a.updated_at, a.product_group_id, a.category_id, a.city, a.district, a.neighborhood, a.image_url,
+      a.gallery_json, a.extra_equipment, a.expertise_files_json, a.document_files_json,
       a.description, a.vehicle_brand, a.vehicle_model, a.vehicle_model_detail, a.vehicle_year, a.vehicle_km,
       a.vehicle_fuel_type, a.vehicle_transmission, a.vehicle_body_type, a.vehicle_color, a.vehicle_engine_volume,
       a.vehicle_engine_power, a.vehicle_drive_type,
@@ -1731,6 +1766,57 @@ async function getAdminAuctionsList(env) {
      ORDER BY a.created_at DESC`
   ).all();
   return data.results || [];
+}
+
+async function getPublicAuctionsList(env) {
+  const data = await env.DB.prepare(
+    `SELECT
+      a.id, a.lot_no, a.title, a.start_price, a.current_bid, a.min_increment, a.bid_count,
+      COALESCE(a.starts_at, a.created_at) AS starts_at, a.ends_at, a.status, a.created_at,
+      a.product_group_id, a.category_id, a.city, a.district, a.neighborhood, a.image_url, a.gallery_json,
+      a.vehicle_brand, a.vehicle_model, a.vehicle_model_detail, a.vehicle_year, a.vehicle_km,
+      pg.name AS product_group, c.name AS category
+     FROM auctions a
+     LEFT JOIN product_groups pg ON pg.id = a.product_group_id
+     LEFT JOIN categories c ON c.id = a.category_id
+     ORDER BY a.created_at DESC`
+  ).all();
+  return data.results || [];
+}
+
+async function getPublicAuctionDetailByLotNo(env, lotNo: string) {
+  const row = await env.DB.prepare(
+    `SELECT
+      a.id, a.lot_no, a.title, a.start_price, a.current_bid, a.min_increment, a.bid_count,
+      COALESCE(a.starts_at, a.created_at) AS starts_at, a.ends_at, a.status, a.created_at, a.updated_at,
+      a.product_group_id, a.category_id, a.city, a.district, a.neighborhood, a.image_url, a.gallery_json,
+      a.description, a.extra_equipment, a.expertise_files_json, a.document_files_json,
+      a.vehicle_brand, a.vehicle_model, a.vehicle_model_detail, a.vehicle_year, a.vehicle_km,
+      a.vehicle_fuel_type, a.vehicle_transmission, a.vehicle_body_type, a.vehicle_color, a.vehicle_engine_volume,
+      a.vehicle_engine_power, a.vehicle_drive_type,
+      pg.name AS product_group, c.name AS category
+     FROM auctions a
+     LEFT JOIN product_groups pg ON pg.id = a.product_group_id
+     LEFT JOIN categories c ON c.id = a.category_id
+     WHERE a.lot_no = ?
+     LIMIT 1`
+  )
+    .bind(String(lotNo || "").trim().toUpperCase())
+    .first();
+
+  if (!row) return null;
+
+  const gallery = normalizeGalleryList(row.gallery_json, row.image_url);
+  const expertiseFiles = normalizeAttachmentList(row.expertise_files_json);
+  const documentFiles = normalizeAttachmentList(row.document_files_json);
+
+  return {
+    ...row,
+    image_url: gallery[0] || String(row.image_url || "").trim(),
+    gallery,
+    expertise_files: expertiseFiles,
+    document_files: documentFiles,
+  };
 }
 
 async function getAdminUsersList(env) {
@@ -1790,6 +1876,26 @@ async function getAdminAuctionsListSafe(env) {
     console.warn("Ihale listesi sorgusu hata verdi, schema onarimi deneniyor:", error);
     await ensureMarketplaceSchemaWarm(env);
     return await getAdminAuctionsList(env);
+  }
+}
+
+async function getPublicAuctionsListSafe(env) {
+  try {
+    return await getPublicAuctionsList(env);
+  } catch (error) {
+    console.warn("Genel ihale listesi sorgusu hata verdi, schema onarimi deneniyor:", error);
+    await ensureMarketplaceSchemaWarm(env);
+    return await getPublicAuctionsList(env);
+  }
+}
+
+async function getPublicAuctionDetailByLotNoSafe(env, lotNo: string) {
+  try {
+    return await getPublicAuctionDetailByLotNo(env, lotNo);
+  } catch (error) {
+    console.warn("Genel ihale detay sorgusu hata verdi, schema onarimi deneniyor:", error);
+    await ensureMarketplaceSchemaWarm(env);
+    return await getPublicAuctionDetailByLotNo(env, lotNo);
   }
 }
 
@@ -2181,7 +2287,6 @@ async function validateAuctionPayload(env, body) {
   const city = String(body.city || "").trim().slice(0, 120);
   const district = String(body.district || "").trim().slice(0, 120);
   const neighborhood = String(body.neighborhood || "").trim().slice(0, 120);
-  const description = String(body.description || "").trim().slice(0, 5000);
   const vehicleBrand = String(body.vehicleBrand || "").trim().slice(0, 120);
   const vehicleModel = String(body.vehicleModel || "").trim().slice(0, 120);
   const vehicleModelDetail = String(body.vehicleModelDetail || "").trim().slice(0, 220);
@@ -2194,7 +2299,10 @@ async function validateAuctionPayload(env, body) {
   const vehicleEngineVolume = String(body.vehicleEngineVolume || "").trim().slice(0, 80);
   const vehicleEnginePower = String(body.vehicleEnginePower || "").trim().slice(0, 80);
   const vehicleDriveType = String(body.vehicleDriveType || "").trim().slice(0, 80);
+  const description = String(body.description || "").trim().slice(0, 5000);
+  const extraEquipment = String(body.extraEquipment || body.extra_equipment || "").trim().slice(0, 5000);
   const rawImageUrl = String(body.imageUrl || "").trim();
+  let imageList = normalizeGalleryList(body.images || body.gallery || body.gallery_json || []);
   let imageUrl = "";
 
   if (!lotNo) return { error: "İhale no zorunludur." };
@@ -2207,9 +2315,13 @@ async function validateAuctionPayload(env, body) {
   if (!startsAt || Number.isNaN(startTime)) return { error: "Baslangic tarihi gecersiz." };
   if (!endsAt || Number.isNaN(endTime)) return { error: "Bitiş tarihi geçersiz." };
   if (endTime <= startTime) return { error: "Bitis tarihi, baslangic tarihinden sonra olmalidir." };
+
+  if (imageList.length < 1 && rawImageUrl) {
+    imageList = normalizeGalleryList([rawImageUrl]);
+  }
   if (rawImageUrl) {
     if (rawImageUrl.startsWith("data:image/")) {
-      if (rawImageUrl.length > 1_200_000) {
+      if (rawImageUrl.length > MAX_GALLERY_IMAGE_DATA_URL_LENGTH) {
         return { error: "Gorsel dosyasi cok buyuk. Daha kucuk bir dosya yukleyin." };
       }
       imageUrl = rawImageUrl;
@@ -2220,6 +2332,12 @@ async function validateAuctionPayload(env, body) {
       imageUrl = rawImageUrl.slice(0, 2000);
     }
   }
+  if (imageList.length > 0) {
+    imageUrl = imageList[0];
+  }
+
+  const expertiseFiles = normalizeAttachmentList(body.expertiseFiles || body.expertise_files || body.expertise_files_json || []);
+  const documentFiles = normalizeAttachmentList(body.documentFiles || body.document_files || body.document_files_json || []);
 
   let groupId = groupIdRaw;
   let categoryId = categoryIdRaw;
@@ -2258,6 +2376,7 @@ async function validateAuctionPayload(env, body) {
     district,
     neighborhood,
     description,
+    extraEquipment,
     vehicleBrand,
     vehicleModel,
     vehicleModelDetail,
@@ -2271,8 +2390,91 @@ async function validateAuctionPayload(env, body) {
     vehicleEnginePower,
     vehicleDriveType,
     imageUrl,
+    galleryJson: JSON.stringify(imageList),
+    expertiseFilesJson: JSON.stringify(expertiseFiles),
+    documentFilesJson: JSON.stringify(documentFiles),
     error: null,
   };
+}
+
+function normalizeGalleryList(rawInput: any, fallbackImageUrl: string = "") {
+  const values = parseJsonArrayFromUnknown(rawInput);
+  const out: string[] = [];
+
+  for (const value of values) {
+    const url = String(value || "").trim();
+    if (!url) continue;
+    const isData = url.startsWith("data:image/");
+    const isHttp = /^https?:\/\//i.test(url);
+    if (!isData && !isHttp) continue;
+    if (isData && url.length > MAX_GALLERY_IMAGE_DATA_URL_LENGTH) continue;
+    out.push(isData ? url : url.slice(0, 2000));
+    if (out.length >= MAX_GALLERY_IMAGE_COUNT) break;
+  }
+
+  if (out.length < 1) {
+    const fallback = String(fallbackImageUrl || "").trim();
+    if (fallback.startsWith("data:image/") || /^https?:\/\//i.test(fallback)) {
+      out.push(fallback);
+    }
+  }
+
+  return out;
+}
+
+function normalizeAttachmentList(rawInput: any) {
+  const values = parseJsonArrayFromUnknown(rawInput);
+  const out: Array<{ name: string; type: string; size: number; dataUrl: string }> = [];
+
+  for (const value of values) {
+    const row = value && typeof value === "object" ? value : {};
+    const dataUrl = String(row.dataUrl || row.url || "").trim();
+    if (!isAllowedAttachmentDataSource(dataUrl)) continue;
+    if (dataUrl.startsWith("data:") && dataUrl.length > MAX_ATTACHMENT_DATA_URL_LENGTH) continue;
+
+    const typeRaw = String(row.type || "").trim().toLowerCase();
+    const nameRaw = String(row.name || "dosya").trim();
+    const normalizedType =
+      typeRaw || (dataUrl.startsWith("data:application/pdf") ? "application/pdf" : "image/jpeg");
+    const sizeRaw = Number(row.size || 0);
+
+    out.push({
+      name: nameRaw.slice(0, 140) || "dosya",
+      type: normalizedType.slice(0, 80),
+      size: Number.isFinite(sizeRaw) && sizeRaw >= 0 ? Math.round(sizeRaw) : 0,
+      dataUrl: dataUrl.startsWith("data:") ? dataUrl : dataUrl.slice(0, 2000),
+    });
+    if (out.length >= MAX_ATTACHMENT_COUNT) break;
+  }
+
+  return out;
+}
+
+function isAllowedAttachmentDataSource(value: string) {
+  const input = String(value || "").trim().toLowerCase();
+  if (!input) return false;
+  if (input.startsWith("data:image/")) return true;
+  if (input.startsWith("data:application/pdf")) return true;
+  if (input.startsWith("http://") || input.startsWith("https://")) return true;
+  return false;
+}
+
+function parseJsonArrayFromUnknown(rawInput: any) {
+  if (Array.isArray(rawInput)) return rawInput;
+  if (typeof rawInput === "string") {
+    const text = String(rawInput || "").trim();
+    if (!text) return [];
+    if (text.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(text);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [text];
+  }
+  return [];
 }
 
 async function createEmailVerifyToken(env, userId) {

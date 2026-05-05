@@ -4,7 +4,17 @@ const ROLE_MANAGER = "manager";
 const ROLE_ADMIN = "admin";
 const MAX_AUCTION_IMAGE_DIMENSION = 1600;
 const MAX_AUCTION_IMAGE_BYTES = 450 * 1024;
+const MAX_AUCTION_IMAGE_COUNT = 20;
+const MAX_AUCTION_FILE_BYTES = 2 * 1024 * 1024;
+const MAX_AUCTION_FILE_COUNT = 15;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/jpg"]);
+const ALLOWED_REPORT_FILE_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/jpg",
+]);
 
 const defaultPermissionDefs = [
   { key: "admin.panel.access", label: "Admin panel erisimi" },
@@ -29,11 +39,20 @@ const state: any = {
   groups: [],
   categories: [],
   auctions: [],
-  auctionImageDataUrl: "",
+  auctionImageDataUrls: [],
+  auctionExpertiseFiles: [],
+  auctionDocumentFiles: [],
   permissionDefs: defaultPermissionDefs,
   query: "",
   catalogQuery: "",
   auctionQuery: "",
+};
+
+type UploadedFileEntry = {
+  name: string;
+  type: string;
+  size: number;
+  dataUrl: string;
 };
 
 const elements = {
@@ -79,13 +98,25 @@ const elements = {
   auctionStatusInput: byId("auctionStatusInput"),
   auctionStartsAtInput: byId("auctionStartsAtInput"),
   auctionEndsAtInput: byId("auctionEndsAtInput"),
-  auctionImageUrlInput: byId("auctionImageUrlInput"),
   auctionImageDropzone: byId("auctionImageDropzone"),
   auctionImageFileInput: byId("auctionImageFileInput"),
   auctionImagePickBtn: byId("auctionImagePickBtn"),
   auctionImageClearBtn: byId("auctionImageClearBtn"),
   auctionImageMeta: byId("auctionImageMeta"),
-  auctionImagePreview: byId("auctionImagePreview"),
+  auctionImageGallery: byId("auctionImageGallery"),
+  auctionExtraEquipmentInput: byId("auctionExtraEquipmentInput"),
+  auctionExpertiseDropzone: byId("auctionExpertiseDropzone"),
+  auctionExpertiseFileInput: byId("auctionExpertiseFileInput"),
+  auctionExpertisePickBtn: byId("auctionExpertisePickBtn"),
+  auctionExpertiseClearBtn: byId("auctionExpertiseClearBtn"),
+  auctionExpertiseMeta: byId("auctionExpertiseMeta"),
+  auctionExpertiseList: byId("auctionExpertiseList"),
+  auctionDocumentDropzone: byId("auctionDocumentDropzone"),
+  auctionDocumentFileInput: byId("auctionDocumentFileInput"),
+  auctionDocumentPickBtn: byId("auctionDocumentPickBtn"),
+  auctionDocumentClearBtn: byId("auctionDocumentClearBtn"),
+  auctionDocumentMeta: byId("auctionDocumentMeta"),
+  auctionDocumentList: byId("auctionDocumentList"),
   auctionVehicleSection: byId("auctionVehicleSection"),
   auctionCityInput: byId("auctionCityInput"),
   auctionDistrictInput: byId("auctionDistrictInput"),
@@ -425,56 +456,102 @@ function bindAuctionEvents() {
     renderAuctionVehicleSection();
   });
 
+  elements.auctionLotNoInput.addEventListener("input", () => {
+    const start = elements.auctionLotNoInput.selectionStart;
+    const end = elements.auctionLotNoInput.selectionEnd;
+    elements.auctionLotNoInput.value = String(elements.auctionLotNoInput.value || "").toUpperCase();
+    if (start !== null && end !== null) {
+      elements.auctionLotNoInput.setSelectionRange(start, end);
+    }
+  });
+
   elements.auctionImagePickBtn.addEventListener("click", () => {
     elements.auctionImageFileInput.click();
   });
 
-  elements.auctionImageDropzone.addEventListener("click", () => {
-    elements.auctionImageFileInput.click();
-  });
-
-  elements.auctionImageDropzone.addEventListener("keydown", (event: KeyboardEvent) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    elements.auctionImageFileInput.click();
-  });
-
-  elements.auctionImageDropzone.addEventListener("dragover", (event: DragEvent) => {
-    event.preventDefault();
-    elements.auctionImageDropzone.classList.add("dragOver");
-  });
-
-  elements.auctionImageDropzone.addEventListener("dragleave", () => {
-    elements.auctionImageDropzone.classList.remove("dragOver");
-  });
-
-  elements.auctionImageDropzone.addEventListener("drop", async (event: DragEvent) => {
-    event.preventDefault();
-    elements.auctionImageDropzone.classList.remove("dragOver");
-    const file = event.dataTransfer?.files?.[0];
-    if (!file) return;
-    await setAuctionImageFromFile(file);
+  bindDropzoneUpload(elements.auctionImageDropzone, elements.auctionImageFileInput, async (files: File[]) => {
+    await addAuctionImagesFromFiles(files);
   });
 
   elements.auctionImageFileInput.addEventListener("change", async () => {
-    const file = elements.auctionImageFileInput.files?.[0];
-    if (!file) return;
-    await setAuctionImageFromFile(file);
+    const files = Array.from(elements.auctionImageFileInput.files || []) as File[];
+    if (files.length < 1) return;
+    await addAuctionImagesFromFiles(files);
     elements.auctionImageFileInput.value = "";
   });
 
   elements.auctionImageClearBtn.addEventListener("click", () => {
     clearAuctionImageSelection();
-    setStatus("Yuklenen gorsel temizlendi.", "ok");
+    setStatus("Yuklenen tum gorseller temizlendi.", "ok");
   });
 
-  elements.auctionImageUrlInput.addEventListener("input", () => {
-    const hasManualUrl = String(elements.auctionImageUrlInput.value || "").trim().length > 0;
-    if (!hasManualUrl) return;
-    state.auctionImageDataUrl = "";
-    elements.auctionImagePreview.classList.add("hide");
-    elements.auctionImagePreview.removeAttribute("src");
-    elements.auctionImageMeta.textContent = "URL gorseli kullanilacak.";
+  elements.auctionImageGallery.addEventListener("click", (event: any) => {
+    const btn = event.target.closest("button[data-remove-image-index]") as HTMLButtonElement | null;
+    if (!btn) return;
+    const index = Number(btn.dataset.removeImageIndex || -1);
+    if (!Number.isFinite(index) || index < 0) return;
+    state.auctionImageDataUrls = state.auctionImageDataUrls.filter((_: string, i: number) => i !== index);
+    renderAuctionImageGallery();
+  });
+
+  elements.auctionExpertisePickBtn.addEventListener("click", () => {
+    elements.auctionExpertiseFileInput.click();
+  });
+
+  bindDropzoneUpload(elements.auctionExpertiseDropzone, elements.auctionExpertiseFileInput, async (files: File[]) => {
+    await addReportFiles(files, "expertise");
+  });
+
+  elements.auctionExpertiseFileInput.addEventListener("change", async () => {
+    const files = Array.from(elements.auctionExpertiseFileInput.files || []) as File[];
+    if (files.length < 1) return;
+    await addReportFiles(files, "expertise");
+    elements.auctionExpertiseFileInput.value = "";
+  });
+
+  elements.auctionExpertiseClearBtn.addEventListener("click", () => {
+    state.auctionExpertiseFiles = [];
+    renderAuctionFileList("expertise");
+    setStatus("Ekspertiz dosyalari temizlendi.", "ok");
+  });
+
+  elements.auctionExpertiseList.addEventListener("click", (event: any) => {
+    const btn = event.target.closest("button[data-remove-expertise-index]") as HTMLButtonElement | null;
+    if (!btn) return;
+    const index = Number(btn.dataset.removeExpertiseIndex || -1);
+    if (!Number.isFinite(index) || index < 0) return;
+    state.auctionExpertiseFiles = state.auctionExpertiseFiles.filter((_: UploadedFileEntry, i: number) => i !== index);
+    renderAuctionFileList("expertise");
+  });
+
+  elements.auctionDocumentPickBtn.addEventListener("click", () => {
+    elements.auctionDocumentFileInput.click();
+  });
+
+  bindDropzoneUpload(elements.auctionDocumentDropzone, elements.auctionDocumentFileInput, async (files: File[]) => {
+    await addReportFiles(files, "document");
+  });
+
+  elements.auctionDocumentFileInput.addEventListener("change", async () => {
+    const files = Array.from(elements.auctionDocumentFileInput.files || []) as File[];
+    if (files.length < 1) return;
+    await addReportFiles(files, "document");
+    elements.auctionDocumentFileInput.value = "";
+  });
+
+  elements.auctionDocumentClearBtn.addEventListener("click", () => {
+    state.auctionDocumentFiles = [];
+    renderAuctionFileList("document");
+    setStatus("Dokuman dosyalari temizlendi.", "ok");
+  });
+
+  elements.auctionDocumentList.addEventListener("click", (event: any) => {
+    const btn = event.target.closest("button[data-remove-document-index]") as HTMLButtonElement | null;
+    if (!btn) return;
+    const index = Number(btn.dataset.removeDocumentIndex || -1);
+    if (!Number.isFinite(index) || index < 0) return;
+    state.auctionDocumentFiles = state.auctionDocumentFiles.filter((_: UploadedFileEntry, i: number) => i !== index);
+    renderAuctionFileList("document");
   });
 
   elements.auctionForm.addEventListener("submit", async (event: any) => {
@@ -865,20 +942,21 @@ function fillAuctionForm(auction: any) {
   elements.auctionStatusInput.value = String(auction.status || "ACTIVE");
   elements.auctionStartsAtInput.value = toDateTimeLocal(auction.starts_at || auction.created_at || "");
   elements.auctionEndsAtInput.value = toDateTimeLocal(auction.ends_at);
-  const imageValue = String(auction.image_url || "").trim();
-  if (imageValue.startsWith("data:image/")) {
-    state.auctionImageDataUrl = imageValue;
-    elements.auctionImageUrlInput.value = "";
-    setAuctionImagePreview(imageValue, "Kayitli gorsel secildi.");
-  } else {
-    clearAuctionImageSelection();
-    elements.auctionImageUrlInput.value = imageValue;
-    elements.auctionImageMeta.textContent = imageValue ? "URL gorseli kullanilacak." : "Henuz dosya secilmedi.";
+  state.auctionImageDataUrls = normalizeAuctionImageList(auction.gallery_json || auction.gallery || auction.images || []);
+  if (state.auctionImageDataUrls.length < 1) {
+    const legacyImage = String(auction.image_url || "").trim();
+    if (legacyImage) state.auctionImageDataUrls = [legacyImage];
   }
+  renderAuctionImageGallery();
   elements.auctionCityInput.value = String(auction.city || "");
   elements.auctionDistrictInput.value = String(auction.district || "");
   elements.auctionNeighborhoodInput.value = String(auction.neighborhood || "");
   elements.auctionDescriptionInput.value = String(auction.description || "");
+  elements.auctionExtraEquipmentInput.value = String(auction.extra_equipment || auction.extraEquipment || "");
+  state.auctionExpertiseFiles = normalizeUploadedFileList(auction.expertise_files_json || auction.expertiseFiles || []);
+  state.auctionDocumentFiles = normalizeUploadedFileList(auction.document_files_json || auction.documentFiles || []);
+  renderAuctionFileList("expertise");
+  renderAuctionFileList("document");
   elements.auctionVehicleBrandInput.value = String(auction.vehicle_brand || "");
   elements.auctionVehicleModelInput.value = String(auction.vehicle_model || "");
   elements.auctionVehicleModelDetailInput.value = String(auction.vehicle_model_detail || "");
@@ -897,8 +975,7 @@ function fillAuctionForm(auction: any) {
 function readAuctionFormPayload() {
   const startsAtLocal = String(elements.auctionStartsAtInput.value || "").trim();
   const endsAtLocal = String(elements.auctionEndsAtInput.value || "").trim();
-  const manualUrl = String(elements.auctionImageUrlInput.value || "").trim();
-  const imageUrl = String(state.auctionImageDataUrl || "").trim() || manualUrl;
+  const imageList = normalizeAuctionImageList(state.auctionImageDataUrls || []);
   return {
     lotNo: String(elements.auctionLotNoInput.value || "").trim().toUpperCase(),
     title: String(elements.auctionTitleInput.value || "").trim(),
@@ -913,6 +990,7 @@ function readAuctionFormPayload() {
     district: String(elements.auctionDistrictInput.value || "").trim(),
     neighborhood: String(elements.auctionNeighborhoodInput.value || "").trim(),
     description: String(elements.auctionDescriptionInput.value || "").trim(),
+    extraEquipment: String(elements.auctionExtraEquipmentInput.value || "").trim(),
     vehicleBrand: String(elements.auctionVehicleBrandInput.value || "").trim(),
     vehicleModel: String(elements.auctionVehicleModelInput.value || "").trim(),
     vehicleModelDetail: String(elements.auctionVehicleModelDetailInput.value || "").trim(),
@@ -925,7 +1003,10 @@ function readAuctionFormPayload() {
     vehicleEngineVolume: String(elements.auctionVehicleEngineVolumeInput.value || "").trim(),
     vehicleEnginePower: String(elements.auctionVehicleEnginePowerInput.value || "").trim(),
     vehicleDriveType: String(elements.auctionVehicleDriveTypeInput.value || "").trim(),
-    imageUrl,
+    imageUrl: imageList[0] || "",
+    images: imageList,
+    expertiseFiles: normalizeUploadedFileList(state.auctionExpertiseFiles || []),
+    documentFiles: normalizeUploadedFileList(state.auctionDocumentFiles || []),
   };
 }
 
@@ -959,12 +1040,16 @@ function resetAuctionForm() {
   const endsAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   elements.auctionStartsAtInput.value = toDateTimeLocal(startsAt.toISOString());
   elements.auctionEndsAtInput.value = toDateTimeLocal(endsAt.toISOString());
-  elements.auctionImageUrlInput.value = "";
   clearAuctionImageSelection();
   elements.auctionCityInput.value = "";
   elements.auctionDistrictInput.value = "";
   elements.auctionNeighborhoodInput.value = "";
   elements.auctionDescriptionInput.value = "";
+  elements.auctionExtraEquipmentInput.value = "";
+  state.auctionExpertiseFiles = [];
+  state.auctionDocumentFiles = [];
+  renderAuctionFileList("expertise");
+  renderAuctionFileList("document");
   elements.auctionVehicleBrandInput.value = "";
   elements.auctionVehicleModelInput.value = "";
   elements.auctionVehicleModelDetailInput.value = "";
@@ -995,24 +1080,241 @@ function renderAuctionVehicleSection() {
   elements.auctionVehicleSection.classList.toggle("hide", !isVehicleGroup);
 }
 
-async function setAuctionImageFromFile(file: File) {
-  const type = String(file.type || "").toLowerCase();
-  if (!ALLOWED_IMAGE_TYPES.has(type)) {
-    setStatus("Desteklenmeyen dosya formati. JPG, PNG veya WEBP yukleyin.", "error");
+function bindDropzoneUpload(
+  dropzone: HTMLElement,
+  input: HTMLInputElement,
+  onFiles: (files: File[]) => Promise<void> | void
+) {
+  dropzone.addEventListener("click", () => input.click());
+  dropzone.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    input.click();
+  });
+  dropzone.addEventListener("dragover", (event: DragEvent) => {
+    event.preventDefault();
+    dropzone.classList.add("dragOver");
+  });
+  dropzone.addEventListener("dragleave", () => {
+    dropzone.classList.remove("dragOver");
+  });
+  dropzone.addEventListener("drop", async (event: DragEvent) => {
+    event.preventDefault();
+    dropzone.classList.remove("dragOver");
+    const files = Array.from(event.dataTransfer?.files || []) as File[];
+    if (files.length < 1) return;
+    await onFiles(files);
+  });
+}
+
+async function addAuctionImagesFromFiles(files: File[]) {
+  if (files.length < 1) return;
+  const acceptedCount = Math.max(0, MAX_AUCTION_IMAGE_COUNT - state.auctionImageDataUrls.length);
+  if (acceptedCount < 1) {
+    setStatus(`En fazla ${MAX_AUCTION_IMAGE_COUNT} gorsel yukleyebilirsiniz.`, "warn");
     return;
   }
 
-  setStatus("Gorsel isleniyor...", "warn");
-  try {
-    const dataUrl = await optimizeAuctionImage(file);
-    state.auctionImageDataUrl = dataUrl;
-    elements.auctionImageUrlInput.value = "";
-    setAuctionImagePreview(dataUrl, `${file.name} secildi (${formatBytes(file.size)}).`);
-    setStatus("Gorsel yukleme hazir.", "ok");
-  } catch (error: any) {
-    console.error(error);
-    setStatus(error.message || "Gorsel yuklenemedi.", "error");
+  const queue = files.slice(0, acceptedCount);
+  let added = 0;
+
+  setStatus("Gorseller isleniyor...", "warn");
+  for (const file of queue) {
+    const type = String(file.type || "").toLowerCase();
+    if (!ALLOWED_IMAGE_TYPES.has(type)) {
+      continue;
+    }
+
+    try {
+      const dataUrl = await optimizeAuctionImage(file);
+      state.auctionImageDataUrls.push(dataUrl);
+      added += 1;
+    } catch (error) {
+      console.error(error);
+    }
   }
+
+  state.auctionImageDataUrls = normalizeAuctionImageList(state.auctionImageDataUrls);
+  renderAuctionImageGallery();
+  if (added > 0) {
+    setStatus(`${added} gorsel eklendi.`, "ok");
+  } else {
+    setStatus("Uygun gorsel bulunamadi.", "error");
+  }
+}
+
+async function addReportFiles(files: File[], mode: "expertise" | "document") {
+  if (files.length < 1) return;
+
+  const current = mode === "expertise" ? state.auctionExpertiseFiles : state.auctionDocumentFiles;
+  const acceptedCount = Math.max(0, MAX_AUCTION_FILE_COUNT - current.length);
+  if (acceptedCount < 1) {
+    setStatus(`En fazla ${MAX_AUCTION_FILE_COUNT} dosya yukleyebilirsiniz.`, "warn");
+    return;
+  }
+
+  let added = 0;
+  for (const file of files.slice(0, acceptedCount)) {
+    const type = String(file.type || "").toLowerCase();
+    if (!ALLOWED_REPORT_FILE_TYPES.has(type)) {
+      continue;
+    }
+    if (file.size > MAX_AUCTION_FILE_BYTES) {
+      continue;
+    }
+    try {
+      const dataUrl = await readGenericFileAsDataUrl(file);
+      current.push({
+        name: String(file.name || "dosya").slice(0, 140),
+        type,
+        size: Number(file.size || 0),
+        dataUrl,
+      });
+      added += 1;
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  if (mode === "expertise") {
+    state.auctionExpertiseFiles = normalizeUploadedFileList(current);
+  } else {
+    state.auctionDocumentFiles = normalizeUploadedFileList(current);
+  }
+  renderAuctionFileList(mode);
+
+  const label = mode === "expertise" ? "Ekspertiz" : "Dokuman";
+  if (added > 0) {
+    setStatus(`${label} dosyalari guncellendi (${added} yeni).`, "ok");
+  } else {
+    setStatus(`${label} icin uygun dosya bulunamadi.`, "warn");
+  }
+}
+
+function renderAuctionImageGallery() {
+  const rows = normalizeAuctionImageList(state.auctionImageDataUrls || []);
+  state.auctionImageDataUrls = rows;
+  if (rows.length < 1) {
+    elements.auctionImageGallery.innerHTML = "";
+    elements.auctionImageMeta.textContent = "Henuz dosya secilmedi.";
+    return;
+  }
+
+  elements.auctionImageMeta.textContent = `${rows.length} gorsel secili. Ilk gorsel kart gorseli olarak kullanilacak.`;
+  elements.auctionImageGallery.innerHTML = rows
+    .map(
+      (dataUrl: string, index: number) => `
+        <div class="uploadItem">
+          <img src="${escapeHtml(dataUrl)}" alt="Gorsel ${index + 1}">
+          <div class="uploadItemMeta">
+            <strong>Gorsel ${index + 1}</strong>
+            <button class="removeTinyBtn" type="button" data-remove-image-index="${index}">Sil</button>
+          </div>
+        </div>
+      `
+    )
+    .join("");
+}
+
+function renderAuctionFileList(mode: "expertise" | "document") {
+  const isExpertise = mode === "expertise";
+  const rows = normalizeUploadedFileList(isExpertise ? state.auctionExpertiseFiles : state.auctionDocumentFiles);
+  const targetList = isExpertise ? elements.auctionExpertiseList : elements.auctionDocumentList;
+  const targetMeta = isExpertise ? elements.auctionExpertiseMeta : elements.auctionDocumentMeta;
+  const datasetAttr = isExpertise ? "data-remove-expertise-index" : "data-remove-document-index";
+  const emptyLabel = isExpertise ? "Henuz ekspertiz dosyasi secilmedi." : "Henuz dokuman secilmedi.";
+  if (isExpertise) state.auctionExpertiseFiles = rows;
+  else state.auctionDocumentFiles = rows;
+
+  if (rows.length < 1) {
+    targetMeta.textContent = emptyLabel;
+    targetList.innerHTML = '<div class="fileItemEmpty">Dosya bulunmuyor.</div>';
+    return;
+  }
+
+  targetMeta.textContent = `${rows.length} dosya secili.`;
+  targetList.innerHTML = rows
+    .map((item: UploadedFileEntry, index: number) => {
+      const icon = item.type.includes("pdf") ? "fa-file-pdf" : "fa-image";
+      return `
+        <div class="fileItem">
+          <span class="fileItemName">
+            <i class="fas ${icon}"></i>
+            <span>${escapeHtml(item.name || `dosya-${index + 1}`)}</span>
+            <em>${escapeHtml(formatBytes(Number(item.size || estimateDataUrlBytes(item.dataUrl))))}</em>
+          </span>
+          <button class="removeTinyBtn" type="button" ${datasetAttr}="${index}">Sil</button>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function normalizeAuctionImageList(input: any) {
+  const values = parseJsonArrayMaybe(input);
+  const out: string[] = [];
+  for (const value of values) {
+    const item = String(value || "").trim();
+    if (!item) continue;
+    if (!(item.startsWith("data:image/") || /^https?:\/\//i.test(item))) continue;
+    out.push(item);
+    if (out.length >= MAX_AUCTION_IMAGE_COUNT) break;
+  }
+  return out;
+}
+
+function normalizeUploadedFileList(input: any) {
+  const values = parseJsonArrayMaybe(input);
+  const out: UploadedFileEntry[] = [];
+  for (const raw of values) {
+    const obj = typeof raw === "object" && raw ? raw : {};
+    const dataUrl = String(obj.dataUrl || obj.url || "").trim();
+    if (!dataUrl) continue;
+    if (!(dataUrl.startsWith("data:") || /^https?:\/\//i.test(dataUrl))) continue;
+    const type = String(obj.type || "").trim().toLowerCase();
+    const guessedType = type || (dataUrl.startsWith("data:application/pdf") ? "application/pdf" : "image/jpeg");
+    const entry: UploadedFileEntry = {
+      name: String(obj.name || "dosya").slice(0, 140),
+      type: guessedType,
+      size: Number(obj.size || 0),
+      dataUrl,
+    };
+    out.push(entry);
+    if (out.length >= MAX_AUCTION_FILE_COUNT) break;
+  }
+  return out;
+}
+
+function parseJsonArrayMaybe(input: any) {
+  if (Array.isArray(input)) return input;
+  if (typeof input === "string") {
+    const text = String(input || "").trim();
+    if (!text) return [];
+    if (text.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(text);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [text];
+  }
+  return [];
+}
+
+function clearAuctionImageSelection() {
+  state.auctionImageDataUrls = [];
+  renderAuctionImageGallery();
+}
+
+async function readGenericFileAsDataUrl(file: File): Promise<string> {
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Dosya okunamadi."));
+    reader.readAsDataURL(file);
+  });
 }
 
 async function optimizeAuctionImage(file: File) {
@@ -1073,19 +1375,6 @@ async function readImageFile(file: File): Promise<HTMLImageElement> {
   } finally {
     URL.revokeObjectURL(objectUrl);
   }
-}
-
-function clearAuctionImageSelection() {
-  state.auctionImageDataUrl = "";
-  elements.auctionImagePreview.classList.add("hide");
-  elements.auctionImagePreview.removeAttribute("src");
-  elements.auctionImageMeta.textContent = "Henuz dosya secilmedi.";
-}
-
-function setAuctionImagePreview(dataUrl: string, metaText: string) {
-  elements.auctionImagePreview.src = dataUrl;
-  elements.auctionImagePreview.classList.remove("hide");
-  elements.auctionImageMeta.textContent = metaText;
 }
 
 function estimateDataUrlBytes(dataUrl: string) {
