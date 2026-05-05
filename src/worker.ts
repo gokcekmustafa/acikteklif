@@ -646,69 +646,35 @@ async function handleApi(request, env, url) {
       }
 
       const groupId = decodeURIComponent(String(groupMatch[1] || ""));
-      if (groupId === FALLBACK_CATALOG_GROUP_ID) {
-        return json({ ok: false, error: "Genel ürün grubu sistem varsayılanıdır, silinemez." }, 400);
-      }
-
-      await ensureMarketplaceSchemaWarm(env);
-      const fallbackGroupNameRow = await env.DB.prepare("SELECT name FROM product_groups WHERE id = ?")
-        .bind(FALLBACK_CATALOG_GROUP_ID)
-        .first();
-      const fallbackGroupName = String(fallbackGroupNameRow?.name || "Genel");
-
-      const groupCategories = await env.DB.prepare("SELECT id, name FROM categories WHERE group_id = ?")
+      const existingGroup = await env.DB.prepare("SELECT id, name FROM product_groups WHERE id = ?")
         .bind(groupId)
-        .all();
+        .first();
+      if (!existingGroup?.id) return json({ ok: false, error: "Ürün grubu bulunamadı." }, 404);
+
+      const groupCategories = await env.DB.prepare("SELECT id FROM categories WHERE group_id = ?").bind(groupId).all();
 
       for (const row of groupCategories.results || []) {
-        const sourceCategoryId = String(row.id || "");
-        const categoryName = String(row.name || "").trim();
-        if (!sourceCategoryId) continue;
-
-        const existingInFallback = await env.DB.prepare(
-          `SELECT id, name
-           FROM categories
-           WHERE group_id = ?
-             AND id <> ?
-             AND LOWER(TRIM(name)) = LOWER(TRIM(?))
-           LIMIT 1`
-        )
-          .bind(FALLBACK_CATALOG_GROUP_ID, sourceCategoryId, categoryName)
-          .first();
-
-        if (existingInFallback?.id) {
-          const targetCategoryId = String(existingInFallback.id || "");
-          const targetCategoryName = String(existingInFallback.name || categoryName || "Genel");
-          await env.DB.prepare(
-            `UPDATE auctions
-             SET category_id = ?,
-                 category = ?,
-                 updated_at = CURRENT_TIMESTAMP
-             WHERE category_id = ?`
-          )
-            .bind(targetCategoryId, targetCategoryName, sourceCategoryId)
-            .run();
-          await env.DB.prepare("DELETE FROM categories WHERE id = ?").bind(sourceCategoryId).run();
-          continue;
-        }
-
+        const categoryId = String(row.id || "");
+        if (!categoryId) continue;
         await env.DB.prepare(
-          `UPDATE categories
-           SET group_id = ?, updated_at = CURRENT_TIMESTAMP
-           WHERE id = ?`
+          `UPDATE auctions
+           SET category_id = NULL,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE category_id = ?`
         )
-          .bind(FALLBACK_CATALOG_GROUP_ID, sourceCategoryId)
+          .bind(categoryId)
           .run();
       }
 
+      await env.DB.prepare("DELETE FROM categories WHERE group_id = ?").bind(groupId).run();
+
       await env.DB.prepare(
         `UPDATE auctions
-         SET product_group_id = ?,
-             product_group = ?,
+         SET product_group_id = NULL,
              updated_at = CURRENT_TIMESTAMP
          WHERE product_group_id = ?`
       )
-        .bind(FALLBACK_CATALOG_GROUP_ID, fallbackGroupName, groupId)
+        .bind(groupId)
         .run();
 
       const deleted = await env.DB.prepare("DELETE FROM product_groups WHERE id = ?").bind(groupId).run();
@@ -823,18 +789,13 @@ async function handleApi(request, env, url) {
         .first();
       if (!categoryRow) return json({ ok: false, error: "Kategori bulunamadı." }, 404);
 
-      const replacementCategoryId = await ensureReplacementCategoryForDelete(
-        env,
-        String(categoryRow.group_id || ""),
-        categoryId
-      );
-
       await env.DB.prepare(
         `UPDATE auctions
-         SET category_id = ?, category = COALESCE((SELECT name FROM categories WHERE id = ?), category), updated_at = CURRENT_TIMESTAMP
+         SET category_id = NULL,
+             updated_at = CURRENT_TIMESTAMP
          WHERE category_id = ?`
       )
-        .bind(replacementCategoryId, replacementCategoryId, categoryId)
+        .bind(categoryId)
         .run();
 
       const deleted = await env.DB.prepare("DELETE FROM categories WHERE id = ?").bind(categoryId).run();
@@ -1668,7 +1629,6 @@ async function ensureMarketplaceSchema(env, options: { runLegacyRepair?: boolean
     }
   }
 
-  await seedDefaultCatalogGroups(env);
   if (runLegacyRepair) {
     await backfillLegacyCatalogRelations(env);
   }
