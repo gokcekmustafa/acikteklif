@@ -166,7 +166,7 @@ const fallbackListings = [
 ];
 const DEFAULT_LISTING_IMAGE = "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=900&q=80";
 const fallbackListingByLotNo = new Map(fallbackListings.map((item) => [item.lotNo, item]));
-const demoFallbackHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+const localFallbackHosts = new Set(["localhost", "127.0.0.1", "::1"]);
 const state = {
     tab: "ALL",
     order: "DEFAULT",
@@ -296,7 +296,7 @@ async function loadListings() {
         console.warn("Auction API fetch failed.", error);
         state.listings = [];
     }
-    if (state.listings.length < 1 && apiFailed && shouldUseDemoFallback()) {
+    if (state.listings.length < 1 && apiFailed && shouldUseLocalFallback()) {
         state.listings = enforceListingScope(fallbackListings.map((item) => ({
             ...item,
             minIncrement: guessIncrement(item),
@@ -609,7 +609,7 @@ async function handleRegister() {
         await hydrateAuth();
         setHint(elements.registerFormHint, data.message || "Kayıt başarılı.", "success");
         if (data.debugVerifyToken) {
-            setHint(elements.registerFormHint, `Kayıt başarılı. Demo doğrulama token: ${data.debugVerifyToken}`, "success");
+            setHint(elements.registerFormHint, `Kayıt başarılı. Doğrulama tokeni: ${data.debugVerifyToken}`, "success");
         }
         elements.registerForm.reset();
         resetTurnstile("register");
@@ -632,7 +632,7 @@ async function handleForgotPassword() {
         });
         let message = data.message || "Sıfırlama e-postası gönderildi.";
         if (data.debugResetToken) {
-            message += `\n\nDemo reset token:\n${data.debugResetToken}`;
+            message += `\n\nSifirlama tokeni:\n${data.debugResetToken}`;
         }
         setHint(elements.loginFormHint, message, "success");
     }
@@ -757,14 +757,14 @@ function render() {
         });
     });
 }
-function shouldUseDemoFallback() {
+function shouldUseLocalFallback() {
     if (typeof window === "undefined")
         return false;
     const host = String(window.location.hostname || "").toLowerCase();
-    if (demoFallbackHosts.has(host))
+    if (localFallbackHosts.has(host))
         return true;
     const params = new URLSearchParams(window.location.search);
-    return params.get("demo") === "1";
+    return params.get("fallback") === "1";
 }
 function applyFilters(data) {
     return data.filter((item) => {
@@ -889,7 +889,7 @@ async function handleBid(button) {
         try {
             const data = await apiFetch("/api/auth/verify/request", { method: "POST" });
             const message = data.debugVerifyToken
-                ? `${data.message}\n\nDemo doğrulama token:\n${data.debugVerifyToken}`
+                ? `${data.message}\n\nDogrulama tokeni:\n${data.debugVerifyToken}`
                 : data.message;
             alert(message);
         }

@@ -517,7 +517,7 @@ async function handleRegister() {
     if (data.debugVerifyToken) {
       setHint(
         elements.registerFormHint,
-        `Kayıt başarılı. Demo doğrulama token: ${data.debugVerifyToken}`,
+        `Kayıt başarılı. Doğrulama tokeni: ${data.debugVerifyToken}`,
         "success"
       );
     }
@@ -543,7 +543,7 @@ async function handleForgotPassword() {
 
     let message = data.message || "Sıfırlama e-postası gönderildi.";
     if (data.debugResetToken) {
-      message += `\n\nDemo reset token:\n${data.debugResetToken}`;
+      message += `\n\nSifirlama tokeni:\n${data.debugResetToken}`;
     }
     setHint(elements.loginFormHint, message, "success");
   } catch (error) {
@@ -789,7 +789,7 @@ async function handleBid(button) {
     try {
       const data = await apiFetch("/api/auth/verify/request", { method: "POST" });
       const message = data.debugVerifyToken
-        ? `${data.message}\n\nDemo doğrulama token:\n${data.debugVerifyToken}`
+        ? `${data.message}\n\nDogrulama tokeni:\n${data.debugVerifyToken}`
         : data.message;
       alert(message);
     } catch (error) {

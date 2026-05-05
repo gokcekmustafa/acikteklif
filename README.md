@@ -24,7 +24,7 @@ Bu proje statik arayuzun yaninda Cloudflare Worker + D1 ile calisan uyelik ve te
 - `src/client.ts`: Frontend TypeScript kaynagi (`npm run build` ile `public/script.js` uretilir)
 - `src/admin.ts`: Admin paneli TypeScript kaynagi (`npm run build` ile `public/admin.js` uretilir)
 - `src/worker.ts`: API ve auth mantigi (TypeScript)
-- `migrations/0001_initial.sql`: D1 sema + ornek ihale verisi
+- `migrations/0001_initial.sql`: D1 sema + ilk ihale verisi
 - `migrations/0002_admin_permissions.sql`: Rol/yetki tablolari
 - `wrangler.toml`: Worker konfigurasyonu
 
@@ -74,14 +74,14 @@ npx wrangler secret put TURNSTILE_SITE_KEY
 9. Ilk admin kullanicilarini tanimla (opsiyonel ama onerilir):
 ```toml
 [vars]
-ADMIN_EMAILS = "admin@ornek.com, ikinciadmin@ornek.com"
+ADMIN_EMAILS = "admin@firma.com, ikinciadmin@firma.com"
 ```
 Bu listedeki e-postalar ilk giriste otomatik `admin` rolu alir.
 
 Opsiyonel bootstrap admin (ilk hesap otomatik olusturma):
 ```toml
 [vars]
-ADMIN_BOOTSTRAP_EMAIL = "admin@ornek.com"
+ADMIN_BOOTSTRAP_EMAIL = "admin@firma.com"
 ADMIN_BOOTSTRAP_PASSWORD = "guclu-bir-sifre"
 ```
 Bu alanlar doluysa login istegi sirasinda hesap yoksa olusturulur ve admin rolu verilir.
