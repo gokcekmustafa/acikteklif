@@ -977,8 +977,12 @@ button {
 
 .containerAll .sContent .addBid .adTopLine .tLine1,
 .containerAll .sContent .addBid .adBottomLine .bLine1 {
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .containerAll .sContent .addBid .adTopLine .tLine2 {
@@ -1016,7 +1020,7 @@ button {
 .containerAll .sContent .addBid .adBottomLine .bLine1 {
   margin: 10px 0 5px;
   padding: 0 8px;
-  word-break: break-word;
+  word-break: normal;
 }
 
 .containerAll .sContent .addBid .adBottomLine .bLine2 {
