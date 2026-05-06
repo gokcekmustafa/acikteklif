@@ -113,10 +113,12 @@
         </section>
 
         <section class="panel hide" id="panelAuctions">
-          <article class="panelCard" id="auctionFormCard">
+          <div class="auctionModal hide" id="auctionModal" role="dialog" aria-modal="true" aria-labelledby="auctionFormTitle">
+            <div class="auctionModalBackdrop" data-action="close-auction-modal"></div>
+            <article class="panelCard auctionModalCard" id="auctionFormCard">
             <div class="panelHead">
               <h3 id="auctionFormTitle">Ihale Ekle</h3>
-              <button class="miniBtn" type="button" id="auctionFormCloseBtn">Formu Kapat</button>
+              <button class="miniBtn" type="button" id="auctionFormCloseBtn">Pencereyi Kapat</button>
             </div>
             <form id="auctionForm" class="stackForm">
               <input type="hidden" id="auctionIdInput">
@@ -364,7 +366,8 @@
                 <button class="miniBtn" type="button" id="auctionResetBtn">Temizle</button>
               </div>
             </form>
-          </article>
+            </article>
+          </div>
 
           <article class="panelCard" id="auctionListCard">
             <div class="panelHead">

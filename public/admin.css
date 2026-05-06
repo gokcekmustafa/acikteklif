@@ -25,6 +25,10 @@ body {
     linear-gradient(155deg, var(--bg-1) 0%, var(--bg-2) 45%, #ffffff 100%);
 }
 
+body.modalOpen {
+  overflow: hidden;
+}
+
 .hide {
   display: none !important;
 }
@@ -301,6 +305,32 @@ body {
 .panelCard h3 {
   margin: 0 0 10px;
   font-size: 1rem;
+}
+
+.auctionModal {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 18px;
+}
+
+.auctionModalBackdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 20, 38, 0.52);
+  backdrop-filter: blur(2px);
+}
+
+.auctionModalCard {
+  position: relative;
+  width: min(1160px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  margin: 0;
+  box-shadow: 0 24px 60px rgba(10, 24, 45, 0.3);
 }
 
 .panelHead {
@@ -1251,6 +1281,14 @@ th {
   #groupForm.quickForm,
   #categoryForm.quickForm {
     grid-template-columns: 1fr;
+  }
+
+  .auctionModal {
+    padding: 10px;
+  }
+
+  .auctionModalCard {
+    max-height: calc(100vh - 20px);
   }
 
 }

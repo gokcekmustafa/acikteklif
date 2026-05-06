@@ -94,6 +94,7 @@ const elements = {
     catalogSearchInput: byId("catalogSearchInput"),
     auctionSearchInput: byId("auctionSearchInput"),
     auctionFormCard: byId("auctionFormCard"),
+    auctionModal: byId("auctionModal"),
     auctionListCard: byId("auctionListCard"),
     auctionFormCloseBtn: byId("auctionFormCloseBtn"),
     openAuctionFormBtn: byId("openAuctionFormBtn"),
@@ -545,13 +546,27 @@ function bindCatalogEvents() {
 }
 function bindAuctionEvents() {
     elements.openAuctionFormBtn.addEventListener("click", () => {
-        showAuctionForm();
         resetAuctionForm();
-        setStatus("Yeni ihale formu acildi.", "ok");
+        showAuctionForm();
+        setStatus("Yeni ihale penceresi acildi.", "ok");
     });
     elements.auctionFormCloseBtn.addEventListener("click", () => {
         hideAuctionForm();
-        setStatus("Ihale formu kapatildi.", "ok");
+        setStatus("Ihale penceresi kapatildi.", "ok");
+    });
+    elements.auctionModal.addEventListener("click", (event) => {
+        const target = event.target;
+        const closeAction = target.closest("[data-action='close-auction-modal']");
+        if (!closeAction)
+            return;
+        hideAuctionForm();
+    });
+    document.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape")
+            return;
+        if (elements.auctionModal.classList.contains("hide"))
+            return;
+        hideAuctionForm();
     });
     elements.auctionGroupSelect.addEventListener("change", () => {
         fillAuctionCategorySelect();
@@ -703,11 +718,9 @@ function bindAuctionEvents() {
             await loadAuctions();
             renderAuctions();
             renderStats();
-            const message = auctionId ? "Ihale guncellendi." : "Ihale eklendi.";
+            const message = auctionId ? "Ihale basariyla guncellendi." : "Ihale basariyla eklendi.";
             setStatus(message, "ok");
-            alert(`${message} Kaydetme basarili.`);
             hideAuctionForm();
-            elements.auctionListCard.scrollIntoView({ behavior: "smooth", block: "start" });
         }, {
             suppressDefaultErrorStatus: true,
             onError: (error) => {
@@ -731,6 +744,7 @@ function bindAuctionEvents() {
             state.activeTab = "auctions";
             renderTabs();
             updateFormHeadings();
+            setStatus("Ihale duzenleme penceresi acildi.", "ok");
             return;
         }
         if (action === "delete-auction") {
@@ -783,6 +797,9 @@ function renderTabs() {
     elements.panelSettings.classList.toggle("hide", state.activeTab !== "settings");
     elements.panelLogs.classList.toggle("hide", state.activeTab !== "logs");
     elements.searchInput.parentElement?.classList.toggle("hide", state.activeTab !== "users");
+    if (state.activeTab !== "auctions") {
+        hideAuctionForm();
+    }
 }
 function renderStats() {
     const totalUsers = state.users.length;
@@ -1412,10 +1429,12 @@ function renderAuctionVehicleSection() {
     elements.auctionVehicleSection.classList.toggle("hide", !isVehicleGroup);
 }
 function showAuctionForm() {
-    elements.auctionFormCard.classList.remove("hide");
+    elements.auctionModal.classList.remove("hide");
+    document.body.classList.add("modalOpen");
 }
 function hideAuctionForm() {
-    elements.auctionFormCard.classList.add("hide");
+    elements.auctionModal.classList.add("hide");
+    document.body.classList.remove("modalOpen");
 }
 function bindDropzoneUpload(dropzone, input, onFiles) {
     dropzone.addEventListener("click", () => input.click());
