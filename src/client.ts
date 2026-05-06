@@ -273,13 +273,24 @@ async function init() {
 }
 
 function hydrateFilterOptions() {
+  const previousGroup = String(state.filters.productGroup || elements.productGroup.value || "").trim();
+  const previousCategory = String(state.filters.category || elements.category.value || "").trim();
+
   if (ONLY_AUTOMOBILE_MODE) {
     refillSelect(elements.productGroup, [AUTOMOBILE_PRODUCT_GROUP], "Urun Grubu Seciniz");
-    refillSelect(elements.category, [AUTOMOBILE_CATEGORY], "Kategori Seciniz");
+    elements.productGroup.value = AUTOMOBILE_PRODUCT_GROUP;
   } else {
     refillSelect(elements.productGroup, uniqueValues("productGroup"), "Urun Grubu Seciniz");
-    refillSelect(elements.category, uniqueValues("category"), "Kategori Seciniz");
+    if (previousGroup) elements.productGroup.value = previousGroup;
   }
+
+  const selectedGroup = String(elements.productGroup.value || "").trim();
+  const categoryValues = uniqueCategoryValuesByGroup(selectedGroup);
+  refillSelect(elements.category, categoryValues, "Kategori Seciniz");
+  if (previousCategory && categoryValues.includes(previousCategory)) {
+    elements.category.value = previousCategory;
+  }
+
   refillSelect(elements.city, uniqueValues("city"), "Il Seciniz");
   refillSelect(elements.district, uniqueValues("district"), "Ilce Seciniz");
   refillSelect(elements.neighborhood, uniqueValues("neighborhood"), "Mahalle Seciniz");
@@ -288,9 +299,11 @@ function hydrateFilterOptions() {
 function applyInitialFilters() {
   if (ONLY_AUTOMOBILE_MODE) {
     state.filters.productGroup = AUTOMOBILE_PRODUCT_GROUP;
-    state.filters.category = AUTOMOBILE_CATEGORY;
     elements.productGroup.value = AUTOMOBILE_PRODUCT_GROUP;
-    elements.category.value = AUTOMOBILE_CATEGORY;
+    const categoryValues = uniqueCategoryValuesByGroup(AUTOMOBILE_PRODUCT_GROUP);
+    const defaultCategory = categoryValues.includes(AUTOMOBILE_CATEGORY) ? AUTOMOBILE_CATEGORY : "";
+    state.filters.category = defaultCategory;
+    elements.category.value = defaultCategory;
   }
 }
 
@@ -340,7 +353,6 @@ function enforceListingScope(rows) {
     .map((item) => ({
       ...item,
       productGroup: AUTOMOBILE_PRODUCT_GROUP,
-      category: AUTOMOBILE_CATEGORY,
     }));
 }
 
@@ -505,6 +517,16 @@ function bindEvents() {
   elements.order.addEventListener("change", () => {
     state.order = elements.order.value;
     render();
+  });
+
+  elements.productGroup.addEventListener("change", () => {
+    const selectedGroup = String(elements.productGroup.value || "").trim();
+    const previousCategory = String(elements.category.value || "").trim();
+    const categoryValues = uniqueCategoryValuesByGroup(selectedGroup);
+    refillSelect(elements.category, categoryValues, "Kategori Seciniz");
+    if (previousCategory && categoryValues.includes(previousCategory)) {
+      elements.category.value = previousCategory;
+    }
   });
 
   elements.searchBtn.addEventListener("click", (event) => {
@@ -777,10 +799,21 @@ function uniqueValues(key) {
   return [...new Set(state.listings.map((item) => item[key]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"));
 }
 
+function uniqueCategoryValuesByGroup(groupValue) {
+  const selectedGroup = String(groupValue || "").trim();
+  const rows = state.listings.filter((item) => {
+    if (!selectedGroup) return true;
+    return String(item.productGroup || "").trim() === selectedGroup;
+  });
+  return [...new Set(rows.map((item) => String(item.category || "").trim()).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, "tr")
+  );
+}
+
 function readFiltersFromForm() {
   state.filters = {
     productGroup: ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : elements.productGroup.value,
-    category: ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_CATEGORY : elements.category.value,
+    category: elements.category.value,
     city: elements.city.value,
     district: elements.district.value,
     neighborhood: elements.neighborhood.value,
@@ -791,9 +824,12 @@ function readFiltersFromForm() {
 }
 
 function clearFilters() {
+  const categoryValues = uniqueCategoryValuesByGroup(ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : "");
+  const defaultCategory = ONLY_AUTOMOBILE_MODE && categoryValues.includes(AUTOMOBILE_CATEGORY) ? AUTOMOBILE_CATEGORY : "";
+
   state.filters = {
     productGroup: ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : "",
-    category: ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_CATEGORY : "",
+    category: defaultCategory,
     city: "",
     district: "",
     neighborhood: "",
@@ -803,7 +839,8 @@ function clearFilters() {
   };
 
   elements.productGroup.value = ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : "";
-  elements.category.value = ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_CATEGORY : "";
+  refillSelect(elements.category, categoryValues, "Kategori Seciniz");
+  elements.category.value = defaultCategory;
   elements.city.value = "";
   elements.district.value = "";
   elements.neighborhood.value = "";

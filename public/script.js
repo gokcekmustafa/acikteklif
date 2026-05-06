@@ -255,13 +255,22 @@ async function init() {
     setInterval(updateCountdowns, 1000);
 }
 function hydrateFilterOptions() {
+    const previousGroup = String(state.filters.productGroup || elements.productGroup.value || "").trim();
+    const previousCategory = String(state.filters.category || elements.category.value || "").trim();
     if (ONLY_AUTOMOBILE_MODE) {
         refillSelect(elements.productGroup, [AUTOMOBILE_PRODUCT_GROUP], "Urun Grubu Seciniz");
-        refillSelect(elements.category, [AUTOMOBILE_CATEGORY], "Kategori Seciniz");
+        elements.productGroup.value = AUTOMOBILE_PRODUCT_GROUP;
     }
     else {
         refillSelect(elements.productGroup, uniqueValues("productGroup"), "Urun Grubu Seciniz");
-        refillSelect(elements.category, uniqueValues("category"), "Kategori Seciniz");
+        if (previousGroup)
+            elements.productGroup.value = previousGroup;
+    }
+    const selectedGroup = String(elements.productGroup.value || "").trim();
+    const categoryValues = uniqueCategoryValuesByGroup(selectedGroup);
+    refillSelect(elements.category, categoryValues, "Kategori Seciniz");
+    if (previousCategory && categoryValues.includes(previousCategory)) {
+        elements.category.value = previousCategory;
     }
     refillSelect(elements.city, uniqueValues("city"), "Il Seciniz");
     refillSelect(elements.district, uniqueValues("district"), "Ilce Seciniz");
@@ -270,9 +279,11 @@ function hydrateFilterOptions() {
 function applyInitialFilters() {
     if (ONLY_AUTOMOBILE_MODE) {
         state.filters.productGroup = AUTOMOBILE_PRODUCT_GROUP;
-        state.filters.category = AUTOMOBILE_CATEGORY;
         elements.productGroup.value = AUTOMOBILE_PRODUCT_GROUP;
-        elements.category.value = AUTOMOBILE_CATEGORY;
+        const categoryValues = uniqueCategoryValuesByGroup(AUTOMOBILE_PRODUCT_GROUP);
+        const defaultCategory = categoryValues.includes(AUTOMOBILE_CATEGORY) ? AUTOMOBILE_CATEGORY : "";
+        state.filters.category = defaultCategory;
+        elements.category.value = defaultCategory;
     }
 }
 function refillSelect(selectElement, values, placeholder) {
@@ -317,7 +328,6 @@ function enforceListingScope(rows) {
         .map((item) => ({
         ...item,
         productGroup: AUTOMOBILE_PRODUCT_GROUP,
-        category: AUTOMOBILE_CATEGORY,
     }));
 }
 function isAutomobileCandidate(item) {
@@ -470,6 +480,15 @@ function bindEvents() {
     elements.order.addEventListener("change", () => {
         state.order = elements.order.value;
         render();
+    });
+    elements.productGroup.addEventListener("change", () => {
+        const selectedGroup = String(elements.productGroup.value || "").trim();
+        const previousCategory = String(elements.category.value || "").trim();
+        const categoryValues = uniqueCategoryValuesByGroup(selectedGroup);
+        refillSelect(elements.category, categoryValues, "Kategori Seciniz");
+        if (previousCategory && categoryValues.includes(previousCategory)) {
+            elements.category.value = previousCategory;
+        }
     });
     elements.searchBtn.addEventListener("click", (event) => {
         event.preventDefault();
@@ -710,10 +729,19 @@ function fillSelect(selectElement, values) {
 function uniqueValues(key) {
     return [...new Set(state.listings.map((item) => item[key]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"));
 }
+function uniqueCategoryValuesByGroup(groupValue) {
+    const selectedGroup = String(groupValue || "").trim();
+    const rows = state.listings.filter((item) => {
+        if (!selectedGroup)
+            return true;
+        return String(item.productGroup || "").trim() === selectedGroup;
+    });
+    return [...new Set(rows.map((item) => String(item.category || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"));
+}
 function readFiltersFromForm() {
     state.filters = {
         productGroup: ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : elements.productGroup.value,
-        category: ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_CATEGORY : elements.category.value,
+        category: elements.category.value,
         city: elements.city.value,
         district: elements.district.value,
         neighborhood: elements.neighborhood.value,
@@ -723,9 +751,11 @@ function readFiltersFromForm() {
     };
 }
 function clearFilters() {
+    const categoryValues = uniqueCategoryValuesByGroup(ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : "");
+    const defaultCategory = ONLY_AUTOMOBILE_MODE && categoryValues.includes(AUTOMOBILE_CATEGORY) ? AUTOMOBILE_CATEGORY : "";
     state.filters = {
         productGroup: ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : "",
-        category: ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_CATEGORY : "",
+        category: defaultCategory,
         city: "",
         district: "",
         neighborhood: "",
@@ -734,7 +764,8 @@ function clearFilters() {
         lotNo: "",
     };
     elements.productGroup.value = ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : "";
-    elements.category.value = ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_CATEGORY : "";
+    refillSelect(elements.category, categoryValues, "Kategori Seciniz");
+    elements.category.value = defaultCategory;
     elements.city.value = "";
     elements.district.value = "";
     elements.neighborhood.value = "";
@@ -826,7 +857,7 @@ function renderCard(item) {
       </ul>
     `;
     const bidLabel = item.lastBid ? "SON TEKLİF" : "İLK TEKLİF BEKLENİYOR";
-    const bidValue = item.lastBid ? formatMoney(item.lastBid) : "-";
+    const bidValue = item.lastBid ? formatMoneyWithoutCents(item.lastBid) : "-";
     const minimumBid = (item.lastBid ?? item.startPrice) + Number(item.minIncrement || guessIncrement(item));
     const bidButtonText = isEnded ? "SONUCLANDI" : "TEKLIF VER";
     const bidButtonAttrs = isEnded ? 'disabled aria-disabled="true"' : "";
@@ -861,7 +892,7 @@ function renderCard(item) {
         </div>
         <div class="addBid">
           <div class="adTopLine">
-            <div class="tLine1">${formatMoney(item.startPrice)}</div>
+            <div class="tLine1">${formatMoneyWithoutCents(item.startPrice)}</div>
             <div class="tLine2">Başlangıç Bedeli</div>
           </div>
           <div class="adBottomLine">
@@ -969,6 +1000,12 @@ function formatMoney(value) {
     return new Intl.NumberFormat("tr-TR", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
+    }).format(Number(value || 0));
+}
+function formatMoneyWithoutCents(value) {
+    return new Intl.NumberFormat("tr-TR", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
     }).format(Number(value || 0));
 }
 function addTime(days, hours, minutes, seconds) {
