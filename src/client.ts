@@ -498,6 +498,12 @@ async function hydrateTurnstileConfig() {
   state.turnstile.siteKey = state.turnstile.siteKey || "";
 }
 function bindEvents() {
+  const applyFiltersAndRender = () => {
+    readFiltersFromForm();
+    render();
+  };
+  const applyFiltersAndRenderDebounced = debounce(applyFiltersAndRender, 220);
+
   elements.sortTabs.addEventListener("click", (event) => {
     const link = event.target.closest("a[data-sort-type]");
     if (!link) return;
@@ -527,12 +533,29 @@ function bindEvents() {
     if (previousCategory && categoryValues.includes(previousCategory)) {
       elements.category.value = previousCategory;
     }
+    applyFiltersAndRender();
   });
+
+  const instantFilterSelects = [elements.category, elements.city, elements.district, elements.neighborhood];
+  for (const selectElement of instantFilterSelects) {
+    selectElement.addEventListener("change", () => {
+      applyFiltersAndRender();
+    });
+  }
+
+  const debouncedFilterInputs = [elements.minPrice, elements.maxPrice, elements.lotNo];
+  for (const inputElement of debouncedFilterInputs) {
+    inputElement.addEventListener("input", () => {
+      applyFiltersAndRenderDebounced();
+    });
+    inputElement.addEventListener("change", () => {
+      applyFiltersAndRender();
+    });
+  }
 
   elements.searchBtn.addEventListener("click", (event) => {
     event.preventDefault();
-    readFiltersFromForm();
-    render();
+    applyFiltersAndRender();
   });
 
   elements.clearFilters.addEventListener("click", (event) => {
@@ -1068,6 +1091,19 @@ function updateCountdowns() {
     parts[2].textContent = remaining.minutes;
     parts[3].textContent = remaining.seconds;
   });
+}
+
+function debounce(fn, waitMs = 200) {
+  let timer: number | null = null;
+  return (...args: any[]) => {
+    if (timer !== null) {
+      window.clearTimeout(timer);
+    }
+    timer = window.setTimeout(() => {
+      timer = null;
+      fn(...args);
+    }, waitMs);
+  };
 }
 
 function getRemaining(endAt) {
