@@ -51,6 +51,90 @@ const MAX_ATTACHMENT_DATA_URL_LENGTH = 2_700_000;
 const MAX_GALLERY_TOTAL_DATA_URL_LENGTH = 2_400_000;
 const MAX_ATTACHMENT_TOTAL_DATA_URL_LENGTH = 3_200_000;
 const MAX_VEHICLE_CONDITION_JSON_LENGTH = 5000;
+const FILTER_ORDER_SETTING_KEY = "filter_option_order";
+const DEFAULT_TURKEY_CITIES = [
+  "Adana",
+  "Adiyaman",
+  "Afyonkarahisar",
+  "Agri",
+  "Aksaray",
+  "Amasya",
+  "Ankara",
+  "Antalya",
+  "Ardahan",
+  "Artvin",
+  "Aydin",
+  "Balikesir",
+  "Bartin",
+  "Batman",
+  "Bayburt",
+  "Bilecik",
+  "Bingol",
+  "Bitlis",
+  "Bolu",
+  "Burdur",
+  "Bursa",
+  "Canakkale",
+  "Cankiri",
+  "Corum",
+  "Denizli",
+  "Diyarbakir",
+  "Duzce",
+  "Edirne",
+  "Elazig",
+  "Erzincan",
+  "Erzurum",
+  "Eskisehir",
+  "Gaziantep",
+  "Giresun",
+  "Gumushane",
+  "Hakkari",
+  "Hatay",
+  "Igdir",
+  "Isparta",
+  "Istanbul",
+  "Izmir",
+  "Kahramanmaras",
+  "Karabuk",
+  "Karaman",
+  "Kars",
+  "Kastamonu",
+  "Kayseri",
+  "Kirikkale",
+  "Kirklareli",
+  "Kirsehir",
+  "Kilis",
+  "Kocaeli",
+  "Konya",
+  "Kutahya",
+  "Malatya",
+  "Manisa",
+  "Mardin",
+  "Mersin",
+  "Mugla",
+  "Mus",
+  "Nevsehir",
+  "Nigde",
+  "Ordu",
+  "Osmaniye",
+  "Rize",
+  "Sakarya",
+  "Samsun",
+  "Siirt",
+  "Sinop",
+  "Sivas",
+  "Sanliurfa",
+  "Sirnak",
+  "Tekirdag",
+  "Tokat",
+  "Trabzon",
+  "Tunceli",
+  "Usak",
+  "Van",
+  "Yalova",
+  "Yozgat",
+  "Zonguldak",
+] as const;
 const VEHICLE_CONDITION_PART_KEYS = [
   "on_tampon",
   "kaput",
@@ -457,6 +541,9 @@ async function handleApi(request, env, url) {
   if (method === "GET" && path === "/api/auctions") {
     return json({ ok: true, items: await getPublicAuctionsListSafe(env) });
   }
+  if (method === "GET" && path === "/api/filter-options") {
+    return json({ ok: true, ...(await getPublicFilterOptionsSafe(env)) });
+  }
   const auctionDetailMatch = path.match(/^\/api\/auctions\/([^/]+)$/);
   if (method === "GET" && auctionDetailMatch) {
     const lotNo = decodeURIComponent(String(auctionDetailMatch[1] || "")).trim().toUpperCase();
@@ -580,6 +667,9 @@ async function handleApi(request, env, url) {
       const users = actorAccess.permissions[PERMISSIONS.USERS_VIEW] ? await getAdminUsersList(env) : [];
       const catalog = canManageCatalog ? await getCatalogSnapshotSafe(env) : { groups: [], categories: [] };
       const auctions = canManageCatalog ? await getAdminAuctionsListSafe(env) : [];
+      const filterOrdering = actorAccess.permissions[PERMISSIONS.SETTINGS_MANAGE]
+        ? await getPublicFilterOptionsSafe(env)
+        : { order: emptyFilterOrderOption(), options: emptyFilterOrderOption() };
 
       return json({
         ok: true,
@@ -598,6 +688,7 @@ async function handleApi(request, env, url) {
         groups: catalog.groups,
         categories: catalog.categories,
         auctions,
+        filterOrdering,
       });
     }
 
@@ -606,6 +697,30 @@ async function handleApi(request, env, url) {
         return json({ ok: false, error: "Katalog yönetim yetkiniz yok." }, 403);
       }
       return json({ ok: true, ...(await getCatalogSnapshotSafe(env)) });
+    }
+
+    if (method === "GET" && path === "/api/admin/filter-ordering") {
+      if (!actorAccess.permissions[PERMISSIONS.SETTINGS_MANAGE]) {
+        return json({ ok: false, error: "Filtre ayarlarini goruntuleme yetkiniz yok." }, 403);
+      }
+      return json({ ok: true, ...(await getPublicFilterOptionsSafe(env)) });
+    }
+
+    if (method === "POST" && path === "/api/admin/filter-ordering") {
+      if (!actorAccess.permissions[PERMISSIONS.SETTINGS_MANAGE]) {
+        return json({ ok: false, error: "Filtre ayari guncelleme yetkiniz yok." }, 403);
+      }
+      const body = await readJson(request);
+      const normalized = normalizeFilterOptionOrder(body || {});
+      await setAppSettingJsonSafe(env, FILTER_ORDER_SETTING_KEY, normalized, session.user.id);
+      await writeAdminAuditLog(env, session.user.id, null, "filters.ordering.update", {
+        keys: Object.keys(normalized || {}),
+      });
+      return json({
+        ok: true,
+        message: "Filtre siralamasi guncellendi.",
+        ...(await getPublicFilterOptionsSafe(env)),
+      });
     }
 
     if (method === "POST" && path === "/api/admin/product-groups") {
@@ -1674,6 +1789,13 @@ async function ensureAdminSchema(env) {
     "CREATE INDEX IF NOT EXISTS idx_admin_audit_actor ON admin_audit_logs(actor_user_id)",
     "CREATE INDEX IF NOT EXISTS idx_admin_audit_target ON admin_audit_logs(target_user_id)",
     "CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_logs(created_at)",
+    `CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      updated_by TEXT,
+      FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+    )`,
     `INSERT OR IGNORE INTO user_roles (user_id, role, created_at, updated_at)
      SELECT id, 'member', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
      FROM users`,
@@ -1709,6 +1831,12 @@ async function ensureMarketplaceSchema(env, options: { runLegacyRepair?: boolean
       updated_at TEXT NOT NULL,
       UNIQUE(group_id, name),
       FOREIGN KEY (group_id) REFERENCES product_groups(id) ON DELETE RESTRICT
+    )`,
+    `CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      updated_by TEXT
     )`,
     "CREATE INDEX IF NOT EXISTS idx_categories_group_id ON categories(group_id)",
   ];
@@ -1953,6 +2081,160 @@ async function getPublicAuctionDetailByLotNoSafe(env, lotNo: string) {
     await ensureMarketplaceSchemaWarm(env);
     return await getPublicAuctionDetailByLotNo(env, lotNo);
   }
+}
+
+async function getPublicFilterOptionsSafe(env) {
+  try {
+    return await getPublicFilterOptions(env);
+  } catch (error) {
+    console.warn("Genel filtre secenekleri sorgusu hata verdi, schema onarimi deneniyor:", error);
+    await ensureMarketplaceSchemaWarm(env);
+    await ensureAdminSchemaWarm(env);
+    return await getPublicFilterOptions(env);
+  }
+}
+
+async function getPublicFilterOptions(env) {
+  const [catalog, auctions, order] = await Promise.all([
+    getCatalogSnapshotSafe(env),
+    getPublicAuctionsListSafe(env),
+    getAppSettingJsonSafe(env, FILTER_ORDER_SETTING_KEY, emptyFilterOrderOption()),
+  ]);
+
+  const productGroups = uniqueTextList(catalog.groups.map((row: any) => row.name));
+  const categories = uniqueTextList(catalog.categories.map((row: any) => row.name));
+  const cityValues = uniqueTextList([
+    ...DEFAULT_TURKEY_CITIES,
+    ...auctions.map((row: any) => row.city),
+  ]);
+  const districtValues = uniqueTextList(auctions.map((row: any) => row.district));
+  const neighborhoodValues = uniqueTextList(auctions.map((row: any) => row.neighborhood));
+  const normalizedOrder = normalizeFilterOptionOrder(order || {});
+
+  return {
+    order: normalizedOrder,
+    options: {
+      productGroups: sortTextListByOrder(productGroups, normalizedOrder.productGroups),
+      categories: sortTextListByOrder(categories, normalizedOrder.categories),
+      cities: sortTextListByOrder(cityValues, normalizedOrder.cities),
+      districts: sortTextListByOrder(districtValues, normalizedOrder.districts),
+      neighborhoods: sortTextListByOrder(neighborhoodValues, normalizedOrder.neighborhoods),
+    },
+  };
+}
+
+function emptyFilterOrderOption() {
+  return {
+    productGroups: [],
+    categories: [],
+    cities: [],
+    districts: [],
+    neighborhoods: [],
+  };
+}
+
+function normalizeFilterOptionOrder(input: any) {
+  const base = emptyFilterOrderOption();
+  const source = input && typeof input === "object" ? input : {};
+  return {
+    productGroups: normalizeTextListInput(source.productGroups),
+    categories: normalizeTextListInput(source.categories),
+    cities: normalizeTextListInput(source.cities),
+    districts: normalizeTextListInput(source.districts),
+    neighborhoods: normalizeTextListInput(source.neighborhoods),
+  };
+}
+
+function normalizeTextListInput(value: any): string[] {
+  if (Array.isArray(value)) {
+    return uniqueTextList(value);
+  }
+  if (typeof value === "string") {
+    return uniqueTextList(String(value || "").split(/\r?\n|,/g));
+  }
+  return [];
+}
+
+function uniqueTextList(values: any[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of values || []) {
+    const item = String(raw || "").trim();
+    if (!item) continue;
+    const key = normalizeOrderToken(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+}
+
+function sortTextListByOrder(values: string[], order: string[]): string[] {
+  const rank = new Map<string, number>();
+  for (let i = 0; i < order.length; i++) {
+    rank.set(normalizeOrderToken(order[i]), i);
+  }
+  return [...values].sort((a, b) => {
+    const ra = rank.has(normalizeOrderToken(a)) ? Number(rank.get(normalizeOrderToken(a))) : Number.MAX_SAFE_INTEGER;
+    const rb = rank.has(normalizeOrderToken(b)) ? Number(rank.get(normalizeOrderToken(b))) : Number.MAX_SAFE_INTEGER;
+    if (ra !== rb) return ra - rb;
+    return String(a).localeCompare(String(b), "tr");
+  });
+}
+
+function normalizeOrderToken(value: any) {
+  return String(value || "")
+    .trim()
+    .toLocaleLowerCase("tr-TR")
+    .replaceAll("ı", "i")
+    .replaceAll("ç", "c")
+    .replaceAll("ğ", "g")
+    .replaceAll("ö", "o")
+    .replaceAll("ş", "s")
+    .replaceAll("ü", "u");
+}
+
+async function getAppSettingJsonSafe(env, key: string, fallback: any = null) {
+  try {
+    return await getAppSettingJson(env, key, fallback);
+  } catch (error) {
+    console.warn("App setting okunamadi:", error);
+    return fallback;
+  }
+}
+
+async function getAppSettingJson(env, key: string, fallback: any = null) {
+  const row = await env.DB.prepare("SELECT value_json FROM app_settings WHERE key = ? LIMIT 1").bind(String(key || "")).first();
+  const raw = String(row?.value_json || "").trim();
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
+
+async function setAppSettingJsonSafe(env, key: string, value: any, updatedBy: string = "") {
+  try {
+    await setAppSettingJson(env, key, value, updatedBy);
+  } catch (error) {
+    console.warn("App setting yazilamadi:", error);
+    throw error;
+  }
+}
+
+async function setAppSettingJson(env, key: string, value: any, updatedBy: string = "") {
+  const payload = JSON.stringify(value ?? null);
+  await env.DB.prepare(
+    `INSERT INTO app_settings (key, value_json, updated_at, updated_by)
+     VALUES (?, ?, CURRENT_TIMESTAMP, ?)
+     ON CONFLICT(key) DO UPDATE SET
+       value_json = excluded.value_json,
+       updated_at = CURRENT_TIMESTAMP,
+       updated_by = excluded.updated_by`
+  )
+    .bind(String(key || ""), payload, String(updatedBy || "") || null)
+    .run();
 }
 
 async function insertCategoryRecord(

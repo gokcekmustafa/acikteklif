@@ -6,6 +6,89 @@ const PERMISSION_BIDS_PLACE = "bids.place";
 const ONLY_AUTOMOBILE_MODE = true;
 const AUTOMOBILE_PRODUCT_GROUP = "Vasıta";
 const AUTOMOBILE_CATEGORY = "Otomobil";
+const DEFAULT_TURKEY_CITIES = [
+    "Adana",
+    "Adiyaman",
+    "Afyonkarahisar",
+    "Agri",
+    "Aksaray",
+    "Amasya",
+    "Ankara",
+    "Antalya",
+    "Ardahan",
+    "Artvin",
+    "Aydin",
+    "Balikesir",
+    "Bartin",
+    "Batman",
+    "Bayburt",
+    "Bilecik",
+    "Bingol",
+    "Bitlis",
+    "Bolu",
+    "Burdur",
+    "Bursa",
+    "Canakkale",
+    "Cankiri",
+    "Corum",
+    "Denizli",
+    "Diyarbakir",
+    "Duzce",
+    "Edirne",
+    "Elazig",
+    "Erzincan",
+    "Erzurum",
+    "Eskisehir",
+    "Gaziantep",
+    "Giresun",
+    "Gumushane",
+    "Hakkari",
+    "Hatay",
+    "Igdir",
+    "Isparta",
+    "Istanbul",
+    "Izmir",
+    "Kahramanmaras",
+    "Karabuk",
+    "Karaman",
+    "Kars",
+    "Kastamonu",
+    "Kayseri",
+    "Kirikkale",
+    "Kirklareli",
+    "Kirsehir",
+    "Kilis",
+    "Kocaeli",
+    "Konya",
+    "Kutahya",
+    "Malatya",
+    "Manisa",
+    "Mardin",
+    "Mersin",
+    "Mugla",
+    "Mus",
+    "Nevsehir",
+    "Nigde",
+    "Ordu",
+    "Osmaniye",
+    "Rize",
+    "Sakarya",
+    "Samsun",
+    "Siirt",
+    "Sinop",
+    "Sivas",
+    "Sanliurfa",
+    "Sirnak",
+    "Tekirdag",
+    "Tokat",
+    "Trabzon",
+    "Tunceli",
+    "Usak",
+    "Van",
+    "Yalova",
+    "Yozgat",
+    "Zonguldak",
+];
 const META_TURNSTILE_SITE_KEY = document
     .querySelector('meta[name="turnstile-site-key"]')
     ?.getAttribute("content")
@@ -181,6 +264,13 @@ const state = {
         maxPrice: "",
         lotNo: "",
     },
+    filterOptions: {
+        productGroups: [],
+        categories: [],
+        cities: [],
+        districts: [],
+        neighborhoods: [],
+    },
     auth: {
         user: null,
         requireEmailVerification: false,
@@ -204,7 +294,6 @@ const elements = {
     order: document.getElementById("selectOrder"),
     productGroup: document.getElementById("productGroup"),
     category: document.getElementById("category"),
-    categoryOrder: document.getElementById("categoryOrder"),
     city: document.getElementById("city"),
     district: document.getElementById("district"),
     neighborhood: document.getElementById("neighborhood"),
@@ -246,6 +335,7 @@ async function init() {
     await hydrateTurnstileConfig();
     await initTurnstile();
     await loadListings();
+    await loadFilterOptions();
     hydrateFilterOptions();
     applyInitialFilters();
     bindEvents();
@@ -258,29 +348,41 @@ async function init() {
 function hydrateFilterOptions() {
     const previousGroup = String(state.filters.productGroup || elements.productGroup.value || "").trim();
     const previousCategory = String(state.filters.category || elements.category.value || "").trim();
+    const previousCity = String(state.filters.city || elements.city.value || "").trim();
+    const previousDistrict = String(state.filters.district || elements.district.value || "").trim();
+    const previousNeighborhood = String(state.filters.neighborhood || elements.neighborhood.value || "").trim();
     if (ONLY_AUTOMOBILE_MODE) {
         refillSelect(elements.productGroup, [AUTOMOBILE_PRODUCT_GROUP], "Urun Grubu Seciniz");
         elements.productGroup.value = AUTOMOBILE_PRODUCT_GROUP;
     }
     else {
-        refillSelect(elements.productGroup, uniqueValues("productGroup"), "Urun Grubu Seciniz");
+        refillSelect(elements.productGroup, state.filterOptions.productGroups, "Urun Grubu Seciniz");
         if (previousGroup)
             elements.productGroup.value = previousGroup;
     }
-    const categoryValues = sortedCategoryValues(uniqueValues("category"), String(elements.categoryOrder.value || "AZ"));
+    const categoryValues = state.filterOptions.categories;
     refillSelect(elements.category, categoryValues, "Kategori Seciniz");
     if (previousCategory && categoryValues.includes(previousCategory)) {
         elements.category.value = previousCategory;
     }
-    refillSelect(elements.city, uniqueValues("city"), "Il Seciniz");
-    refillSelect(elements.district, uniqueValues("district"), "Ilce Seciniz");
-    refillSelect(elements.neighborhood, uniqueValues("neighborhood"), "Mahalle Seciniz");
+    refillSelect(elements.city, state.filterOptions.cities, "Il Seciniz");
+    if (previousCity && state.filterOptions.cities.includes(previousCity)) {
+        elements.city.value = previousCity;
+    }
+    refillSelect(elements.district, state.filterOptions.districts, "Ilce Seciniz");
+    if (previousDistrict && state.filterOptions.districts.includes(previousDistrict)) {
+        elements.district.value = previousDistrict;
+    }
+    refillSelect(elements.neighborhood, state.filterOptions.neighborhoods, "Mahalle Seciniz");
+    if (previousNeighborhood && state.filterOptions.neighborhoods.includes(previousNeighborhood)) {
+        elements.neighborhood.value = previousNeighborhood;
+    }
 }
 function applyInitialFilters() {
     if (ONLY_AUTOMOBILE_MODE) {
         state.filters.productGroup = AUTOMOBILE_PRODUCT_GROUP;
         elements.productGroup.value = AUTOMOBILE_PRODUCT_GROUP;
-        const categoryValues = sortedCategoryValues(uniqueValues("category"), String(elements.categoryOrder.value || "AZ"));
+        const categoryValues = state.filterOptions.categories;
         const defaultCategory = categoryValues.includes(AUTOMOBILE_CATEGORY) ? AUTOMOBILE_CATEGORY : "";
         state.filters.category = defaultCategory;
         elements.category.value = defaultCategory;
@@ -329,6 +431,40 @@ function enforceListingScope(rows) {
         ...item,
         productGroup: AUTOMOBILE_PRODUCT_GROUP,
     }));
+}
+async function loadFilterOptions() {
+    try {
+        const data = await apiFetch("/api/filter-options");
+        applyFilterOptionsPayload(data);
+    }
+    catch (error) {
+        console.warn("Filter options fetch failed.", error);
+        applyFallbackFilterOptions();
+    }
+}
+function applyFilterOptionsPayload(data) {
+    const options = data?.options || {};
+    const productGroups = uniqueTextList(options.productGroups);
+    const categories = uniqueTextList(options.categories);
+    const cities = uniqueTextList(options.cities);
+    const districts = uniqueTextList(options.districts);
+    const neighborhoods = uniqueTextList(options.neighborhoods);
+    state.filterOptions = {
+        productGroups: productGroups.length > 0 ? productGroups : uniqueValues("productGroup"),
+        categories: categories.length > 0 ? categories : uniqueValues("category"),
+        cities: cities.length > 0 ? cities : uniqueTextList([...DEFAULT_TURKEY_CITIES, ...uniqueValues("city")]),
+        districts: districts.length > 0 ? districts : uniqueValues("district"),
+        neighborhoods: neighborhoods.length > 0 ? neighborhoods : uniqueValues("neighborhood"),
+    };
+}
+function applyFallbackFilterOptions() {
+    state.filterOptions = {
+        productGroups: uniqueValues("productGroup"),
+        categories: uniqueValues("category"),
+        cities: uniqueTextList([...DEFAULT_TURKEY_CITIES, ...uniqueValues("city")]),
+        districts: uniqueValues("district"),
+        neighborhoods: uniqueValues("neighborhood"),
+    };
 }
 function isAutomobileCandidate(item) {
     const group = normalizeText(item?.productGroup);
@@ -487,15 +623,6 @@ function bindEvents() {
         render();
     });
     elements.productGroup.addEventListener("change", () => {
-        applyFiltersAndRender();
-    });
-    elements.categoryOrder.addEventListener("change", () => {
-        const previousCategory = String(elements.category.value || "").trim();
-        const categoryValues = sortedCategoryValues(uniqueValues("category"), String(elements.categoryOrder.value || "AZ"));
-        refillSelect(elements.category, categoryValues, "Kategori Seciniz");
-        if (previousCategory && categoryValues.includes(previousCategory)) {
-            elements.category.value = previousCategory;
-        }
         applyFiltersAndRender();
     });
     const instantFilterSelects = [elements.category, elements.city, elements.district, elements.neighborhood];
@@ -751,15 +878,6 @@ function fillSelect(selectElement, values) {
 function uniqueValues(key) {
     return [...new Set(state.listings.map((item) => item[key]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"));
 }
-function sortedCategoryValues(values, order) {
-    const rows = [...values];
-    if (String(order || "AZ").toUpperCase() === "ZA") {
-        rows.sort((a, b) => b.localeCompare(a, "tr"));
-        return rows;
-    }
-    rows.sort((a, b) => a.localeCompare(b, "tr"));
-    return rows;
-}
 function readFiltersFromForm() {
     state.filters = {
         productGroup: ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : elements.productGroup.value,
@@ -773,7 +891,7 @@ function readFiltersFromForm() {
     };
 }
 function clearFilters() {
-    const categoryValues = sortedCategoryValues(uniqueValues("category"), String(elements.categoryOrder.value || "AZ"));
+    const categoryValues = state.filterOptions.categories;
     const defaultCategory = ONLY_AUTOMOBILE_MODE && categoryValues.includes(AUTOMOBILE_CATEGORY) ? AUTOMOBILE_CATEGORY : "";
     state.filters = {
         productGroup: ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : "",
@@ -1016,6 +1134,21 @@ function debounce(fn, waitMs = 200) {
             fn(...args);
         }, waitMs);
     };
+}
+function uniqueTextList(values) {
+    const out = [];
+    const seen = new Set();
+    for (const raw of values || []) {
+        const value = String(raw || "").trim();
+        if (!value)
+            continue;
+        const key = value.toLocaleLowerCase("tr-TR");
+        if (seen.has(key))
+            continue;
+        seen.add(key);
+        out.push(value);
+    }
+    return out;
 }
 function getRemaining(endAt) {
     const now = Date.now();

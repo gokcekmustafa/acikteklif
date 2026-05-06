@@ -684,7 +684,14 @@ th {
 .rowActions {
   display: flex;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.rowActions .miniBtn {
+  padding: 6px 7px;
+  font-size: 0.74rem;
+  white-space: nowrap;
 }
 
 .pill {

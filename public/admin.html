@@ -400,8 +400,38 @@
 
         <section class="panel hide" id="panelSettings">
           <article class="panelCard">
-            <h3>Sistem Ayarlari</h3>
-            <div class="emptyState">Ayarlari guvenli sekilde yonetmek icin bu bolume kontrollu formlar eklenecek.</div>
+            <h3>Filtre Siralama Ayarlari</h3>
+            <p class="uploadHint">Asagidaki alanlara her satira bir deger yazin. Siralama ustten alta uygulanir.</p>
+            <form id="filterOrderForm" class="stackForm">
+              <div class="row2">
+                <label class="fieldWrap">
+                  <span>Urun Gruplari Sirasi</span>
+                  <textarea id="filterOrderGroups" rows="8" placeholder="Vasita&#10;Elektronik"></textarea>
+                </label>
+                <label class="fieldWrap">
+                  <span>Kategori Sirasi</span>
+                  <textarea id="filterOrderCategories" rows="8" placeholder="Otomobil&#10;SUV"></textarea>
+                </label>
+              </div>
+              <div class="row2">
+                <label class="fieldWrap">
+                  <span>Il Sirasi</span>
+                  <textarea id="filterOrderCities" rows="8" placeholder="Istanbul&#10;Ankara&#10;Izmir"></textarea>
+                </label>
+                <label class="fieldWrap">
+                  <span>Ilce Sirasi</span>
+                  <textarea id="filterOrderDistricts" rows="8" placeholder="Cankaya&#10;Kadikoy"></textarea>
+                </label>
+              </div>
+              <label class="fieldWrap">
+                <span>Mahalle Sirasi</span>
+                <textarea id="filterOrderNeighborhoods" rows="6" placeholder="Merkez Mah.&#10;Cumhuriyet Mah."></textarea>
+              </label>
+              <div class="row2">
+                <button class="miniBtn success" type="submit">Filtre Siralarini Kaydet</button>
+                <button class="miniBtn" type="button" id="filterOrderResetBtn">Varsayilan Listeyi Getir</button>
+              </div>
+            </form>
           </article>
         </section>
 

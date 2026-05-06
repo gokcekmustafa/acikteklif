@@ -65,6 +65,22 @@ const state = {
     auctionVehicleConditionMap: {},
     auctionVehicleConditionSelectedStatus: VEHICLE_CONDITION_DEFAULT_STATUS,
     permissionDefs: defaultPermissionDefs,
+    filterOrdering: {
+        order: {
+            productGroups: [],
+            categories: [],
+            cities: [],
+            districts: [],
+            neighborhoods: [],
+        },
+        options: {
+            productGroups: [],
+            categories: [],
+            cities: [],
+            districts: [],
+            neighborhoods: [],
+        },
+    },
     query: "",
     catalogQuery: "",
     auctionQuery: "",
@@ -167,6 +183,13 @@ const elements = {
     auctionFormTitle: byId("auctionFormTitle"),
     auctionSaveBtn: byId("auctionSaveBtn"),
     auctionRows: byId("auctionRows"),
+    filterOrderForm: byId("filterOrderForm"),
+    filterOrderGroups: byId("filterOrderGroups"),
+    filterOrderCategories: byId("filterOrderCategories"),
+    filterOrderCities: byId("filterOrderCities"),
+    filterOrderDistricts: byId("filterOrderDistricts"),
+    filterOrderNeighborhoods: byId("filterOrderNeighborhoods"),
+    filterOrderResetBtn: byId("filterOrderResetBtn"),
 };
 function getAuctionFieldBinding(fieldKey) {
     if (fieldKey === "lotNo")
@@ -227,6 +250,7 @@ function applyBootstrapPayload(data) {
     state.groups = Array.isArray(data.groups) ? data.groups : [];
     state.categories = Array.isArray(data.categories) ? data.categories : [];
     state.auctions = Array.isArray(data.auctions) ? data.auctions : [];
+    state.filterOrdering = normalizeFilterOrderingPayload(data.filterOrdering);
     const hasSelectedUser = state.users.some((user) => String(user.id || "") === String(state.selectedUserId || ""));
     if (!hasSelectedUser) {
         state.selectedUserId = state.users[0] ? String(state.users[0].id || "") : "";
@@ -267,6 +291,7 @@ function bindEvents() {
     bindUserEvents();
     bindCatalogEvents();
     bindAuctionEvents();
+    bindSettingsEvents();
 }
 function bindUserEvents() {
     elements.userList.addEventListener("click", async (event) => {
@@ -544,6 +569,34 @@ function bindCatalogEvents() {
         }
     });
 }
+function bindSettingsEvents() {
+    if (!elements.filterOrderForm)
+        return;
+    elements.filterOrderForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const payload = {
+            productGroups: parseOrderListInput(elements.filterOrderGroups.value),
+            categories: parseOrderListInput(elements.filterOrderCategories.value),
+            cities: parseOrderListInput(elements.filterOrderCities.value),
+            districts: parseOrderListInput(elements.filterOrderDistricts.value),
+            neighborhoods: parseOrderListInput(elements.filterOrderNeighborhoods.value),
+        };
+        await safeAction(elements.filterOrderForm, async () => {
+            const data = await apiFetch("/api/admin/filter-ordering", {
+                method: "POST",
+                body: payload,
+            });
+            state.filterOrdering = normalizeFilterOrderingPayload(data);
+            renderSettings();
+            setStatus("Filtre siralamalari guncellendi.", "ok");
+        });
+    });
+    elements.filterOrderResetBtn.addEventListener("click", () => {
+        const normalized = normalizeFilterOrderingPayload(state.filterOrdering);
+        fillFilterOrderEditorWithOptions(normalized.options);
+        setStatus("Varsayilan liste duzenleme alanina getirildi. Kaydetmek icin butona basin.", "warn");
+    });
+}
 function bindAuctionEvents() {
     elements.openAuctionFormBtn.addEventListener("click", () => {
         resetAuctionForm();
@@ -779,6 +832,7 @@ function renderAll() {
     renderUsers();
     renderCatalog();
     renderAuctions();
+    renderSettings();
     if (!String(elements.auctionIdInput.value || "").trim()) {
         resetAuctionForm();
     }
@@ -983,6 +1037,74 @@ function renderCatalog() {
         })
             .join("");
     }
+}
+function renderSettings() {
+    if (!elements.filterOrderForm)
+        return;
+    const normalized = normalizeFilterOrderingPayload(state.filterOrdering);
+    const selected = normalized.order || {};
+    const options = normalized.options || {};
+    elements.filterOrderGroups.value = formatOrderListForEditor(selected.productGroups?.length > 0 ? selected.productGroups : options.productGroups);
+    elements.filterOrderCategories.value = formatOrderListForEditor(selected.categories?.length > 0 ? selected.categories : options.categories);
+    elements.filterOrderCities.value = formatOrderListForEditor(selected.cities?.length > 0 ? selected.cities : options.cities);
+    elements.filterOrderDistricts.value = formatOrderListForEditor(selected.districts?.length > 0 ? selected.districts : options.districts);
+    elements.filterOrderNeighborhoods.value = formatOrderListForEditor(selected.neighborhoods?.length > 0 ? selected.neighborhoods : options.neighborhoods);
+}
+function fillFilterOrderEditorWithOptions(options) {
+    const safeOptions = options || {};
+    elements.filterOrderGroups.value = formatOrderListForEditor(safeOptions.productGroups || []);
+    elements.filterOrderCategories.value = formatOrderListForEditor(safeOptions.categories || []);
+    elements.filterOrderCities.value = formatOrderListForEditor(safeOptions.cities || []);
+    elements.filterOrderDistricts.value = formatOrderListForEditor(safeOptions.districts || []);
+    elements.filterOrderNeighborhoods.value = formatOrderListForEditor(safeOptions.neighborhoods || []);
+}
+function formatOrderListForEditor(values) {
+    if (!Array.isArray(values) || values.length < 1)
+        return "";
+    return values.map((item) => String(item || "").trim()).filter(Boolean).join("\n");
+}
+function parseOrderListInput(raw) {
+    const out = [];
+    const seen = new Set();
+    for (const part of String(raw || "").split(/\r?\n|,/g)) {
+        const value = String(part || "").trim();
+        if (!value)
+            continue;
+        const key = value.toLowerCase();
+        if (seen.has(key))
+            continue;
+        seen.add(key);
+        out.push(value);
+    }
+    return out;
+}
+function normalizeFilterOrderingPayload(input) {
+    const empty = {
+        productGroups: [],
+        categories: [],
+        cities: [],
+        districts: [],
+        neighborhoods: [],
+    };
+    const payload = input && typeof input === "object" ? input : {};
+    const order = payload.order && typeof payload.order === "object" ? payload.order : empty;
+    const options = payload.options && typeof payload.options === "object" ? payload.options : empty;
+    return {
+        order: {
+            productGroups: Array.isArray(order.productGroups) ? order.productGroups : [],
+            categories: Array.isArray(order.categories) ? order.categories : [],
+            cities: Array.isArray(order.cities) ? order.cities : [],
+            districts: Array.isArray(order.districts) ? order.districts : [],
+            neighborhoods: Array.isArray(order.neighborhoods) ? order.neighborhoods : [],
+        },
+        options: {
+            productGroups: Array.isArray(options.productGroups) ? options.productGroups : [],
+            categories: Array.isArray(options.categories) ? options.categories : [],
+            cities: Array.isArray(options.cities) ? options.cities : [],
+            districts: Array.isArray(options.districts) ? options.districts : [],
+            neighborhoods: Array.isArray(options.neighborhoods) ? options.neighborhoods : [],
+        },
+    };
 }
 function renderAuctions() {
     fillGroupSelect(elements.auctionGroupSelect, false);
