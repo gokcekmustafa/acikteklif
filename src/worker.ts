@@ -1,4 +1,6 @@
-﻿const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
+import { TURKEY_CITIES, TURKEY_DISTRICTS_BY_CITY } from "./turkey-geo";
+
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 const EMAIL_VERIFY_TTL_SECONDS = 60 * 60 * 24;
 const PASSWORD_RESET_TTL_SECONDS = 60 * 60;
 const PBKDF2_ITERATIONS = 100000;
@@ -52,89 +54,7 @@ const MAX_GALLERY_TOTAL_DATA_URL_LENGTH = 2_400_000;
 const MAX_ATTACHMENT_TOTAL_DATA_URL_LENGTH = 3_200_000;
 const MAX_VEHICLE_CONDITION_JSON_LENGTH = 5000;
 const FILTER_ORDER_SETTING_KEY = "filter_option_order";
-const DEFAULT_TURKEY_CITIES = [
-  "Adana",
-  "Adiyaman",
-  "Afyonkarahisar",
-  "Agri",
-  "Aksaray",
-  "Amasya",
-  "Ankara",
-  "Antalya",
-  "Ardahan",
-  "Artvin",
-  "Aydin",
-  "Balikesir",
-  "Bartin",
-  "Batman",
-  "Bayburt",
-  "Bilecik",
-  "Bingol",
-  "Bitlis",
-  "Bolu",
-  "Burdur",
-  "Bursa",
-  "Canakkale",
-  "Cankiri",
-  "Corum",
-  "Denizli",
-  "Diyarbakir",
-  "Duzce",
-  "Edirne",
-  "Elazig",
-  "Erzincan",
-  "Erzurum",
-  "Eskisehir",
-  "Gaziantep",
-  "Giresun",
-  "Gumushane",
-  "Hakkari",
-  "Hatay",
-  "Igdir",
-  "Isparta",
-  "Istanbul",
-  "Izmir",
-  "Kahramanmaras",
-  "Karabuk",
-  "Karaman",
-  "Kars",
-  "Kastamonu",
-  "Kayseri",
-  "Kirikkale",
-  "Kirklareli",
-  "Kirsehir",
-  "Kilis",
-  "Kocaeli",
-  "Konya",
-  "Kutahya",
-  "Malatya",
-  "Manisa",
-  "Mardin",
-  "Mersin",
-  "Mugla",
-  "Mus",
-  "Nevsehir",
-  "Nigde",
-  "Ordu",
-  "Osmaniye",
-  "Rize",
-  "Sakarya",
-  "Samsun",
-  "Siirt",
-  "Sinop",
-  "Sivas",
-  "Sanliurfa",
-  "Sirnak",
-  "Tekirdag",
-  "Tokat",
-  "Trabzon",
-  "Tunceli",
-  "Usak",
-  "Van",
-  "Yalova",
-  "Yozgat",
-  "Zonguldak",
-] as const;
+const DEFAULT_TURKEY_CITIES = TURKEY_CITIES as readonly string[];
 const VEHICLE_CONDITION_PART_KEYS = [
   "on_tampon",
   "kaput",
@@ -2103,24 +2023,70 @@ async function getPublicFilterOptions(env) {
 
   const productGroups = uniqueTextList(catalog.groups.map((row: any) => row.name));
   const categories = uniqueTextList(catalog.categories.map((row: any) => row.name));
+  const normalizedOrder = normalizeFilterOptionOrder(order || {});
+
   const cityValues = uniqueTextList([
     ...DEFAULT_TURKEY_CITIES,
+    ...Object.keys(TURKEY_DISTRICTS_BY_CITY),
     ...auctions.map((row: any) => row.city),
   ]);
-  const districtValues = uniqueTextList(auctions.map((row: any) => row.district));
+  const sortedCities = sortTextListByOrder(cityValues, normalizedOrder.cities);
+  const districtsByCity = buildDistrictOptionsByCity(sortedCities, auctions, normalizedOrder.districts);
+  const districtValues = uniqueTextList(sortedCities.flatMap((city) => districtsByCity[city] || []));
   const neighborhoodValues = uniqueTextList(auctions.map((row: any) => row.neighborhood));
-  const normalizedOrder = normalizeFilterOptionOrder(order || {});
 
   return {
     order: normalizedOrder,
     options: {
       productGroups: sortTextListByOrder(productGroups, normalizedOrder.productGroups),
       categories: sortTextListByOrder(categories, normalizedOrder.categories),
-      cities: sortTextListByOrder(cityValues, normalizedOrder.cities),
+      cities: sortedCities,
       districts: sortTextListByOrder(districtValues, normalizedOrder.districts),
       neighborhoods: sortTextListByOrder(neighborhoodValues, normalizedOrder.neighborhoods),
+      districtsByCity,
     },
   };
+}
+
+function buildDistrictOptionsByCity(cityValues: string[], auctions: any[], districtOrder: string[]) {
+  const cityTokenToName = new Map<string, string>();
+  const byCity = new Map<string, string[]>();
+
+  for (const city of cityValues) {
+    cityTokenToName.set(normalizeOrderToken(city), city);
+  }
+
+  for (const [cityName, districts] of Object.entries(TURKEY_DISTRICTS_BY_CITY)) {
+    const cityToken = normalizeOrderToken(cityName);
+    const canonicalCity = cityTokenToName.get(cityToken) || cityName;
+    if (!cityTokenToName.has(cityToken)) {
+      cityTokenToName.set(cityToken, canonicalCity);
+    }
+    const merged = uniqueTextList([...(byCity.get(canonicalCity) || []), ...(Array.isArray(districts) ? districts : [])]);
+    byCity.set(canonicalCity, merged);
+  }
+
+  for (const row of auctions) {
+    const rawCity = String(row?.city || '').trim();
+    const rawDistrict = String(row?.district || '').trim();
+    if (!rawCity) continue;
+
+    const cityToken = normalizeOrderToken(rawCity);
+    const canonicalCity = cityTokenToName.get(cityToken) || rawCity;
+    if (!cityTokenToName.has(cityToken)) {
+      cityTokenToName.set(cityToken, canonicalCity);
+    }
+
+    const merged = uniqueTextList([...(byCity.get(canonicalCity) || []), rawDistrict]);
+    byCity.set(canonicalCity, merged);
+  }
+
+  const out: Record<string, string[]> = {};
+  for (const city of cityValues) {
+    const list = uniqueTextList(byCity.get(city) || []);
+    out[city] = sortTextListByOrder(list, districtOrder);
+  }
+  return out;
 }
 
 function emptyFilterOrderOption() {

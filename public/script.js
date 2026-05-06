@@ -270,6 +270,7 @@ const state = {
         cities: [],
         districts: [],
         neighborhoods: [],
+        districtsByCity: {},
     },
     auth: {
         user: null,
@@ -352,31 +353,89 @@ function hydrateFilterOptions() {
     const previousDistrict = String(state.filters.district || elements.district.value || "").trim();
     const previousNeighborhood = String(state.filters.neighborhood || elements.neighborhood.value || "").trim();
     if (ONLY_AUTOMOBILE_MODE) {
-        refillSelect(elements.productGroup, [AUTOMOBILE_PRODUCT_GROUP], "Urun Grubu Seciniz");
+        refillSelect(elements.productGroup, [AUTOMOBILE_PRODUCT_GROUP], "Ürün Grubu Seçiniz");
         elements.productGroup.value = AUTOMOBILE_PRODUCT_GROUP;
     }
     else {
-        refillSelect(elements.productGroup, state.filterOptions.productGroups, "Urun Grubu Seciniz");
-        if (previousGroup)
-            elements.productGroup.value = previousGroup;
+        refillSelect(elements.productGroup, state.filterOptions.productGroups, "Ürün Grubu Seçiniz");
+        if (previousGroup) {
+            const matchedGroup = findMatchingOptionValue(state.filterOptions.productGroups, previousGroup);
+            if (matchedGroup)
+                elements.productGroup.value = matchedGroup;
+        }
     }
     const categoryValues = state.filterOptions.categories;
-    refillSelect(elements.category, categoryValues, "Kategori Seciniz");
-    if (previousCategory && categoryValues.includes(previousCategory)) {
-        elements.category.value = previousCategory;
+    refillSelect(elements.category, categoryValues, "Kategori Seçiniz");
+    const matchedCategory = findMatchingOptionValue(categoryValues, previousCategory);
+    if (matchedCategory) {
+        elements.category.value = matchedCategory;
     }
-    refillSelect(elements.city, state.filterOptions.cities, "Il Seciniz");
-    if (previousCity && state.filterOptions.cities.includes(previousCity)) {
-        elements.city.value = previousCity;
+    refillSelect(elements.city, state.filterOptions.cities, "İl Seçiniz");
+    const matchedCity = findMatchingOptionValue(state.filterOptions.cities, previousCity);
+    if (matchedCity) {
+        elements.city.value = matchedCity;
     }
-    refillSelect(elements.district, state.filterOptions.districts, "Ilce Seciniz");
-    if (previousDistrict && state.filterOptions.districts.includes(previousDistrict)) {
-        elements.district.value = previousDistrict;
+    refreshDistrictOptions(previousDistrict);
+    refreshNeighborhoodOptions(previousNeighborhood);
+}
+function refreshDistrictOptions(preferredDistrict = "") {
+    const cityValue = String(elements.city.value || "").trim();
+    const districtOptions = getDistrictOptionsForCity(cityValue);
+    const placeholder = cityValue ? "İlçe Seçiniz" : "Önce İl Seçiniz";
+    refillSelect(elements.district, districtOptions, placeholder);
+    elements.district.disabled = !cityValue;
+    const matchedDistrict = cityValue ? findMatchingOptionValue(districtOptions, preferredDistrict) : "";
+    elements.district.value = matchedDistrict || "";
+}
+function refreshNeighborhoodOptions(preferredNeighborhood = "") {
+    const cityValue = String(elements.city.value || "").trim();
+    const districtValue = String(elements.district.value || "").trim();
+    const neighborhoodOptions = getNeighborhoodOptions(cityValue, districtValue);
+    const placeholder = cityValue ? "Mahalle Seçiniz" : "Önce İl Seçiniz";
+    refillSelect(elements.neighborhood, neighborhoodOptions, placeholder);
+    elements.neighborhood.disabled = !cityValue;
+    const matchedNeighborhood = cityValue ? findMatchingOptionValue(neighborhoodOptions, preferredNeighborhood) : "";
+    elements.neighborhood.value = matchedNeighborhood || "";
+}
+function getDistrictOptionsForCity(cityValue) {
+    const city = String(cityValue || "").trim();
+    if (!city)
+        return [];
+    const map = state.filterOptions.districtsByCity || {};
+    const direct = map[city];
+    if (Array.isArray(direct)) {
+        return uniqueTextList(direct);
     }
-    refillSelect(elements.neighborhood, state.filterOptions.neighborhoods, "Mahalle Seciniz");
-    if (previousNeighborhood && state.filterOptions.neighborhoods.includes(previousNeighborhood)) {
-        elements.neighborhood.value = previousNeighborhood;
+    const cityKey = normalizeText(city);
+    for (const [candidateCity, districts] of Object.entries(map)) {
+        if (normalizeText(candidateCity) !== cityKey)
+            continue;
+        return uniqueTextList(Array.isArray(districts) ? districts : []);
     }
+    return uniqueTextList(state.listings
+        .filter((item) => normalizeText(item.city) === cityKey)
+        .map((item) => String(item.district || "").trim()));
+}
+function getNeighborhoodOptions(cityValue, districtValue) {
+    const city = String(cityValue || "").trim();
+    if (!city)
+        return [];
+    const cityKey = normalizeText(city);
+    const districtKey = normalizeText(districtValue);
+    const values = state.listings
+        .filter((item) => normalizeText(item.city) === cityKey)
+        .filter((item) => !districtKey || normalizeText(item.district) === districtKey)
+        .map((item) => String(item.neighborhood || "").trim());
+    return uniqueTextList(values);
+}
+function findMatchingOptionValue(values, targetValue) {
+    const target = String(targetValue || "").trim();
+    if (!target)
+        return "";
+    if (values.includes(target))
+        return target;
+    const targetKey = normalizeText(target);
+    return values.find((value) => normalizeText(value) === targetKey) || "";
 }
 function applyInitialFilters() {
     if (ONLY_AUTOMOBILE_MODE) {
@@ -446,25 +505,77 @@ function applyFilterOptionsPayload(data) {
     const options = data?.options || {};
     const productGroups = uniqueTextList(options.productGroups);
     const categories = uniqueTextList(options.categories);
-    const cities = uniqueTextList(options.cities);
-    const districts = uniqueTextList(options.districts);
+    const citiesFromApi = uniqueTextList(options.cities);
+    const fallbackCities = uniqueTextList([...DEFAULT_TURKEY_CITIES, ...uniqueValues("city")]);
+    const cities = citiesFromApi.length > 0 ? citiesFromApi : fallbackCities;
     const neighborhoods = uniqueTextList(options.neighborhoods);
+    const districtsByCity = normalizeDistrictMap(options.districtsByCity, cities);
+    const districtsFromApi = uniqueTextList(options.districts);
+    const districtsFromMap = uniqueTextList(Object.values(districtsByCity).flatMap((value) => (Array.isArray(value) ? value : [])));
+    const districts = uniqueTextList([...districtsFromApi, ...districtsFromMap]);
     state.filterOptions = {
         productGroups: productGroups.length > 0 ? productGroups : uniqueValues("productGroup"),
         categories: categories.length > 0 ? categories : uniqueValues("category"),
-        cities: cities.length > 0 ? cities : uniqueTextList([...DEFAULT_TURKEY_CITIES, ...uniqueValues("city")]),
+        cities,
         districts: districts.length > 0 ? districts : uniqueValues("district"),
         neighborhoods: neighborhoods.length > 0 ? neighborhoods : uniqueValues("neighborhood"),
+        districtsByCity: Object.keys(districtsByCity).length > 0 ? districtsByCity : buildDistrictMapFromListings(cities),
     };
 }
 function applyFallbackFilterOptions() {
+    const cities = uniqueTextList([...DEFAULT_TURKEY_CITIES, ...uniqueValues("city")]);
+    const districtsByCity = buildDistrictMapFromListings(cities);
+    const districts = uniqueTextList(Object.values(districtsByCity).flatMap((value) => (Array.isArray(value) ? value : [])));
     state.filterOptions = {
         productGroups: uniqueValues("productGroup"),
         categories: uniqueValues("category"),
-        cities: uniqueTextList([...DEFAULT_TURKEY_CITIES, ...uniqueValues("city")]),
-        districts: uniqueValues("district"),
+        cities,
+        districts,
         neighborhoods: uniqueValues("neighborhood"),
+        districtsByCity,
     };
+}
+function normalizeDistrictMap(rawMap, cities) {
+    const source = rawMap && typeof rawMap === "object" ? rawMap : {};
+    const out = {};
+    for (const [cityRaw, districtsRaw] of Object.entries(source)) {
+        const city = String(cityRaw || "").trim();
+        if (!city)
+            continue;
+        out[city] = uniqueTextList(Array.isArray(districtsRaw) ? districtsRaw : []);
+    }
+    for (const cityRaw of cities || []) {
+        const city = String(cityRaw || "").trim();
+        if (!city)
+            continue;
+        if (!Object.prototype.hasOwnProperty.call(out, city)) {
+            out[city] = [];
+        }
+    }
+    return out;
+}
+function buildDistrictMapFromListings(cities) {
+    const out = {};
+    for (const cityRaw of cities || []) {
+        const city = String(cityRaw || "").trim();
+        if (!city)
+            continue;
+        out[city] = [];
+    }
+    for (const item of state.listings || []) {
+        const city = String(item?.city || "").trim();
+        const district = String(item?.district || "").trim();
+        if (!city)
+            continue;
+        if (!Object.prototype.hasOwnProperty.call(out, city)) {
+            out[city] = [];
+        }
+        out[city].push(district);
+    }
+    for (const [city, districts] of Object.entries(out)) {
+        out[city] = uniqueTextList(Array.isArray(districts) ? districts : []);
+    }
+    return out;
 }
 function isAutomobileCandidate(item) {
     const group = normalizeText(item?.productGroup);
@@ -506,7 +617,7 @@ function toListingModel(item, index) {
     const createdAt = String(item?.created_at || item?.createdAt || fallback.createdAt || new Date().toISOString());
     const productGroup = String(item?.product_group || item?.productGroup || fallback.productGroup || "Genel");
     const category = String(item?.category || fallback.category || "Genel");
-    const city = String(item?.city || fallback.city || "Belirtilmemis");
+    const city = String(item?.city || fallback.city || "Belirtilmemiş");
     const district = String(item?.district || fallback.district || "-");
     const neighborhood = String(item?.neighborhood || fallback.neighborhood || "-");
     const gallery = extractGalleryFromItem(item, fallback.image);
@@ -520,7 +631,7 @@ function toListingModel(item, index) {
     return {
         id: item?.id || fallback.id || lotNo || String(index + 1),
         lotNo: lotNo || fallback.lotNo || `LOT${String(index + 1).padStart(3, "0")}`,
-        title: String(item?.title || fallback.title || "Ihale"),
+        title: String(item?.title || fallback.title || "İhale"),
         productGroup,
         category,
         city,
@@ -625,12 +736,24 @@ function bindEvents() {
     elements.productGroup.addEventListener("change", () => {
         applyFiltersAndRender();
     });
-    const instantFilterSelects = [elements.category, elements.city, elements.district, elements.neighborhood];
-    for (const selectElement of instantFilterSelects) {
-        selectElement.addEventListener("change", () => {
-            applyFiltersAndRender();
-        });
-    }
+    elements.category.addEventListener("change", () => {
+        applyFiltersAndRender();
+    });
+    elements.city.addEventListener("change", () => {
+        const previousDistrict = String(elements.district.value || "").trim();
+        const previousNeighborhood = String(elements.neighborhood.value || "").trim();
+        refreshDistrictOptions(previousDistrict);
+        refreshNeighborhoodOptions(previousNeighborhood);
+        applyFiltersAndRender();
+    });
+    elements.district.addEventListener("change", () => {
+        const previousNeighborhood = String(elements.neighborhood.value || "").trim();
+        refreshNeighborhoodOptions(previousNeighborhood);
+        applyFiltersAndRender();
+    });
+    elements.neighborhood.addEventListener("change", () => {
+        applyFiltersAndRender();
+    });
     const debouncedFilterInputs = [elements.minPrice, elements.maxPrice, elements.lotNo];
     for (const inputElement of debouncedFilterInputs) {
         inputElement.addEventListener("input", () => {
@@ -904,11 +1027,11 @@ function clearFilters() {
         lotNo: "",
     };
     elements.productGroup.value = ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : "";
-    refillSelect(elements.category, categoryValues, "Kategori Seciniz");
+    refillSelect(elements.category, categoryValues, "Kategori Seçiniz");
     elements.category.value = defaultCategory;
     elements.city.value = "";
-    elements.district.value = "";
-    elements.neighborhood.value = "";
+    refreshDistrictOptions("");
+    refreshNeighborhoodOptions("");
     elements.minPrice.value = "";
     elements.maxPrice.value = "";
     elements.lotNo.value = "";
@@ -938,24 +1061,30 @@ function shouldUseLocalFallback() {
     return params.get("fallback") === "1";
 }
 function applyFilters(data) {
+    const groupFilter = normalizeText(state.filters.productGroup);
+    const categoryFilter = normalizeText(state.filters.category);
+    const cityFilter = normalizeText(state.filters.city);
+    const districtFilter = normalizeText(state.filters.district);
+    const neighborhoodFilter = normalizeText(state.filters.neighborhood);
+    const lotNoFilter = normalizeText(state.filters.lotNo);
     return data.filter((item) => {
         if (!passesTabFilter(item, state.tab))
             return false;
-        if (state.filters.productGroup && item.productGroup !== state.filters.productGroup)
+        if (groupFilter && normalizeText(item.productGroup) !== groupFilter)
             return false;
-        if (state.filters.category && item.category !== state.filters.category)
+        if (categoryFilter && normalizeText(item.category) !== categoryFilter)
             return false;
-        if (state.filters.city && item.city !== state.filters.city)
+        if (cityFilter && normalizeText(item.city) !== cityFilter)
             return false;
-        if (state.filters.district && item.district !== state.filters.district)
+        if (districtFilter && normalizeText(item.district) !== districtFilter)
             return false;
-        if (state.filters.neighborhood && item.neighborhood !== state.filters.neighborhood)
+        if (neighborhoodFilter && normalizeText(item.neighborhood) !== neighborhoodFilter)
             return false;
         const minPrice = Number(state.filters.minPrice || 0);
         const maxPrice = Number(state.filters.maxPrice || Number.POSITIVE_INFINITY);
         if (item.startPrice < minPrice || item.startPrice > maxPrice)
             return false;
-        if (state.filters.lotNo && !item.lotNo.toLowerCase().includes(state.filters.lotNo.toLowerCase()))
+        if (lotNoFilter && !normalizeText(item.lotNo).includes(lotNoFilter))
             return false;
         return true;
     });
@@ -1142,7 +1271,7 @@ function uniqueTextList(values) {
         const value = String(raw || "").trim();
         if (!value)
             continue;
-        const key = value.toLocaleLowerCase("tr-TR");
+        const key = normalizeText(value);
         if (seen.has(key))
             continue;
         seen.add(key);
