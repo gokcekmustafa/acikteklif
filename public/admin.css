@@ -680,7 +680,7 @@ th {
 
 .userList {
   display: grid;
-  gap: 8px;
+  gap: 2px;
   max-height: 640px;
   overflow: auto;
   padding-right: 2px;
@@ -710,36 +710,41 @@ th {
 }
 
 .userListItem {
-  border: 1px solid #d5dfef;
-  background: #f7faff;
-  border-radius: 10px;
-  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 9px 10px;
   text-align: left;
   font-family: inherit;
   cursor: pointer;
   display: grid;
-  gap: 4px;
+  gap: 2px;
+  user-select: none;
 }
 
 .userListItem:hover {
-  border-color: #b7cbec;
-  background: #eff5ff;
+  border-color: #d2ddef;
+  background: #f8fbff;
 }
 
 .userListItem.active {
-  border-color: #0d49ba;
-  background: #e8f1ff;
+  border-color: #bdd0ef;
+  background: #edf3ff;
   box-shadow: 0 0 0 1px rgba(13, 73, 186, 0.15);
 }
 
+.userListItem:focus-visible {
+  outline: 2px solid #2f7dd8;
+  outline-offset: 1px;
+}
+
 .userLineTop {
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 800;
   color: #112949;
 }
 
 .userLineMeta {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: var(--muted);
 }
 
@@ -847,44 +852,144 @@ th {
   cursor: not-allowed;
 }
 
-.permGrid {
+.userSection {
+  margin-top: 12px;
+  border-top: 1px solid #e1e8f3;
+  padding-top: 12px;
+}
+
+.sectionTitle {
+  margin: 0 0 8px;
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #1f3b62;
+}
+
+.permissionList {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.permBtn {
-  text-align: left;
-  padding: 8px 10px;
+.permissionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #d7e0ef;
+  background: #f8fbff;
   border-radius: 10px;
-  border: 1px solid #d4deee;
-  background: #f8fafd;
-  color: #1f365a;
-  font-size: 0.8rem;
+  padding: 9px 10px;
+}
+
+.permissionInfo {
+  min-width: 0;
+}
+
+.permissionLabel {
+  font-size: 0.82rem;
   font-weight: 700;
+  color: #223f63;
   line-height: 1.25;
-  cursor: pointer;
 }
 
-.permBtn.off {
-  color: #657c9f;
-  background: #f3f6fb;
+.permissionMeta {
+  margin-top: 3px;
+  font-size: 0.75rem;
+  color: #5f7699;
+  font-weight: 700;
 }
 
-.permBtn.on {
-  color: #0f5c4d;
-  background: #eaf8f3;
-  border-color: #bce9db;
+.switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
 }
 
-.permBtn.busy {
-  opacity: 0.65;
-  cursor: wait;
+.switchInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
-.permBtn.locked {
-  opacity: 0.75;
+.switchTrack {
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  background: #c9d3e5;
+  border: 1px solid #b7c5db;
+  position: relative;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.switchThumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #fff;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 140ms ease;
+}
+
+.switchInput:checked + .switchTrack {
+  background: #1d9c64;
+  border-color: #16784d;
+}
+
+.switchInput:checked + .switchTrack .switchThumb {
+  transform: translateX(20px);
+}
+
+.switchInput:disabled + .switchTrack {
+  opacity: 0.7;
   cursor: not-allowed;
+}
+
+.switch.locked {
+  opacity: 0.9;
+}
+
+.passwordForm {
+  display: grid;
+  gap: 8px;
+}
+
+.passwordGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.passwordGrid input {
+  border: 1px solid #c8d5ea;
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 0.84rem;
+  color: #1f3558;
+  background: #f9fbff;
+}
+
+.passwordGrid input:focus {
+  outline: 2px solid rgba(13, 73, 186, 0.22);
+  border-color: #7da4e2;
+}
+
+.passwordActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.passwordHint {
+  font-size: 0.76rem;
+  color: #607899;
+  font-weight: 600;
 }
 
 .uploadBlock {
@@ -1092,8 +1197,8 @@ th {
     grid-template-columns: 1fr;
   }
 
-  .permGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .passwordGrid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1148,9 +1253,6 @@ th {
     grid-template-columns: 1fr;
   }
 
-  .permGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 560px) {
@@ -1162,7 +1264,7 @@ th {
     flex-direction: column;
   }
 
-  .permGrid {
-    grid-template-columns: 1fr;
+  .permissionRow {
+    padding: 8px 9px;
   }
 }

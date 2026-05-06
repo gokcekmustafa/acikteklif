@@ -270,10 +270,24 @@ function bindEvents() {
 function bindUserEvents() {
     elements.userList.addEventListener("click", async (event) => {
         const target = event.target;
-        const selectBtn = target.closest("button[data-action='select-user']");
-        if (!selectBtn)
+        const selectItem = target.closest("[data-action='select-user']");
+        if (!selectItem)
             return;
-        const userId = String(selectBtn.dataset.userId || "");
+        const userId = String(selectItem.dataset.userId || "");
+        if (!userId)
+            return;
+        state.selectedUserId = userId;
+        renderUsers();
+    });
+    elements.userList.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ")
+            return;
+        const target = event.target;
+        const selectItem = target.closest("[data-action='select-user']");
+        if (!selectItem)
+            return;
+        event.preventDefault();
+        const userId = String(selectItem.dataset.userId || "");
         if (!userId)
             return;
         state.selectedUserId = userId;
@@ -312,38 +326,81 @@ function bindUserEvents() {
             });
             return;
         }
-        if (action === "toggle-permission") {
-            const permissionKey = String(actionBtn.dataset.permissionKey || "");
-            const enabled = actionBtn.dataset.enabled === "true";
-            await safeAction(actionBtn, async () => {
-                await apiFetch(`/api/admin/users/${encodeURIComponent(userId)}/permissions`, {
-                    method: "POST",
-                    body: { permissionKey, enabled: !enabled },
-                });
-                await loadUsers();
-                renderUsers();
-                setStatus("Yetki guncellendi.", "ok");
-            });
-        }
     });
     elements.userDetail.addEventListener("change", async (event) => {
         const target = event.target;
         const roleSelect = target.closest("select[data-action='change-role']");
-        if (!roleSelect)
+        if (roleSelect) {
+            const userId = String(roleSelect.dataset.userId || "");
+            const role = String(roleSelect.value || "").trim();
+            if (!userId || !role)
+                return;
+            await safeAction(roleSelect, async () => {
+                await apiFetch(`/api/admin/users/${encodeURIComponent(userId)}/role`, {
+                    method: "POST",
+                    body: { role },
+                });
+                await loadUsers();
+                renderUsers();
+                renderStats();
+                setStatus("Rol guncellendi.", "ok");
+            });
             return;
-        const userId = String(roleSelect.dataset.userId || "");
-        const role = String(roleSelect.value || "").trim();
-        if (!userId || !role)
+        }
+        const permissionSwitch = target.closest("input[data-action='toggle-permission']");
+        if (!permissionSwitch)
             return;
-        await safeAction(roleSelect, async () => {
-            await apiFetch(`/api/admin/users/${encodeURIComponent(userId)}/role`, {
+        const userId = String(permissionSwitch.dataset.userId || "");
+        const permissionKey = String(permissionSwitch.dataset.permissionKey || "");
+        if (!userId || !permissionKey)
+            return;
+        const enabled = permissionSwitch.checked === true;
+        await safeAction(permissionSwitch, async () => {
+            await apiFetch(`/api/admin/users/${encodeURIComponent(userId)}/permissions`, {
                 method: "POST",
-                body: { role },
+                body: { permissionKey, enabled },
             });
             await loadUsers();
             renderUsers();
-            renderStats();
-            setStatus("Rol guncellendi.", "ok");
+            setStatus("Yetki guncellendi.", "ok");
+        }, {
+            onError: () => {
+                permissionSwitch.checked = !enabled;
+            },
+        });
+    });
+    elements.userDetail.addEventListener("submit", async (event) => {
+        const target = event.target;
+        const form = target.closest("form[data-action='change-password']");
+        if (!form)
+            return;
+        event.preventDefault();
+        const userId = String(form.dataset.userId || "");
+        const passwordInput = form.querySelector("input[name='newPassword']");
+        const confirmInput = form.querySelector("input[name='confirmPassword']");
+        const submitBtn = form.querySelector("button[type='submit']");
+        if (!userId || !passwordInput || !confirmInput || !submitBtn)
+            return;
+        const newPassword = String(passwordInput.value || "").trim();
+        const confirmPassword = String(confirmInput.value || "").trim();
+        if (newPassword.length < 8) {
+            setStatus("Sifre en az 8 karakter olmalidir.", "error");
+            passwordInput.focus();
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setStatus("Sifre tekrar alani eslesmiyor.", "error");
+            confirmInput.focus();
+            return;
+        }
+        await safeAction(submitBtn, async () => {
+            await apiFetch(`/api/admin/users/${encodeURIComponent(userId)}/password`, {
+                method: "POST",
+                body: { newPassword },
+            });
+            passwordInput.value = "";
+            confirmInput.value = "";
+            setStatus("Kullanici sifresi guncellendi. Aktif oturumlar kapatildi.", "ok");
         });
     });
 }
@@ -759,11 +816,11 @@ function renderUsers() {
 function renderUserListItem(user, isSelected) {
     const status = user.isDisabled ? "Pasif" : "Aktif";
     return `
-    <button class="userListItem ${isSelected ? "active" : ""}" data-action="select-user" data-user-id="${escapeHtml(user.id || "")}" type="button">
+    <div class="userListItem ${isSelected ? "active" : ""}" data-action="select-user" data-user-id="${escapeHtml(user.id || "")}" role="button" tabindex="0">
       <div class="userLineTop">${escapeHtml(user.name || "Isimsiz")}</div>
       <div class="userLineMeta">${escapeHtml(user.email || "-")}</div>
       <div class="userLineMeta">${escapeHtml(normalizeRole(user.role).toUpperCase())} | ${status}</div>
-    </button>
+    </div>
   `;
 }
 function renderUserDetail(user) {
@@ -779,13 +836,22 @@ function renderUserDetail(user) {
         : '<span class="badge danger">E-posta Onaysiz</span>';
     const statusBtnClass = user.isDisabled ? "miniBtn success" : "miniBtn danger";
     const statusBtnText = user.isDisabled ? "Aktif Et" : "Pasife Al";
-    const permissionButtons = state.permissionDefs
+    const permissionRows = state.permissionDefs
         .map((perm) => {
         const enabled = permissions[perm.key] === true;
-        const cls = `${enabled ? "permBtn on" : "permBtn off"}${isAdminUser ? " locked" : ""}`;
-        const lockBadge = isAdminUser ? " (Sabit)" : "";
-        const stateLabel = enabled ? "Acik" : "Kapali";
-        return `<button class="${cls}" data-action="toggle-permission" data-user-id="${escapeHtml(user.id)}" data-permission-key="${escapeHtml(perm.key)}" data-enabled="${enabled ? "true" : "false"}" ${isAdminUser ? "disabled" : ""}>${escapeHtml(perm.label)}: ${stateLabel}${lockBadge}</button>`;
+        const stateLabel = isAdminUser ? "Sabit" : enabled ? "Acik" : "Kapali";
+        return `
+        <div class="permissionRow">
+          <div class="permissionInfo">
+            <div class="permissionLabel">${escapeHtml(perm.label)}</div>
+            <div class="permissionMeta">${stateLabel}</div>
+          </div>
+          <label class="switch ${isAdminUser ? "locked" : ""}">
+            <input class="switchInput" type="checkbox" data-action="toggle-permission" data-user-id="${escapeHtml(user.id)}" data-permission-key="${escapeHtml(perm.key)}" ${enabled ? "checked" : ""} ${isAdminUser ? "disabled" : ""}>
+            <span class="switchTrack"><span class="switchThumb"></span></span>
+          </label>
+        </div>
+      `;
     })
         .join("");
     return `
@@ -808,7 +874,23 @@ function renderUserDetail(user) {
       <button class="${statusBtnClass}" data-action="toggle-status" data-user-id="${escapeHtml(user.id)}" data-disabled="${user.isDisabled ? "true" : "false"}">${statusBtnText}</button>
       <button class="miniBtn" data-action="revoke-sessions" data-user-id="${escapeHtml(user.id)}">Oturumlari Sonlandir</button>
     </div>
-    <div class="permGrid">${permissionButtons}</div>
+    <div class="userSection">
+      <h4 class="sectionTitle">Yetkiler</h4>
+      <div class="permissionList">${permissionRows}</div>
+    </div>
+    <div class="userSection">
+      <h4 class="sectionTitle">Sifre Islemleri</h4>
+      <form class="passwordForm" data-action="change-password" data-user-id="${escapeHtml(user.id)}">
+        <div class="passwordGrid">
+          <input type="password" name="newPassword" minlength="8" autocomplete="new-password" placeholder="Yeni sifre (min 8)">
+          <input type="password" name="confirmPassword" minlength="8" autocomplete="new-password" placeholder="Yeni sifre (tekrar)">
+        </div>
+        <div class="passwordActions">
+          <button class="miniBtn success" type="submit">Sifreyi Degistir</button>
+          <span class="passwordHint">Kayit sonrasi kullanicinin aktif oturumlari kapatilir.</span>
+        </div>
+      </form>
+    </div>
   `;
 }
 function renderCatalog() {

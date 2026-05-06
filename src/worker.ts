@@ -1091,6 +1091,44 @@ async function handleApi(request, env, url) {
       });
     }
 
+    const passwordMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/password$/);
+    if (method === "POST" && passwordMatch) {
+      if (!actorAccess.permissions[PERMISSIONS.USERS_PERMISSIONS]) {
+        return json({ ok: false, error: "Kullanıcı şifresi değiştirme yetkiniz yok." }, 403);
+      }
+
+      const targetUserId = decodeURIComponent(String(passwordMatch[1] || ""));
+      const body = await readJson(request);
+      const newPassword = String(body.newPassword || "").trim();
+      if (newPassword.length < MIN_PASSWORD_LENGTH) {
+        return json({ ok: false, error: `Yeni şifre en az ${MIN_PASSWORD_LENGTH} karakter olmalıdır.` }, 400);
+      }
+
+      const targetUser = await env.DB.prepare("SELECT id, email FROM users WHERE id = ?").bind(targetUserId).first();
+      if (!targetUser) return json({ ok: false, error: "Kullanıcı bulunamadı." }, 404);
+
+      const passwordHash = await hashPassword(newPassword);
+      await env.DB.batch([
+        env.DB.prepare("UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(
+          passwordHash,
+          targetUserId
+        ),
+        env.DB.prepare("DELETE FROM password_reset_tokens WHERE user_id = ?").bind(targetUserId),
+        env.DB.prepare("UPDATE sessions SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ? AND revoked_at IS NULL").bind(
+          targetUserId
+        ),
+      ]);
+
+      await writeAdminAuditLog(env, session.user.id, targetUserId, "user.password.update", {
+        revokedSessions: true,
+      });
+
+      return json({
+        ok: true,
+        message: "Kullanıcı şifresi güncellendi.",
+      });
+    }
+
     const statusMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/status$/);
     if (method === "POST" && statusMatch) {
       if (!actorAccess.permissions[PERMISSIONS.USERS_BLOCK]) {
