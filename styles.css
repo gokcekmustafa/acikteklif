@@ -496,6 +496,12 @@ button {
   background: transparent;
 }
 
+.containerAll .listingRightCol .defaultSelect:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background-color: #f5f6f8;
+}
+
 .containerAll .listingRightCol .searchBtn {
   display: flex;
   align-items: center;

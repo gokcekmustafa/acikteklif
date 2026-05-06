@@ -98,6 +98,56 @@ const DEFAULT_TURKEY_CITIES = [
   "Yozgat",
   "Zonguldak",
 ] as const;
+const LABEL_PRODUCT_GROUP = "Ürün Grubu Seçiniz";
+const LABEL_ALL_CATEGORIES = "Tüm Kategoriler";
+const LABEL_ALL_CITIES = "Tüm İller";
+const LABEL_ALL_DISTRICTS = "Tüm İlçeler";
+const LABEL_ALL_NEIGHBORHOODS = "Tüm Mahalleler";
+const LABEL_ALL_BRANDS = "Tüm Markalar";
+const LABEL_ALL_MODELS = "Tüm Modeller";
+const VEHICLE_BRAND_MODEL_CATALOG: Record<string, string[]> = {
+  "Alfa Romeo": ["159", "Giulia", "Giulietta", "Stelvio", "Tonale"],
+  "Audi": ["A1", "A3", "A4", "A5", "A6", "A7", "A8", "Q2", "Q3", "Q5", "Q7", "Q8", "E-Tron"],
+  "BMW": ["1 Serisi", "2 Serisi", "3 Serisi", "4 Serisi", "5 Serisi", "7 Serisi", "X1", "X2", "X3", "X4", "X5", "X6", "I4", "IX"],
+  "BYD": ["Atto 3", "Dolphin", "Han", "Seal", "Seal U"],
+  "Chery": ["Omoda 5", "Tiggo 7 Pro", "Tiggo 8 Pro"],
+  "Citroen": ["Berlingo", "C3", "C4", "C4 X", "C5 Aircross", "C-Elysee", "Jumpy"],
+  "Cupra": ["Ateca", "Born", "Formentor", "Leon"],
+  "Dacia": ["Duster", "Jogger", "Lodgy", "Logan", "Sandero", "Spring"],
+  "DS": ["DS 4", "DS 7", "DS 9"],
+  "Fiat": ["500", "500e", "Doblo", "Egea", "Fiorino", "Linea", "Panda", "Punto"],
+  "Ford": ["B-Max", "C-Max", "Courier", "EcoSport", "Fiesta", "Focus", "Fusion", "Kuga", "Mondeo", "Mustang", "Puma", "Ranger", "S-Max", "Tourneo", "Transit"],
+  "Honda": ["Accord", "Civic", "City", "CR-V", "HR-V", "Jazz"],
+  "Hyundai": ["Accent", "Accent Blue", "Bayon", "Elantra", "Getz", "I10", "I20", "I30", "Ioniq", "Kona", "Santa Fe", "Staria", "Tucson"],
+  "Isuzu": ["D-Max"],
+  "Jaguar": ["E-Pace", "F-Pace", "I-Pace", "XE", "XF"],
+  "Jeep": ["Avenger", "Cherokee", "Compass", "Renegade", "Wrangler"],
+  "Kia": ["Ceed", "Cerato", "EV6", "Niro", "Picanto", "Rio", "Sorento", "Sportage", "Stonic"],
+  "Land Rover": ["Defender", "Discovery", "Discovery Sport", "Range Rover", "Range Rover Evoque", "Range Rover Sport", "Velar"],
+  "Lexus": ["ES", "IS", "NX", "RX", "UX"],
+  "Maserati": ["Ghibli", "Grecale", "Levante", "Quattroporte"],
+  "Mazda": ["2", "3", "6", "CX-3", "CX-30", "CX-5", "CX-60", "MX-5"],
+  "Mercedes-Benz": ["A Serisi", "B Serisi", "C Serisi", "CLA", "CLS", "E Serisi", "G Serisi", "GLA", "GLB", "GLC", "GLE", "GLS", "S Serisi", "Vito"],
+  "MG": ["HS", "MG4", "Marvel R", "ZS", "ZS EV"],
+  "Mini": ["Clubman", "Countryman", "Cooper", "Cooper S"],
+  "Mitsubishi": ["ASX", "Colt", "Eclipse Cross", "L200", "L300", "Outlander", "Pajero"],
+  "Nissan": ["Juke", "Leaf", "Micra", "Navara", "Note", "Qashqai", "X-Trail"],
+  "Opel": ["Astra", "Combo", "Corsa", "Crossland", "Frontera", "Grandland", "Insignia", "Mokka", "Vivaro", "Zafira"],
+  "Peugeot": ["2008", "3008", "301", "308", "408", "5008", "508", "Partner", "Rifter"],
+  "Porsche": ["911", "Cayenne", "Macan", "Panamera", "Taycan"],
+  "Renault": ["Captur", "Clio", "Fluence", "Kadjar", "Kangoo", "Koleos", "Laguna", "Megane", "Scenic", "Symbol", "Talisman", "Toros", "Trafic", "Twingo", "Zoe"],
+  "Seat": ["Arona", "Ateca", "Ibiza", "Leon", "Tarraco", "Toledo"],
+  "Skoda": ["Fabia", "Kamiq", "Karoq", "Kodiaq", "Octavia", "Rapid", "Scala", "Superb", "Yeti"],
+  "Smart": ["Forfour", "Fortwo"],
+  "Subaru": ["Forester", "Impreza", "Legacy", "Outback", "XV"],
+  "Suzuki": ["Baleno", "Grand Vitara", "Ignis", "Jimny", "S-Cross", "Swift", "Vitara"],
+  "Tesla": ["Model 3", "Model S", "Model X", "Model Y"],
+  "Tofas": ["Dogan", "Kartal", "Murat", "Sahin", "Serce"],
+  "Togg": ["T10F", "T10X"],
+  "Toyota": ["Auris", "Avensis", "C-HR", "Camry", "Corolla", "Corolla Cross", "Hilux", "Prius", "RAV4", "Yaris", "Yaris Cross"],
+  "Volkswagen": ["Amarok", "Arteon", "Caddy", "Caravelle", "Golf", "ID.3", "ID.4", "Jetta", "Passat", "Polo", "T-Cross", "T-Roc", "Tiguan", "Touareg", "Transporter"],
+  "Volvo": ["C40", "S60", "S90", "V40", "V60", "XC40", "XC60", "XC90"]
+};
 const META_TURNSTILE_SITE_KEY = document
   .querySelector('meta[name="turnstile-site-key"]')
   ?.getAttribute("content")
@@ -274,6 +324,8 @@ const state = {
     city: "",
     district: "",
     neighborhood: "",
+    vehicleBrand: "",
+    vehicleModel: "",
     minPrice: "",
     maxPrice: "",
     lotNo: "",
@@ -284,6 +336,8 @@ const state = {
     cities: [],
     districts: [],
     neighborhoods: [],
+    vehicleBrands: [],
+    vehicleModelsByBrand: {},
     districtsByCity: {},
   },
   auth: {
@@ -313,6 +367,8 @@ const elements = {
   city: document.getElementById("city"),
   district: document.getElementById("district"),
   neighborhood: document.getElementById("neighborhood"),
+  vehicleBrand: document.getElementById("vehicleBrand"),
+  vehicleModel: document.getElementById("vehicleModel"),
   minPrice: document.getElementById("minPrice"),
   maxPrice: document.getElementById("maxPrice"),
   lotNo: document.getElementById("lotNo"),
@@ -370,12 +426,14 @@ function hydrateFilterOptions() {
   const previousCity = String(state.filters.city || elements.city.value || "").trim();
   const previousDistrict = String(state.filters.district || elements.district.value || "").trim();
   const previousNeighborhood = String(state.filters.neighborhood || elements.neighborhood.value || "").trim();
+  const previousBrand = String(state.filters.vehicleBrand || elements.vehicleBrand.value || "").trim();
+  const previousModel = String(state.filters.vehicleModel || elements.vehicleModel.value || "").trim();
 
   if (ONLY_AUTOMOBILE_MODE) {
-    refillSelect(elements.productGroup, [AUTOMOBILE_PRODUCT_GROUP], "Ürün Grubu Seçiniz");
+    refillSelect(elements.productGroup, [AUTOMOBILE_PRODUCT_GROUP], LABEL_PRODUCT_GROUP);
     elements.productGroup.value = AUTOMOBILE_PRODUCT_GROUP;
   } else {
-    refillSelect(elements.productGroup, state.filterOptions.productGroups, "Ürün Grubu Seçiniz");
+    refillSelect(elements.productGroup, state.filterOptions.productGroups, LABEL_PRODUCT_GROUP);
     if (previousGroup) {
       const matchedGroup = findMatchingOptionValue(state.filterOptions.productGroups, previousGroup);
       if (matchedGroup) elements.productGroup.value = matchedGroup;
@@ -383,26 +441,28 @@ function hydrateFilterOptions() {
   }
 
   const categoryValues = state.filterOptions.categories;
-  refillSelect(elements.category, categoryValues, "Kategori Seçiniz");
+  refillSelect(elements.category, categoryValues, LABEL_ALL_CATEGORIES);
   const matchedCategory = findMatchingOptionValue(categoryValues, previousCategory);
-  if (matchedCategory) {
-    elements.category.value = matchedCategory;
-  }
+  elements.category.value = matchedCategory || "";
 
-  refillSelect(elements.city, state.filterOptions.cities, "İl Seçiniz");
+  refillSelect(elements.city, state.filterOptions.cities, LABEL_ALL_CITIES);
   const matchedCity = findMatchingOptionValue(state.filterOptions.cities, previousCity);
-  if (matchedCity) {
-    elements.city.value = matchedCity;
-  }
+  elements.city.value = matchedCity || "";
 
   refreshDistrictOptions(previousDistrict);
   refreshNeighborhoodOptions(previousNeighborhood);
+
+  const brandValues = state.filterOptions.vehicleBrands || [];
+  refillSelect(elements.vehicleBrand, brandValues, LABEL_ALL_BRANDS);
+  const matchedBrand = findMatchingOptionValue(brandValues, previousBrand);
+  elements.vehicleBrand.value = matchedBrand || "";
+  refreshVehicleModelOptions(previousModel);
 }
 
 function refreshDistrictOptions(preferredDistrict = "") {
   const cityValue = String(elements.city.value || "").trim();
   const districtOptions = getDistrictOptionsForCity(cityValue);
-  const placeholder = cityValue ? "İlçe Seçiniz" : "Önce İl Seçiniz";
+  const placeholder = LABEL_ALL_DISTRICTS;
 
   refillSelect(elements.district, districtOptions, placeholder);
   elements.district.disabled = !cityValue;
@@ -415,7 +475,7 @@ function refreshNeighborhoodOptions(preferredNeighborhood = "") {
   const cityValue = String(elements.city.value || "").trim();
   const districtValue = String(elements.district.value || "").trim();
   const neighborhoodOptions = getNeighborhoodOptions(cityValue, districtValue);
-  const placeholder = cityValue ? "Mahalle Seçiniz" : "Önce İl Seçiniz";
+  const placeholder = LABEL_ALL_NEIGHBORHOODS;
 
   refillSelect(elements.neighborhood, neighborhoodOptions, placeholder);
   elements.neighborhood.disabled = !cityValue;
@@ -461,6 +521,69 @@ function getNeighborhoodOptions(cityValue, districtValue) {
   return uniqueTextList(values);
 }
 
+function refreshVehicleModelOptions(preferredModel = "") {
+  const brandValue = String(elements.vehicleBrand.value || "").trim();
+  const modelValues = getVehicleModelsForBrand(brandValue);
+
+  refillSelect(elements.vehicleModel, modelValues, LABEL_ALL_MODELS);
+  elements.vehicleModel.disabled = !brandValue;
+  const matchedModel = brandValue ? findMatchingOptionValue(modelValues, preferredModel) : "";
+  elements.vehicleModel.value = matchedModel || "";
+}
+
+function getVehicleModelsForBrand(brandValue) {
+  const brand = String(brandValue || "").trim();
+  if (!brand) return [];
+
+  const map = state.filterOptions.vehicleModelsByBrand || {};
+  const direct = map[brand];
+  if (Array.isArray(direct)) return uniqueTextList(direct);
+
+  const brandKey = normalizeText(brand);
+  for (const [candidateBrand, models] of Object.entries(map)) {
+    if (normalizeText(candidateBrand) !== brandKey) continue;
+    return uniqueTextList(Array.isArray(models) ? models : []);
+  }
+
+  return uniqueTextList(
+    state.listings
+      .filter((item) => normalizeText(item.vehicleBrand) === brandKey)
+      .map((item) => String(item.vehicleModel || "").trim())
+  );
+}
+
+function buildVehicleFilterOptions() {
+  const normalizedCatalog = {};
+
+  for (const [brandRaw, modelsRaw] of Object.entries(VEHICLE_BRAND_MODEL_CATALOG)) {
+    const brand = String(brandRaw || "").trim();
+    if (!brand) continue;
+    normalizedCatalog[brand] = uniqueTextList(Array.isArray(modelsRaw) ? modelsRaw : []);
+  }
+
+  for (const item of state.listings || []) {
+    const brand = String(item?.vehicleBrand || "").trim();
+    const model = String(item?.vehicleModel || "").trim();
+    if (!brand) continue;
+    if (!Object.prototype.hasOwnProperty.call(normalizedCatalog, brand)) {
+      normalizedCatalog[brand] = [];
+    }
+    normalizedCatalog[brand].push(model);
+  }
+
+  const vehicleModelsByBrand = {};
+  const vehicleBrands = uniqueTextList(Object.keys(normalizedCatalog)).sort((a, b) => a.localeCompare(b, "tr"));
+
+  for (const brand of vehicleBrands) {
+    vehicleModelsByBrand[brand] = uniqueTextList(normalizedCatalog[brand] || []).sort((a, b) => a.localeCompare(b, "tr"));
+  }
+
+  return {
+    vehicleBrands,
+    vehicleModelsByBrand,
+  };
+}
+
 function findMatchingOptionValue(values, targetValue) {
   const target = String(targetValue || "").trim();
   if (!target) return "";
@@ -473,10 +596,8 @@ function applyInitialFilters() {
   if (ONLY_AUTOMOBILE_MODE) {
     state.filters.productGroup = AUTOMOBILE_PRODUCT_GROUP;
     elements.productGroup.value = AUTOMOBILE_PRODUCT_GROUP;
-    const categoryValues = state.filterOptions.categories;
-    const defaultCategory = categoryValues.includes(AUTOMOBILE_CATEGORY) ? AUTOMOBILE_CATEGORY : "";
-    state.filters.category = defaultCategory;
-    elements.category.value = defaultCategory;
+    state.filters.category = "";
+    elements.category.value = "";
   }
 }
 
@@ -550,8 +671,11 @@ function applyFilterOptionsPayload(data) {
   const districtsByCity = normalizeDistrictMap(options.districtsByCity, cities);
 
   const districtsFromApi = uniqueTextList(options.districts);
-  const districtsFromMap = uniqueTextList(Object.values(districtsByCity).flatMap((value: any) => (Array.isArray(value) ? value : [])));
+  const districtsFromMap = uniqueTextList(
+    Object.values(districtsByCity).flatMap((value: any) => (Array.isArray(value) ? value : []))
+  );
   const districts = uniqueTextList([...districtsFromApi, ...districtsFromMap]);
+  const vehicleFilters = buildVehicleFilterOptions();
 
   state.filterOptions = {
     productGroups: productGroups.length > 0 ? productGroups : uniqueValues("productGroup"),
@@ -559,6 +683,8 @@ function applyFilterOptionsPayload(data) {
     cities,
     districts: districts.length > 0 ? districts : uniqueValues("district"),
     neighborhoods: neighborhoods.length > 0 ? neighborhoods : uniqueValues("neighborhood"),
+    vehicleBrands: vehicleFilters.vehicleBrands,
+    vehicleModelsByBrand: vehicleFilters.vehicleModelsByBrand,
     districtsByCity: Object.keys(districtsByCity).length > 0 ? districtsByCity : buildDistrictMapFromListings(cities),
   };
 }
@@ -566,7 +692,10 @@ function applyFilterOptionsPayload(data) {
 function applyFallbackFilterOptions() {
   const cities = uniqueTextList([...DEFAULT_TURKEY_CITIES, ...uniqueValues("city")]);
   const districtsByCity = buildDistrictMapFromListings(cities);
-  const districts = uniqueTextList(Object.values(districtsByCity).flatMap((value: any) => (Array.isArray(value) ? value : [])));
+  const districts = uniqueTextList(
+    Object.values(districtsByCity).flatMap((value: any) => (Array.isArray(value) ? value : []))
+  );
+  const vehicleFilters = buildVehicleFilterOptions();
 
   state.filterOptions = {
     productGroups: uniqueValues("productGroup"),
@@ -574,6 +703,8 @@ function applyFallbackFilterOptions() {
     cities,
     districts,
     neighborhoods: uniqueValues("neighborhood"),
+    vehicleBrands: vehicleFilters.vehicleBrands,
+    vehicleModelsByBrand: vehicleFilters.vehicleModelsByBrand,
     districtsByCity,
   };
 }
@@ -799,6 +930,16 @@ function bindEvents() {
   });
 
   elements.category.addEventListener("change", () => {
+    applyFiltersAndRender();
+  });
+
+  elements.vehicleBrand.addEventListener("change", () => {
+    const previousModel = String(elements.vehicleModel.value || "").trim();
+    refreshVehicleModelOptions(previousModel);
+    applyFiltersAndRender();
+  });
+
+  elements.vehicleModel.addEventListener("change", () => {
     applyFiltersAndRender();
   });
 
@@ -1106,6 +1247,8 @@ function readFiltersFromForm() {
     city: elements.city.value,
     district: elements.district.value,
     neighborhood: elements.neighborhood.value,
+    vehicleBrand: elements.vehicleBrand.value,
+    vehicleModel: elements.vehicleModel.value,
     minPrice: elements.minPrice.value,
     maxPrice: elements.maxPrice.value,
     lotNo: elements.lotNo.value.trim(),
@@ -1114,23 +1257,26 @@ function readFiltersFromForm() {
 
 function clearFilters() {
   const categoryValues = state.filterOptions.categories;
-  const defaultCategory = ONLY_AUTOMOBILE_MODE && categoryValues.includes(AUTOMOBILE_CATEGORY) ? AUTOMOBILE_CATEGORY : "";
 
   state.filters = {
     productGroup: ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : "",
-    category: defaultCategory,
+    category: "",
     city: "",
     district: "",
     neighborhood: "",
+    vehicleBrand: "",
+    vehicleModel: "",
     minPrice: "",
     maxPrice: "",
     lotNo: "",
   };
 
   elements.productGroup.value = ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : "";
-  refillSelect(elements.category, categoryValues, "Kategori Seçiniz");
-  elements.category.value = defaultCategory;
+  refillSelect(elements.category, categoryValues, LABEL_ALL_CATEGORIES);
+  elements.category.value = "";
   elements.city.value = "";
+  elements.vehicleBrand.value = "";
+  refreshVehicleModelOptions("");
   refreshDistrictOptions("");
   refreshNeighborhoodOptions("");
   elements.minPrice.value = "";
@@ -1170,6 +1316,8 @@ function applyFilters(data) {
   const cityFilter = normalizeText(state.filters.city);
   const districtFilter = normalizeText(state.filters.district);
   const neighborhoodFilter = normalizeText(state.filters.neighborhood);
+  const brandFilter = normalizeText(state.filters.vehicleBrand);
+  const modelFilter = normalizeText(state.filters.vehicleModel);
   const lotNoFilter = normalizeText(state.filters.lotNo);
 
   return data.filter((item) => {
@@ -1179,6 +1327,8 @@ function applyFilters(data) {
     if (cityFilter && normalizeText(item.city) !== cityFilter) return false;
     if (districtFilter && normalizeText(item.district) !== districtFilter) return false;
     if (neighborhoodFilter && normalizeText(item.neighborhood) !== neighborhoodFilter) return false;
+    if (brandFilter && normalizeText(item.vehicleBrand) !== brandFilter) return false;
+    if (modelFilter && normalizeText(item.vehicleModel) !== modelFilter) return false;
 
     const minPrice = Number(state.filters.minPrice || 0);
     const maxPrice = Number(state.filters.maxPrice || Number.POSITIVE_INFINITY);
