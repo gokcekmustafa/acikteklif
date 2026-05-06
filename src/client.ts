@@ -896,7 +896,7 @@ function renderCard(item) {
     `;
 
   const bidLabel = item.lastBid ? "SON TEKLİF" : "İLK TEKLİF BEKLENİYOR";
-  const bidValue = item.lastBid ? formatMoney(item.lastBid) : "-";
+  const bidValue = item.lastBid ? formatMoneyWithoutCents(item.lastBid) : "-";
   const minimumBid = (item.lastBid ?? item.startPrice) + Number(item.minIncrement || guessIncrement(item));
   const bidButtonText = isEnded ? "SONUCLANDI" : "TEKLIF VER";
   const bidButtonAttrs = isEnded ? 'disabled aria-disabled="true"' : "";
@@ -937,7 +937,7 @@ function renderCard(item) {
         </div>
         <div class="addBid">
           <div class="adTopLine">
-            <div class="tLine1">${formatMoney(item.startPrice)}</div>
+            <div class="tLine1">${formatMoneyWithoutCents(item.startPrice)}</div>
             <div class="tLine2">Başlangıç Bedeli</div>
           </div>
           <div class="adBottomLine">
@@ -1053,6 +1053,13 @@ function formatMoney(value) {
   return new Intl.NumberFormat("tr-TR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+}
+
+function formatMoneyWithoutCents(value) {
+  return new Intl.NumberFormat("tr-TR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(Number(value || 0));
 }
 

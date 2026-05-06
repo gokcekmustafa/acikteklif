@@ -757,7 +757,15 @@ button {
   text-align: center;
 }
 
-.containerAll .sContent .addBid .adTopLine .tLine1,
+.containerAll .sContent .addBid .adTopLine .tLine1 {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .containerAll .sContent .addBid .adBottomLine .bLine1 {
   font-size: 17px;
   font-weight: 700;
