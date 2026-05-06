@@ -204,6 +204,7 @@ const elements = {
     order: document.getElementById("selectOrder"),
     productGroup: document.getElementById("productGroup"),
     category: document.getElementById("category"),
+    categoryOrder: document.getElementById("categoryOrder"),
     city: document.getElementById("city"),
     district: document.getElementById("district"),
     neighborhood: document.getElementById("neighborhood"),
@@ -266,8 +267,7 @@ function hydrateFilterOptions() {
         if (previousGroup)
             elements.productGroup.value = previousGroup;
     }
-    const selectedGroup = String(elements.productGroup.value || "").trim();
-    const categoryValues = uniqueCategoryValuesByGroup(selectedGroup);
+    const categoryValues = sortedCategoryValues(uniqueValues("category"), String(elements.categoryOrder.value || "AZ"));
     refillSelect(elements.category, categoryValues, "Kategori Seciniz");
     if (previousCategory && categoryValues.includes(previousCategory)) {
         elements.category.value = previousCategory;
@@ -280,7 +280,7 @@ function applyInitialFilters() {
     if (ONLY_AUTOMOBILE_MODE) {
         state.filters.productGroup = AUTOMOBILE_PRODUCT_GROUP;
         elements.productGroup.value = AUTOMOBILE_PRODUCT_GROUP;
-        const categoryValues = uniqueCategoryValuesByGroup(AUTOMOBILE_PRODUCT_GROUP);
+        const categoryValues = sortedCategoryValues(uniqueValues("category"), String(elements.categoryOrder.value || "AZ"));
         const defaultCategory = categoryValues.includes(AUTOMOBILE_CATEGORY) ? AUTOMOBILE_CATEGORY : "";
         state.filters.category = defaultCategory;
         elements.category.value = defaultCategory;
@@ -487,9 +487,11 @@ function bindEvents() {
         render();
     });
     elements.productGroup.addEventListener("change", () => {
-        const selectedGroup = String(elements.productGroup.value || "").trim();
+        applyFiltersAndRender();
+    });
+    elements.categoryOrder.addEventListener("change", () => {
         const previousCategory = String(elements.category.value || "").trim();
-        const categoryValues = uniqueCategoryValuesByGroup(selectedGroup);
+        const categoryValues = sortedCategoryValues(uniqueValues("category"), String(elements.categoryOrder.value || "AZ"));
         refillSelect(elements.category, categoryValues, "Kategori Seciniz");
         if (previousCategory && categoryValues.includes(previousCategory)) {
             elements.category.value = previousCategory;
@@ -749,14 +751,14 @@ function fillSelect(selectElement, values) {
 function uniqueValues(key) {
     return [...new Set(state.listings.map((item) => item[key]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"));
 }
-function uniqueCategoryValuesByGroup(groupValue) {
-    const selectedGroup = String(groupValue || "").trim();
-    const rows = state.listings.filter((item) => {
-        if (!selectedGroup)
-            return true;
-        return String(item.productGroup || "").trim() === selectedGroup;
-    });
-    return [...new Set(rows.map((item) => String(item.category || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"));
+function sortedCategoryValues(values, order) {
+    const rows = [...values];
+    if (String(order || "AZ").toUpperCase() === "ZA") {
+        rows.sort((a, b) => b.localeCompare(a, "tr"));
+        return rows;
+    }
+    rows.sort((a, b) => a.localeCompare(b, "tr"));
+    return rows;
 }
 function readFiltersFromForm() {
     state.filters = {
@@ -771,7 +773,7 @@ function readFiltersFromForm() {
     };
 }
 function clearFilters() {
-    const categoryValues = uniqueCategoryValuesByGroup(ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : "");
+    const categoryValues = sortedCategoryValues(uniqueValues("category"), String(elements.categoryOrder.value || "AZ"));
     const defaultCategory = ONLY_AUTOMOBILE_MODE && categoryValues.includes(AUTOMOBILE_CATEGORY) ? AUTOMOBILE_CATEGORY : "";
     state.filters = {
         productGroup: ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : "",
@@ -798,7 +800,7 @@ function render() {
     const sorted = applySort(filtered);
     elements.listingBoxes.innerHTML = sorted.map(renderCard).join("");
     if (sorted.length < 1) {
-        const message = state.listingLoadError || "Filtre kriterlerine uygun ilan bulunamadı.";
+        const message = state.listingLoadError || "Seçiminize uygun ihale yok.";
         elements.emptyState.innerHTML = `<i class="fas fa-circle-info"></i> ${escapeHtml(message)}`;
     }
     elements.emptyState.classList.toggle("hide", sorted.length > 0);
