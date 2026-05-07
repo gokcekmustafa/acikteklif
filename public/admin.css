@@ -694,6 +694,18 @@ th {
   white-space: nowrap;
 }
 
+.rowActions .iconBtn {
+  width: 28px;
+  min-width: 28px;
+  padding: 6px 0;
+  text-align: center;
+}
+
+.rowActions .miniBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .pill {
   display: inline-flex;
   border-radius: 999px;

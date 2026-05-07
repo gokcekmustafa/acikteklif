@@ -562,6 +562,21 @@ function bindCatalogEvents() {
     const group = state.groups.find((x: any) => x.id === groupId);
     if (!group) return;
 
+    if (action === "move-group-up" || action === "move-group-down") {
+      const direction = action === "move-group-up" ? -1 : 1;
+      await safeAction(btn, async () => {
+        const moved = await moveGroupSortOrder(groupId, direction);
+        if (!moved) {
+          setStatus(direction < 0 ? "Urun grubu zaten en ustte." : "Urun grubu zaten en altta.", "warn");
+          return;
+        }
+        await loadCatalog();
+        renderCatalog();
+        setStatus("Urun grubu sirasi guncellendi.", "ok");
+      });
+      return;
+    }
+
     if (action === "rename-group") {
       const nextName = prompt("Yeni urun grubu adini girin:", String(group.name || "")) || "";
       const name = String(nextName || "").trim();
@@ -636,6 +651,21 @@ function bindCatalogEvents() {
     const category = state.categories.find((x: any) => x.id === categoryId);
     if (!category) return;
 
+    if (action === "move-category-up" || action === "move-category-down") {
+      const direction = action === "move-category-up" ? -1 : 1;
+      await safeAction(btn, async () => {
+        const moved = await moveCategorySortOrder(categoryId, direction);
+        if (!moved) {
+          setStatus(direction < 0 ? "Kategori zaten en ustte." : "Kategori zaten en altta.", "warn");
+          return;
+        }
+        await loadCatalog();
+        renderCatalog();
+        setStatus("Kategori sirasi guncellendi.", "ok");
+      });
+      return;
+    }
+
     if (action === "rename-category") {
       const nextName = prompt("Yeni kategori adini girin:", String(category.name || "")) || "";
       const name = String(nextName || "").trim();
@@ -684,11 +714,11 @@ function bindSettingsEvents() {
   elements.filterOrderForm.addEventListener("submit", async (event: any) => {
     event.preventDefault();
     const payload = {
-      productGroups: parseOrderListInput(elements.filterOrderGroups.value),
-      categories: parseOrderListInput(elements.filterOrderCategories.value),
-      cities: parseOrderListInput(elements.filterOrderCities.value),
-      districts: parseOrderListInput(elements.filterOrderDistricts.value),
-      neighborhoods: parseOrderListInput(elements.filterOrderNeighborhoods.value),
+      productGroups: parseOrderListInput(readTextControlValue(elements.filterOrderGroups)),
+      categories: parseOrderListInput(readTextControlValue(elements.filterOrderCategories)),
+      cities: parseOrderListInput(readTextControlValue(elements.filterOrderCities)),
+      districts: parseOrderListInput(readTextControlValue(elements.filterOrderDistricts)),
+      neighborhoods: parseOrderListInput(readTextControlValue(elements.filterOrderNeighborhoods)),
     };
 
     await safeAction(elements.filterOrderForm, async () => {
@@ -1144,6 +1174,12 @@ function renderCatalog() {
 
   const q = String(state.catalogQuery || "").trim().toLowerCase();
   const groupNameById = new Map(state.groups.map((g: any) => [g.id, g.name]));
+  const orderedGroups = getOrderedGroups();
+  const orderedGroupIndex = new Map<string, number>(orderedGroups.map((group: any, index: number) => [String(group.id || ""), index]));
+  const orderedCategories = getOrderedCategories();
+  const orderedCategoryIndex = new Map<string, number>(
+    orderedCategories.map((category: any, index: number) => [String(category.id || ""), index])
+  );
   const groups = state.groups.filter((group: any) => {
     if (!q) return true;
     return String(group.name || "").toLowerCase().includes(q);
@@ -1161,12 +1197,17 @@ function renderCatalog() {
     elements.groupRows.innerHTML = groups
     .map((group: any) => {
       const active = Number(group.is_active || 0) === 1;
+      const groupIndex = Number(orderedGroupIndex.get(String(group.id || "")));
+      const isFirst = !Number.isFinite(groupIndex) || groupIndex <= 0;
+      const isLast = !Number.isFinite(groupIndex) || groupIndex >= orderedGroups.length - 1;
       return `
         <tr>
           <td>${escapeHtml(group.name || "-")}<div class="metaLine">Sira: ${Number(group.sort_order || 0)}</div></td>
           <td><span class="pill ${active ? "ok" : "danger"}">${active ? "Aktif" : "Pasif"}</span></td>
           <td>
             <div class="rowActions">
+              <button class="miniBtn iconBtn" data-action="move-group-up" data-id="${escapeHtml(group.id)}" title="Yukari tasi" ${isFirst ? "disabled" : ""}><i class="fas fa-arrow-up"></i></button>
+              <button class="miniBtn iconBtn" data-action="move-group-down" data-id="${escapeHtml(group.id)}" title="Asagi tasi" ${isLast ? "disabled" : ""}><i class="fas fa-arrow-down"></i></button>
               <button class="miniBtn" data-action="rename-group" data-id="${escapeHtml(group.id)}">Adi Duzenle</button>
               <button class="miniBtn" data-action="toggle-group" data-id="${escapeHtml(group.id)}">${
                 active ? "Pasif Et" : "Aktif Et"
@@ -1187,6 +1228,9 @@ function renderCatalog() {
     elements.categoryRows.innerHTML = categories
       .map((category: any) => {
         const active = Number(category.is_active || 0) === 1;
+        const categoryIndex = Number(orderedCategoryIndex.get(String(category.id || "")));
+        const isFirst = !Number.isFinite(categoryIndex) || categoryIndex <= 0;
+        const isLast = !Number.isFinite(categoryIndex) || categoryIndex >= orderedCategories.length - 1;
         return `
           <tr>
             <td>${escapeHtml(category.name || "-")}<div class="metaLine">Sira: ${Number(category.sort_order || 0)}</div></td>
@@ -1194,6 +1238,8 @@ function renderCatalog() {
             <td><span class="pill ${active ? "ok" : "danger"}">${active ? "Aktif" : "Pasif"}</span></td>
             <td>
               <div class="rowActions">
+                <button class="miniBtn iconBtn" data-action="move-category-up" data-id="${escapeHtml(category.id)}" title="Yukari tasi" ${isFirst ? "disabled" : ""}><i class="fas fa-arrow-up"></i></button>
+                <button class="miniBtn iconBtn" data-action="move-category-down" data-id="${escapeHtml(category.id)}" title="Asagi tasi" ${isLast ? "disabled" : ""}><i class="fas fa-arrow-down"></i></button>
                 <button class="miniBtn" data-action="rename-category" data-id="${escapeHtml(category.id)}">Adi Duzenle</button>
                 <button class="miniBtn" data-action="toggle-category" data-id="${escapeHtml(category.id)}">${
                   active ? "Pasif Et" : "Aktif Et"
@@ -1214,30 +1260,100 @@ function renderSettings() {
   const selected: any = normalized.order || {};
   const options: any = normalized.options || {};
 
-  elements.filterOrderGroups.value = formatOrderListForEditor(
-    selected.productGroups?.length > 0 ? selected.productGroups : options.productGroups
+  setTextControlValue(
+    elements.filterOrderGroups,
+    formatOrderListForEditor(selected.productGroups?.length > 0 ? selected.productGroups : options.productGroups)
   );
-  elements.filterOrderCategories.value = formatOrderListForEditor(
-    selected.categories?.length > 0 ? selected.categories : options.categories
+  setTextControlValue(
+    elements.filterOrderCategories,
+    formatOrderListForEditor(selected.categories?.length > 0 ? selected.categories : options.categories)
   );
-  elements.filterOrderCities.value = formatOrderListForEditor(
-    selected.cities?.length > 0 ? selected.cities : options.cities
+  setTextControlValue(
+    elements.filterOrderCities,
+    formatOrderListForEditor(selected.cities?.length > 0 ? selected.cities : options.cities)
   );
-  elements.filterOrderDistricts.value = formatOrderListForEditor(
-    selected.districts?.length > 0 ? selected.districts : options.districts
+  setTextControlValue(
+    elements.filterOrderDistricts,
+    formatOrderListForEditor(selected.districts?.length > 0 ? selected.districts : options.districts)
   );
-  elements.filterOrderNeighborhoods.value = formatOrderListForEditor(
-    selected.neighborhoods?.length > 0 ? selected.neighborhoods : options.neighborhoods
+  setTextControlValue(
+    elements.filterOrderNeighborhoods,
+    formatOrderListForEditor(selected.neighborhoods?.length > 0 ? selected.neighborhoods : options.neighborhoods)
   );
 }
 
 function fillFilterOrderEditorWithOptions(options: any) {
   const safeOptions = options || {};
-  elements.filterOrderGroups.value = formatOrderListForEditor(safeOptions.productGroups || []);
-  elements.filterOrderCategories.value = formatOrderListForEditor(safeOptions.categories || []);
-  elements.filterOrderCities.value = formatOrderListForEditor(safeOptions.cities || []);
-  elements.filterOrderDistricts.value = formatOrderListForEditor(safeOptions.districts || []);
-  elements.filterOrderNeighborhoods.value = formatOrderListForEditor(safeOptions.neighborhoods || []);
+  setTextControlValue(elements.filterOrderGroups, formatOrderListForEditor(safeOptions.productGroups || []));
+  setTextControlValue(elements.filterOrderCategories, formatOrderListForEditor(safeOptions.categories || []));
+  setTextControlValue(elements.filterOrderCities, formatOrderListForEditor(safeOptions.cities || []));
+  setTextControlValue(elements.filterOrderDistricts, formatOrderListForEditor(safeOptions.districts || []));
+  setTextControlValue(elements.filterOrderNeighborhoods, formatOrderListForEditor(safeOptions.neighborhoods || []));
+}
+
+function compareBySortOrderThenName(a: any, b: any) {
+  const sortA = Number(a?.sort_order || 0);
+  const sortB = Number(b?.sort_order || 0);
+  if (sortA !== sortB) return sortA - sortB;
+  const nameA = String(a?.name || "");
+  const nameB = String(b?.name || "");
+  const byName = nameA.localeCompare(nameB, "tr");
+  if (byName !== 0) return byName;
+  return String(a?.id || "").localeCompare(String(b?.id || ""), "tr");
+}
+
+function getOrderedGroups() {
+  return [...(Array.isArray(state.groups) ? state.groups : [])].sort(compareBySortOrderThenName);
+}
+
+function getOrderedCategories() {
+  return [...(Array.isArray(state.categories) ? state.categories : [])].sort(compareBySortOrderThenName);
+}
+
+async function moveGroupSortOrder(groupId: string, direction: -1 | 1) {
+  const ordered = getOrderedGroups();
+  const fromIndex = ordered.findIndex((row: any) => String(row.id || "") === String(groupId || ""));
+  if (fromIndex < 0) return false;
+  const targetIndex = fromIndex + direction;
+  if (targetIndex < 0 || targetIndex >= ordered.length) return false;
+  const [moved] = ordered.splice(fromIndex, 1);
+  ordered.splice(targetIndex, 0, moved);
+  await persistGroupOrder(ordered);
+  return true;
+}
+
+async function moveCategorySortOrder(categoryId: string, direction: -1 | 1) {
+  const ordered = getOrderedCategories();
+  const fromIndex = ordered.findIndex((row: any) => String(row.id || "") === String(categoryId || ""));
+  if (fromIndex < 0) return false;
+  const targetIndex = fromIndex + direction;
+  if (targetIndex < 0 || targetIndex >= ordered.length) return false;
+  const [moved] = ordered.splice(fromIndex, 1);
+  ordered.splice(targetIndex, 0, moved);
+  await persistCategoryOrder(ordered);
+  return true;
+}
+
+async function persistGroupOrder(orderedGroups: any[]) {
+  for (let index = 0; index < orderedGroups.length; index += 1) {
+    const groupId = String(orderedGroups[index]?.id || "").trim();
+    if (!groupId) continue;
+    await apiFetch(`/api/admin/product-groups/${encodeURIComponent(groupId)}`, {
+      method: "PUT",
+      body: { sortOrder: (index + 1) * 10 },
+    });
+  }
+}
+
+async function persistCategoryOrder(orderedCategories: any[]) {
+  for (let index = 0; index < orderedCategories.length; index += 1) {
+    const categoryId = String(orderedCategories[index]?.id || "").trim();
+    if (!categoryId) continue;
+    await apiFetch(`/api/admin/categories/${encodeURIComponent(categoryId)}`, {
+      method: "PUT",
+      body: { sortOrder: (index + 1) * 10 },
+    });
+  }
 }
 
 function formatOrderListForEditor(values: any[]): string {
@@ -1257,6 +1373,16 @@ function parseOrderListInput(raw: string): string[] {
     out.push(value);
   }
   return out;
+}
+
+function readTextControlValue(control: any) {
+  if (!control || typeof control.value === "undefined") return "";
+  return String(control.value || "");
+}
+
+function setTextControlValue(control: any, value: string) {
+  if (!control || typeof control.value === "undefined") return;
+  control.value = String(value || "");
 }
 
 function normalizeFilterOrderingPayload(input: any) {

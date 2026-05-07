@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-  <link rel="stylesheet" href="./admin.css?v=20260506-1">
-  <script src="./admin.js?v=20260506-1" defer></script>
+  <link rel="stylesheet" href="./admin.css?v=20260507-1">
+  <script src="./admin.js?v=20260507-1" defer></script>
 </head>
 <body>
   <div class="shell">
@@ -410,17 +410,10 @@
           <article class="panelCard">
             <h3>Filtre Siralama Ayarlari</h3>
             <p class="uploadHint">Asagidaki alanlara her satira bir deger yazin. Siralama ustten alta uygulanir.</p>
+            <p class="uploadHint">Urun grubu ve kategori sirasi artik <strong>Urun Kategori</strong> ekraninda yukari/asagi butonlariyla yonetilir.</p>
             <form id="filterOrderForm" class="stackForm">
-              <div class="row2">
-                <label class="fieldWrap">
-                  <span>Urun Gruplari Sirasi</span>
-                  <textarea id="filterOrderGroups" rows="8" placeholder="Vasita&#10;Elektronik"></textarea>
-                </label>
-                <label class="fieldWrap">
-                  <span>Kategori Sirasi</span>
-                  <textarea id="filterOrderCategories" rows="8" placeholder="Otomobil&#10;SUV"></textarea>
-                </label>
-              </div>
+              <textarea id="filterOrderGroups" class="visuallyHidden" aria-hidden="true"></textarea>
+              <textarea id="filterOrderCategories" class="visuallyHidden" aria-hidden="true"></textarea>
               <div class="row2">
                 <label class="fieldWrap">
                   <span>Il Sirasi</span>

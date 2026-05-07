@@ -2143,8 +2143,9 @@ async function getPublicFilterOptions(env) {
   return {
     order: normalizedOrder,
     options: {
-      productGroups: sortTextListByOrder(productGroups, normalizedOrder.productGroups),
-      categories: sortTextListByOrder(categories, normalizedOrder.categories),
+      // Urun grubu ve kategori sirasi katalogdaki sort_order alanindan gelir.
+      productGroups,
+      categories,
       cities: sortedCities,
       districts: sortTextListByOrder(districtValues, normalizedOrder.districts),
       neighborhoods: sortTextListByOrder(neighborhoodValues, normalizedOrder.neighborhoods),
