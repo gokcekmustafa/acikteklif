@@ -1602,7 +1602,8 @@ function renderCard(item) {
     `;
 
   const bidLabel = item.lastBid ? "SON TEKLİF" : "İLK TEKLİF BEKLENİYOR";
-  const bidValue = item.lastBid ? formatMoneyWithoutCents(item.lastBid) : "-";
+  const bidValue = item.lastBid ? `${formatMoneyWithoutCents(item.lastBid)} TL` : "-";
+  const startPriceValue = `${formatMoneyWithoutCents(item.startPrice)} TL`;
   const minimumBid = (item.lastBid ?? item.startPrice) + Number(item.minIncrement || guessIncrement(item));
   const bidButtonText = isEnded ? "SONUCLANDI" : "TEKLIF VER";
   const bidButtonAttrs = isEnded ? 'disabled aria-disabled="true"' : "";
@@ -1643,7 +1644,7 @@ function renderCard(item) {
         </div>
         <div class="addBid">
           <div class="adTopLine">
-            <div class="tLine1">${formatMoneyWithoutCents(item.startPrice)}</div>
+            <div class="tLine1">${startPriceValue}</div>
             <div class="tLine2">Başlangıç Bedeli</div>
           </div>
           <div class="adBottomLine">
