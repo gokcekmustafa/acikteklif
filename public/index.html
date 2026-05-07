@@ -11,9 +11,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-  <link rel="stylesheet" href="./styles.css?v=20260505-3">
+  <link rel="stylesheet" href="./styles.css?v=20260506-1">
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-  <script src="./script.js?v=20260505-5" defer></script>
+  <script src="./script.js?v=20260506-1" defer></script>
 </head>
 <body>
   <a href="#" id="backToTop" aria-label="Yukarı çık"><i class="fas fa-chevron-up"></i></a>
@@ -55,15 +55,56 @@
         </form>
         <div class="newAccountWrap">
           <div class="naHead"><i class="fas fa-user-plus"></i> Yeni Kullanıcı</div>
-          <div class="naText">Teklif vermek ve daha fazlası için kayıt olun.</div>
+          <div class="naText">Hemen kayıt olup ihalelere teklif verebilirsiniz.</div>
+          <button class="naBtn" type="button" id="openRegisterModalFromLogin">Kayıt Ol</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modalWrap registerModal" id="registerModal" aria-hidden="true">
+    <div class="ifContent">
+      <a href="#" class="modalCloseBtn" id="closeRegisterModal"><i class="far fa-times-circle"></i></a>
+      <div class="ifHead">
+        <div class="headLeft"><i class="fas fa-user-plus"></i> Üye Kayıt</div>
+      </div>
+      <div class="ifMiddleWrap singlePane">
+        <div class="newAccountWrap registerStandalone">
+          <div class="naText">Bilgilerinizi eksiksiz doldurup hesabınızı oluşturun.</div>
           <form id="registerForm" class="registerForm">
-            <input id="registerName" type="text" placeholder="Ad Soyad" required>
+            <input id="registerName" type="text" placeholder="İsim Soyisim" required>
+            <input id="registerIdentityNo" type="text" inputmode="numeric" maxlength="11" placeholder="TC Kimlik No (11 hane)" required>
+            <input id="registerPhone" type="tel" placeholder="Telefon Numarası" required>
+            <textarea id="registerAddress" rows="3" placeholder="Adres" required></textarea>
             <input id="registerEmail" type="email" placeholder="E-posta" required>
             <input id="registerPassword" type="password" placeholder="Şifre (min 8 karakter)" minlength="8" required>
             <div id="registerTurnstile" class="turnstileSlot"></div>
             <button class="naBtn" type="submit">Kayıt Oluştur</button>
+            <a href="#" class="forgotPassBtn" id="openSignInModalFromRegister"><i class="fas fa-arrow-left"></i> Giriş penceresine dön</a>
           </form>
           <div class="formHint" id="registerFormHint"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modalWrap profileModal" id="profileModal" aria-hidden="true">
+    <div class="ifContent">
+      <a href="#" class="modalCloseBtn" id="closeProfileModal"><i class="far fa-times-circle"></i></a>
+      <div class="ifHead">
+        <div class="headLeft"><i class="fas fa-id-card"></i> Üye Profili</div>
+      </div>
+      <div class="ifMiddleWrap singlePane">
+        <div class="newAccountWrap registerStandalone">
+          <form id="profileForm" class="registerForm profileForm">
+            <input id="profileName" type="text" placeholder="İsim Soyisim" required>
+            <input id="profileIdentityNo" type="text" inputmode="numeric" maxlength="11" placeholder="TC Kimlik No (11 hane)" required>
+            <input id="profilePhone" type="tel" placeholder="Telefon Numarası" required>
+            <textarea id="profileAddress" rows="3" placeholder="Adres" required></textarea>
+            <input id="profileEmail" type="email" placeholder="E-posta" readonly>
+            <button class="naBtn" type="submit">Profili Kaydet</button>
+          </form>
+          <div class="formHint" id="profileFormHint"></div>
         </div>
       </div>
     </div>
@@ -92,6 +133,8 @@
             <span class="authStatus" id="authStatus">Misafir</span>
             <a href="/admin.html" class="hide" id="openAdminPanel"><i class="fas fa-user-shield"></i> Yonetim</a>
             <a href="#" class="signInModalBtn" id="openSignInModal"><i class="fas fa-sign-in-alt"></i> Giriş</a>
+            <a href="#" class="signInModalBtn registerBtn" id="openRegisterModal"><i class="fas fa-user-plus"></i> Kayıt Ol</a>
+            <a href="#" class="profileBtn hide" id="openProfileModal"><i class="fas fa-user-gear"></i> Profilim</a>
             <a href="/admin.html" class="adminPanelLink hide" id="adminPanelLink"><i class="fas fa-shield-halved"></i> Yönetim Paneli</a>
             <a href="#" class="signOutBtn hide" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Çıkış</a>
           </div>

@@ -173,9 +173,90 @@ async function handleApi(request, env, url) {
     });
   }
 
+  if (method === "GET" && path === "/api/auth/profile") {
+    const cfgError = requireSessionPepper(env);
+    if (cfgError) return cfgError;
+    await ensureAdminSchemaWarm(env);
+
+    const session = await getSession(request, env);
+    if (!session) return json({ ok: false, error: "Profil bilgileri icin giris yapmalisiniz." }, 401);
+
+    const profile = await env.DB.prepare(
+      `SELECT id, email, name, tc_identity_no, phone, address, email_verified_at
+       FROM users
+       WHERE id = ?
+       LIMIT 1`
+    )
+      .bind(session.user.id)
+      .first();
+
+    if (!profile) return json({ ok: false, error: "Profil bilgileri bulunamadi." }, 404);
+
+    return json({
+      ok: true,
+      profile: {
+        id: profile.id,
+        email: profile.email,
+        name: profile.name,
+        tcIdentityNo: String(profile.tc_identity_no || ""),
+        phone: String(profile.phone || ""),
+        address: String(profile.address || ""),
+        emailVerified: !!profile.email_verified_at,
+      },
+    });
+  }
+
+  if (method === "PUT" && path === "/api/auth/profile") {
+    const cfgError = requireSessionPepper(env);
+    if (cfgError) return cfgError;
+    await ensureAdminSchemaWarm(env);
+
+    const session = await getSession(request, env);
+    if (!session) return json({ ok: false, error: "Profil guncellemek icin giris yapmalisiniz." }, 401);
+
+    const body = await readJson(request);
+    const name = sanitizeName(body.name);
+    const tcIdentityNo = normalizeTcIdentityNo(body.tcIdentityNo);
+    const phone = sanitizePhone(body.phone);
+    const address = sanitizeAddress(body.address);
+
+    if (!String(name || "").trim()) return json({ ok: false, error: "Isim Soyisim zorunludur." }, 400);
+    if (!isValidTcIdentityNo(tcIdentityNo)) return json({ ok: false, error: "TC kimlik no 11 haneli olmalidir." }, 400);
+    if (!isValidPhone(phone)) return json({ ok: false, error: "Telefon numarasi gecersiz." }, 400);
+    if (!address) return json({ ok: false, error: "Adres zorunludur." }, 400);
+
+    await env.DB.prepare(
+      `UPDATE users
+       SET name = ?, tc_identity_no = ?, phone = ?, address = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`
+    )
+      .bind(name, tcIdentityNo, phone, address, session.user.id)
+      .run();
+
+    const row = await env.DB.prepare(
+      "SELECT id, email, name, tc_identity_no, phone, address FROM users WHERE id = ? LIMIT 1"
+    )
+      .bind(session.user.id)
+      .first();
+
+    return json({
+      ok: true,
+      message: "Profiliniz guncellendi.",
+      profile: {
+        id: row?.id || session.user.id,
+        email: row?.email || session.user.email,
+        name: row?.name || name,
+        tcIdentityNo: String(row?.tc_identity_no || tcIdentityNo),
+        phone: String(row?.phone || phone),
+        address: String(row?.address || address),
+      },
+    });
+  }
+
   if (method === "POST" && path === "/api/auth/register") {
     const cfgError = requireSessionPepper(env);
     if (cfgError) return cfgError;
+    await ensureAdminSchemaWarm(env);
 
     const ip = getClientIp(request);
     const limited = await checkRateLimit(env, `register:${ip}`, 8, 10 * 60);
@@ -187,7 +268,15 @@ async function handleApi(request, env, url) {
 
     const email = normalizeEmail(body.email);
     const name = sanitizeName(body.name);
+    const tcIdentityNo = normalizeTcIdentityNo(body.tcIdentityNo);
+    const phone = sanitizePhone(body.phone);
+    const address = sanitizeAddress(body.address);
     const password = String(body.password || "");
+
+    if (!String(body.name || "").trim()) return json({ ok: false, error: "Isim Soyisim zorunludur." }, 400);
+    if (!isValidTcIdentityNo(tcIdentityNo)) return json({ ok: false, error: "TC kimlik no 11 haneli olmalidir." }, 400);
+    if (!isValidPhone(phone)) return json({ ok: false, error: "Telefon numarasi gecersiz." }, 400);
+    if (!address) return json({ ok: false, error: "Adres zorunludur." }, 400);
 
     if (!isValidEmail(email)) return json({ ok: false, error: "Geçerli bir e-posta girin." }, 400);
     if (password.length < MIN_PASSWORD_LENGTH) {
@@ -202,9 +291,11 @@ async function handleApi(request, env, url) {
     const requireEmailVerification = isEmailVerificationRequired(env);
 
     await env.DB.prepare(
-      "INSERT INTO users (id, email, name, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+      `INSERT INTO users (
+        id, email, name, password_hash, tc_identity_no, phone, address, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
     )
-      .bind(userId, email, name, passwordHash)
+      .bind(userId, email, name, passwordHash, tcIdentityNo, phone, address)
       .run();
     await ensureUserRole(env, userId, email);
 
@@ -1728,6 +1819,20 @@ async function ensureAdminSchema(env) {
       console.warn("Admin schema statement hatasi:", error);
     }
   }
+
+  const userAlterStatements = [
+    "ALTER TABLE users ADD COLUMN tc_identity_no TEXT",
+    "ALTER TABLE users ADD COLUMN phone TEXT",
+    "ALTER TABLE users ADD COLUMN address TEXT",
+  ];
+
+  for (const sql of userAlterStatements) {
+    try {
+      await env.DB.prepare(sql).run();
+    } catch {
+      // duplicate column is expected on subsequent requests
+    }
+  }
 }
 
 async function ensureMarketplaceSchema(env, options: { runLegacyRepair?: boolean } = {}) {
@@ -3133,6 +3238,32 @@ function sanitizeName(name) {
   const clean = String(name || "").trim().replace(/\s+/g, " ");
   if (!clean) return "Yeni Üye";
   return clean.slice(0, 100);
+}
+
+function normalizeTcIdentityNo(value) {
+  return String(value || "")
+    .replace(/[^\d]/g, "")
+    .slice(0, 11);
+}
+
+function isValidTcIdentityNo(value) {
+  return /^\d{11}$/.test(String(value || ""));
+}
+
+function sanitizePhone(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 32);
+}
+
+function isValidPhone(value) {
+  const digits = String(value || "").replace(/[^\d]/g, "");
+  return digits.length >= 10;
+}
+
+function sanitizeAddress(value) {
+  return String(value || "").trim().slice(0, 500);
 }
 
 function isValidEmail(email) {

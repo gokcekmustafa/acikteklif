@@ -36,6 +36,49 @@ const VEHICLE_CONDITION_PARTS = [
   { key: "sol_ayna", label: "Sol Ayna" },
   { key: "sag_ayna", label: "Sag Ayna" },
 ] as const;
+const VEHICLE_BRAND_MODEL_CATALOG: Record<string, string[]> = {
+  "Alfa Romeo": ["159", "Giulia", "Giulietta", "Stelvio", "Tonale"],
+  Audi: ["A1", "A3", "A4", "A5", "A6", "A7", "A8", "Q2", "Q3", "Q5", "Q7", "Q8", "E-Tron"],
+  BMW: ["1 Serisi", "2 Serisi", "3 Serisi", "4 Serisi", "5 Serisi", "7 Serisi", "X1", "X2", "X3", "X4", "X5", "X6", "I4", "IX"],
+  BYD: ["Atto 3", "Dolphin", "Han", "Seal", "Seal U"],
+  Chery: ["Omoda 5", "Tiggo 7 Pro", "Tiggo 8 Pro"],
+  Citroen: ["Berlingo", "C3", "C4", "C4 X", "C5 Aircross", "C-Elysee", "Jumpy"],
+  Cupra: ["Ateca", "Born", "Formentor", "Leon"],
+  Dacia: ["Duster", "Jogger", "Lodgy", "Logan", "Sandero", "Spring"],
+  DS: ["DS 4", "DS 7", "DS 9"],
+  Fiat: ["500", "500e", "Doblo", "Egea", "Fiorino", "Linea", "Panda", "Punto"],
+  Ford: ["B-Max", "C-Max", "Courier", "EcoSport", "Fiesta", "Focus", "Fusion", "Kuga", "Mondeo", "Mustang", "Puma", "Ranger", "S-Max", "Tourneo", "Transit"],
+  Honda: ["Accord", "Civic", "City", "CR-V", "HR-V", "Jazz"],
+  Hyundai: ["Accent", "Accent Blue", "Bayon", "Elantra", "Getz", "I10", "I20", "I30", "Ioniq", "Kona", "Santa Fe", "Staria", "Tucson"],
+  Isuzu: ["D-Max"],
+  Jaguar: ["E-Pace", "F-Pace", "I-Pace", "XE", "XF"],
+  Jeep: ["Avenger", "Cherokee", "Compass", "Renegade", "Wrangler"],
+  Kia: ["Ceed", "Cerato", "EV6", "Niro", "Picanto", "Rio", "Sorento", "Sportage", "Stonic"],
+  "Land Rover": ["Defender", "Discovery", "Discovery Sport", "Range Rover", "Range Rover Evoque", "Range Rover Sport", "Velar"],
+  Lexus: ["ES", "IS", "NX", "RX", "UX"],
+  Maserati: ["Ghibli", "Grecale", "Levante", "Quattroporte"],
+  Mazda: ["2", "3", "6", "CX-3", "CX-30", "CX-5", "CX-60", "MX-5"],
+  "Mercedes-Benz": ["A Serisi", "B Serisi", "C Serisi", "CLA", "CLS", "E Serisi", "G Serisi", "GLA", "GLB", "GLC", "GLE", "GLS", "S Serisi", "Vito"],
+  MG: ["HS", "MG4", "Marvel R", "ZS", "ZS EV"],
+  Mini: ["Clubman", "Countryman", "Cooper", "Cooper S"],
+  Mitsubishi: ["ASX", "Colt", "Eclipse Cross", "L200", "L300", "Outlander", "Pajero"],
+  Nissan: ["Juke", "Leaf", "Micra", "Navara", "Note", "Qashqai", "X-Trail"],
+  Opel: ["Astra", "Combo", "Corsa", "Crossland", "Frontera", "Grandland", "Insignia", "Mokka", "Vivaro", "Zafira"],
+  Peugeot: ["2008", "3008", "301", "308", "408", "5008", "508", "Partner", "Rifter"],
+  Porsche: ["911", "Cayenne", "Macan", "Panamera", "Taycan"],
+  Renault: ["Captur", "Clio", "Fluence", "Kadjar", "Kangoo", "Koleos", "Laguna", "Megane", "Scenic", "Symbol", "Talisman", "Toros", "Trafic", "Twingo", "Zoe"],
+  Seat: ["Arona", "Ateca", "Ibiza", "Leon", "Tarraco", "Toledo"],
+  Skoda: ["Fabia", "Kamiq", "Karoq", "Kodiaq", "Octavia", "Rapid", "Scala", "Superb", "Yeti"],
+  Smart: ["Forfour", "Fortwo"],
+  Subaru: ["Forester", "Impreza", "Legacy", "Outback", "XV"],
+  Suzuki: ["Baleno", "Grand Vitara", "Ignis", "Jimny", "S-Cross", "Swift", "Vitara"],
+  Tesla: ["Model 3", "Model S", "Model X", "Model Y"],
+  Tofas: ["Dogan", "Kartal", "Murat", "Sahin", "Serce"],
+  Togg: ["T10F", "T10X"],
+  Toyota: ["Auris", "Avensis", "C-HR", "Camry", "Corolla", "Corolla Cross", "Hilux", "Prius", "RAV4", "Yaris", "Yaris Cross"],
+  Volkswagen: ["Amarok", "Arteon", "Caddy", "Caravelle", "Golf", "ID.3", "ID.4", "Jetta", "Passat", "Polo", "T-Cross", "T-Roc", "Tiguan", "Touareg", "Transporter"],
+  Volvo: ["C40", "S60", "S90", "V40", "V60", "XC40", "XC60", "XC90"],
+};
 
 const defaultPermissionDefs = [
   { key: "admin.panel.access", label: "Admin panel erisimi" },
@@ -80,6 +123,7 @@ const state: any = {
       cities: [],
       districts: [],
       neighborhoods: [],
+      districtsByCity: {},
     },
   },
   query: "",
@@ -695,6 +739,14 @@ function bindAuctionEvents() {
     renderAuctionVehicleSection();
   });
 
+  elements.auctionCityInput.addEventListener("change", () => {
+    fillAuctionDistrictSelect("");
+  });
+
+  elements.auctionVehicleBrandInput.addEventListener("change", () => {
+    fillAuctionVehicleModelSelect("");
+  });
+
   elements.auctionLotNoInput.addEventListener("input", () => {
     const start = elements.auctionLotNoInput.selectionStart;
     const end = elements.auctionLotNoInput.selectionEnd;
@@ -920,6 +972,14 @@ function renderAll() {
   renderCatalog();
   renderAuctions();
   renderSettings();
+  refreshAuctionLocationSelects(
+    String(elements.auctionCityInput.value || "").trim(),
+    String(elements.auctionDistrictInput.value || "").trim()
+  );
+  refreshAuctionVehicleSelects(
+    String(elements.auctionVehicleBrandInput.value || "").trim(),
+    String(elements.auctionVehicleModelInput.value || "").trim()
+  );
   if (!String(elements.auctionIdInput.value || "").trim()) {
     resetAuctionForm();
   }
@@ -1206,6 +1266,7 @@ function normalizeFilterOrderingPayload(input: any) {
     cities: [],
     districts: [],
     neighborhoods: [],
+    districtsByCity: {},
   };
   const payload = input && typeof input === "object" ? input : {};
   const order = payload.order && typeof payload.order === "object" ? payload.order : empty;
@@ -1224,6 +1285,7 @@ function normalizeFilterOrderingPayload(input: any) {
       cities: Array.isArray(options.cities) ? options.cities : [],
       districts: Array.isArray(options.districts) ? options.districts : [],
       neighborhoods: Array.isArray(options.neighborhoods) ? options.neighborhoods : [],
+      districtsByCity: normalizeDistrictsByCityMap(options.districtsByCity),
     },
   };
 }
@@ -1328,6 +1390,156 @@ function fillAuctionCategorySelect() {
   }
 }
 
+function refillSimpleSelect(select: HTMLSelectElement, values: string[], placeholder: string) {
+  const currentValue = String(select.value || "");
+  select.innerHTML = "";
+  const emptyOption = document.createElement("option");
+  emptyOption.value = "";
+  emptyOption.textContent = placeholder;
+  select.appendChild(emptyOption);
+
+  for (const value of values) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    select.appendChild(option);
+  }
+  if (currentValue) select.value = currentValue;
+}
+
+function normalizeLooseText(value: any): string {
+  return String(value || "")
+    .trim()
+    .toLocaleLowerCase("tr-TR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function uniqueTextValues(values: any[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of values || []) {
+    const value = String(raw || "").trim();
+    if (!value) continue;
+    const key = normalizeLooseText(value);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(value);
+  }
+  return out;
+}
+
+function findMatchingTextValue(values: string[], targetRaw: any): string {
+  const target = String(targetRaw || "").trim();
+  if (!target) return "";
+  if (values.includes(target)) return target;
+  const targetKey = normalizeLooseText(target);
+  return values.find((value) => normalizeLooseText(value) === targetKey) || "";
+}
+
+function normalizeDistrictsByCityMap(rawMap: any): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  if (!rawMap || typeof rawMap !== "object") return out;
+  for (const [cityRaw, districtsRaw] of Object.entries(rawMap)) {
+    const city = String(cityRaw || "").trim();
+    if (!city) continue;
+    out[city] = uniqueTextValues(Array.isArray(districtsRaw) ? districtsRaw : []);
+  }
+  return out;
+}
+
+function getAuctionCityOptions(): string[] {
+  const fromOptions = uniqueTextValues(state.filterOrdering?.options?.cities || []);
+  const fromAuctions = uniqueTextValues(state.auctions.map((row: any) => row.city));
+  return uniqueTextValues([...fromOptions, ...fromAuctions]).sort((a, b) => a.localeCompare(b, "tr"));
+}
+
+function getAuctionDistrictOptionsForCity(cityRaw: any): string[] {
+  const city = String(cityRaw || "").trim();
+  if (!city) return [];
+  const cityKey = normalizeLooseText(city);
+  const byCity = normalizeDistrictsByCityMap(state.filterOrdering?.options?.districtsByCity || {});
+
+  for (const [candidateCity, districts] of Object.entries(byCity)) {
+    if (normalizeLooseText(candidateCity) !== cityKey) continue;
+    return uniqueTextValues(Array.isArray(districts) ? districts : []).sort((a, b) => a.localeCompare(b, "tr"));
+  }
+
+  const fromAuctions = uniqueTextValues(
+    state.auctions
+      .filter((row: any) => normalizeLooseText(row.city) === cityKey)
+      .map((row: any) => String(row.district || "").trim())
+  );
+  return fromAuctions.sort((a, b) => a.localeCompare(b, "tr"));
+}
+
+function getAuctionVehicleBrands(): string[] {
+  const brandsFromCatalog = Object.keys(VEHICLE_BRAND_MODEL_CATALOG);
+  const brandsFromAuctions = state.auctions.map((row: any) => String(row.vehicle_brand || "").trim());
+  return uniqueTextValues([...brandsFromCatalog, ...brandsFromAuctions]).sort((a, b) => a.localeCompare(b, "tr"));
+}
+
+function getAuctionVehicleModelsForBrand(brandRaw: any): string[] {
+  const brand = String(brandRaw || "").trim();
+  if (!brand) return [];
+
+  const brandKey = normalizeLooseText(brand);
+  const modelsFromCatalog = Object.entries(VEHICLE_BRAND_MODEL_CATALOG)
+    .filter(([candidate]) => normalizeLooseText(candidate) === brandKey)
+    .flatMap(([, models]) => (Array.isArray(models) ? models : []));
+  const modelsFromAuctions = state.auctions
+    .filter((row: any) => normalizeLooseText(row.vehicle_brand) === brandKey)
+    .map((row: any) => String(row.vehicle_model || "").trim());
+  return uniqueTextValues([...modelsFromCatalog, ...modelsFromAuctions]).sort((a, b) => a.localeCompare(b, "tr"));
+}
+
+function fillAuctionCitySelect(preferredCity = "") {
+  const values = getAuctionCityOptions();
+  refillSimpleSelect(elements.auctionCityInput, values, "Il seciniz");
+  const matched = findMatchingTextValue(values, preferredCity);
+  elements.auctionCityInput.value = matched || "";
+}
+
+function fillAuctionDistrictSelect(preferredDistrict = "") {
+  const cityValue = String(elements.auctionCityInput.value || "").trim();
+  const values = getAuctionDistrictOptionsForCity(cityValue);
+  const placeholder = cityValue ? "Ilce seciniz" : "Once il seciniz";
+  refillSimpleSelect(elements.auctionDistrictInput, values, placeholder);
+  elements.auctionDistrictInput.disabled = !cityValue;
+  const matched = cityValue ? findMatchingTextValue(values, preferredDistrict) : "";
+  elements.auctionDistrictInput.value = matched || "";
+}
+
+function fillAuctionVehicleBrandSelect(preferredBrand = "") {
+  const values = getAuctionVehicleBrands();
+  refillSimpleSelect(elements.auctionVehicleBrandInput, values, "Marka seciniz");
+  const matched = findMatchingTextValue(values, preferredBrand);
+  elements.auctionVehicleBrandInput.value = matched || "";
+}
+
+function fillAuctionVehicleModelSelect(preferredModel = "") {
+  const brandValue = String(elements.auctionVehicleBrandInput.value || "").trim();
+  const values = getAuctionVehicleModelsForBrand(brandValue);
+  refillSimpleSelect(elements.auctionVehicleModelInput, values, "Model seciniz");
+  elements.auctionVehicleModelInput.disabled = !brandValue;
+  const matched = brandValue ? findMatchingTextValue(values, preferredModel) : "";
+  elements.auctionVehicleModelInput.value = matched || "";
+}
+
+function refreshAuctionLocationSelects(preferredCity = "", preferredDistrict = "") {
+  const currentCity = preferredCity || String(elements.auctionCityInput.value || "").trim();
+  const currentDistrict = preferredDistrict || String(elements.auctionDistrictInput.value || "").trim();
+  fillAuctionCitySelect(currentCity);
+  fillAuctionDistrictSelect(currentDistrict);
+}
+
+function refreshAuctionVehicleSelects(preferredBrand = "", preferredModel = "") {
+  const currentBrand = preferredBrand || String(elements.auctionVehicleBrandInput.value || "").trim();
+  const currentModel = preferredModel || String(elements.auctionVehicleModelInput.value || "").trim();
+  fillAuctionVehicleBrandSelect(currentBrand);
+  fillAuctionVehicleModelSelect(currentModel);
+}
+
 function fillAuctionForm(auction: any) {
   clearAuctionFieldErrors();
   elements.auctionIdInput.value = String(auction.id || "");
@@ -1348,8 +1560,7 @@ function fillAuctionForm(auction: any) {
     if (legacyImage) state.auctionImageDataUrls = [legacyImage];
   }
   renderAuctionImageGallery();
-  elements.auctionCityInput.value = String(auction.city || "");
-  elements.auctionDistrictInput.value = String(auction.district || "");
+  refreshAuctionLocationSelects(String(auction.city || ""), String(auction.district || ""));
   elements.auctionNeighborhoodInput.value = String(auction.neighborhood || "");
   elements.auctionDescriptionInput.value = String(auction.description || "");
   elements.auctionExtraEquipmentInput.value = String(auction.extra_equipment || auction.extraEquipment || "");
@@ -1357,8 +1568,7 @@ function fillAuctionForm(auction: any) {
   state.auctionDocumentFiles = normalizeUploadedFileList(auction.document_files_json || auction.documentFiles || []);
   renderAuctionFileList("expertise");
   renderAuctionFileList("document");
-  elements.auctionVehicleBrandInput.value = String(auction.vehicle_brand || "");
-  elements.auctionVehicleModelInput.value = String(auction.vehicle_model || "");
+  refreshAuctionVehicleSelects(String(auction.vehicle_brand || ""), String(auction.vehicle_model || ""));
   elements.auctionVehicleModelDetailInput.value = String(auction.vehicle_model_detail || "");
   elements.auctionVehicleYearInput.value = String(auction.vehicle_year || "");
   elements.auctionVehicleKmInput.value = String(auction.vehicle_km || "");
@@ -1645,8 +1855,7 @@ function resetAuctionForm() {
   elements.auctionStartsAtInput.value = toDateTimeLocal(startsAt.toISOString());
   elements.auctionEndsAtInput.value = toDateTimeLocal(endsAt.toISOString());
   clearAuctionImageSelection();
-  elements.auctionCityInput.value = "";
-  elements.auctionDistrictInput.value = "";
+  refreshAuctionLocationSelects("", "");
   elements.auctionNeighborhoodInput.value = "";
   elements.auctionDescriptionInput.value = "";
   elements.auctionExtraEquipmentInput.value = "";
@@ -1654,8 +1863,7 @@ function resetAuctionForm() {
   state.auctionDocumentFiles = [];
   renderAuctionFileList("expertise");
   renderAuctionFileList("document");
-  elements.auctionVehicleBrandInput.value = "";
-  elements.auctionVehicleModelInput.value = "";
+  refreshAuctionVehicleSelects("", "");
   elements.auctionVehicleModelDetailInput.value = "";
   elements.auctionVehicleYearInput.value = "";
   elements.auctionVehicleKmInput.value = "";

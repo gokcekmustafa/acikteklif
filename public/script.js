@@ -363,16 +363,34 @@ const elements = {
     cookieBanner: document.getElementById("cookieBanner"),
     cookieAccept: document.getElementById("cookieAccept"),
     signInModal: document.getElementById("signInModal"),
+    registerModal: document.getElementById("registerModal"),
+    profileModal: document.getElementById("profileModal"),
     openSignInModal: document.getElementById("openSignInModal"),
+    openRegisterModal: document.getElementById("openRegisterModal"),
+    openRegisterModalFromLogin: document.getElementById("openRegisterModalFromLogin"),
+    openSignInModalFromRegister: document.getElementById("openSignInModalFromRegister"),
+    openProfileModal: document.getElementById("openProfileModal"),
     closeSignInModal: document.getElementById("closeSignInModal"),
+    closeRegisterModal: document.getElementById("closeRegisterModal"),
+    closeProfileModal: document.getElementById("closeProfileModal"),
     loginForm: document.getElementById("loginForm"),
     loginIdentity: document.getElementById("loginIdentity"),
     loginPassword: document.getElementById("loginPassword"),
     loginFormHint: document.getElementById("loginFormHint"),
     registerForm: document.getElementById("registerForm"),
     registerName: document.getElementById("registerName"),
+    registerIdentityNo: document.getElementById("registerIdentityNo"),
+    registerPhone: document.getElementById("registerPhone"),
+    registerAddress: document.getElementById("registerAddress"),
     registerEmail: document.getElementById("registerEmail"),
     registerPassword: document.getElementById("registerPassword"),
+    profileForm: document.getElementById("profileForm"),
+    profileName: document.getElementById("profileName"),
+    profileIdentityNo: document.getElementById("profileIdentityNo"),
+    profilePhone: document.getElementById("profilePhone"),
+    profileAddress: document.getElementById("profileAddress"),
+    profileEmail: document.getElementById("profileEmail"),
+    profileFormHint: document.getElementById("profileFormHint"),
     loginTurnstile: document.getElementById("loginTurnstile"),
     registerTurnstile: document.getElementById("registerTurnstile"),
     registerFormHint: document.getElementById("registerFormHint"),
@@ -436,6 +454,7 @@ function hydrateFilterOptions() {
     const matchedBrand = findMatchingOptionValue(brandValues, previousBrand);
     elements.vehicleBrand.value = matchedBrand || "";
     refreshVehicleModelOptions(previousModel);
+    updateFilterOptionCountLabels();
 }
 function refreshDistrictOptions(preferredDistrict = "") {
     const cityValue = String(elements.city.value || "").trim();
@@ -905,17 +924,66 @@ function bindEvents() {
         event.preventDefault();
         if (state.auth.user)
             return;
-        elements.signInModal.classList.add("open");
-        elements.signInModal.setAttribute("aria-hidden", "false");
+        openModal(elements.signInModal);
+        closeModalElement(elements.registerModal);
+        closeModalElement(elements.profileModal);
+        elements.mainMenu.classList.remove("open");
+    });
+    elements.openRegisterModal.addEventListener("click", (event) => {
+        event.preventDefault();
+        if (state.auth.user)
+            return;
+        openModal(elements.registerModal);
+        closeModalElement(elements.signInModal);
+        closeModalElement(elements.profileModal);
+        elements.mainMenu.classList.remove("open");
+    });
+    elements.openRegisterModalFromLogin.addEventListener("click", (event) => {
+        event.preventDefault();
+        if (state.auth.user)
+            return;
+        closeModalElement(elements.signInModal);
+        openModal(elements.registerModal);
+    });
+    elements.openSignInModalFromRegister.addEventListener("click", (event) => {
+        event.preventDefault();
+        if (state.auth.user)
+            return;
+        closeModalElement(elements.registerModal);
+        openModal(elements.signInModal);
+    });
+    elements.openProfileModal.addEventListener("click", async (event) => {
+        event.preventDefault();
+        if (!state.auth.user)
+            return;
+        await openProfileEditor();
         elements.mainMenu.classList.remove("open");
     });
     elements.closeSignInModal.addEventListener("click", (event) => {
         event.preventDefault();
-        closeModal();
+        closeModalElement(elements.signInModal);
+    });
+    elements.closeRegisterModal.addEventListener("click", (event) => {
+        event.preventDefault();
+        closeModalElement(elements.registerModal);
+    });
+    elements.closeProfileModal.addEventListener("click", (event) => {
+        event.preventDefault();
+        closeModalElement(elements.profileModal);
     });
     elements.signInModal.addEventListener("click", (event) => {
         if (event.target === elements.signInModal) {
-            closeModal();
+            closeModalElement(elements.signInModal);
+        }
+    });
+    elements.registerModal.addEventListener("click", (event) => {
+        if (event.target === elements.registerModal) {
+            closeModalElement(elements.registerModal);
+        }
+    });
+    elements.profileModal.addEventListener("click", (event) => {
+        if (event.target === elements.profileModal) {
+            closeModalElement(elements.profileModal);
         }
     });
     elements.loginForm.addEventListener("submit", async (event) => {
@@ -925,6 +993,10 @@ function bindEvents() {
     elements.registerForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         await handleRegister();
+    });
+    elements.profileForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await handleProfileSave();
     });
     elements.forgotPassBtn.addEventListener("click", async (event) => {
         event.preventDefault();
@@ -970,15 +1042,16 @@ function updateAuthUi() {
     if (!user) {
         elements.authStatus.textContent = "Misafir";
         elements.openSignInModal.classList.remove("hide");
+        elements.openRegisterModal.classList.remove("hide");
+        elements.openProfileModal.classList.add("hide");
         elements.adminPanelLink.classList.add("hide");
         elements.logoutBtn.classList.add("hide");
         return;
     }
-    const verifiedText = state.auth.requireEmailVerification
-        ? (user.emailVerified ? "doğrulanmış" : "doğrulanmamış")
-        : "doğrulama kapalı";
-    elements.authStatus.textContent = `${user.name} (${verifiedText})`;
+    elements.authStatus.textContent = user.name || user.email || "Uye";
     elements.openSignInModal.classList.add("hide");
+    elements.openRegisterModal.classList.add("hide");
+    elements.openProfileModal.classList.remove("hide");
     const canOpenAdmin = user.permissions?.[PERMISSION_ADMIN_PANEL_ACCESS] === true;
     elements.adminPanelLink.classList.toggle("hide", !canOpenAdmin);
     elements.logoutBtn.classList.remove("hide");
@@ -1001,7 +1074,7 @@ async function handleLogin() {
         setHint(elements.loginFormHint, data.message || "Giriş başarılı.", "success");
         elements.loginForm.reset();
         resetTurnstile("login");
-        closeModal();
+        closeAuthModals();
     }
     catch (error) {
         resetTurnstile("login");
@@ -1010,29 +1083,75 @@ async function handleLogin() {
 }
 async function handleRegister() {
     const name = elements.registerName.value.trim();
+    const tcIdentityNo = elements.registerIdentityNo.value.trim();
+    const phone = elements.registerPhone.value.trim();
+    const address = elements.registerAddress.value.trim();
     const email = elements.registerEmail.value.trim();
     const password = elements.registerPassword.value;
-    if (!name || !email || !password) {
-        setHint(elements.registerFormHint, "Ad Soyad, e-posta ve şifre zorunludur.", "error");
+    if (!name || !tcIdentityNo || !phone || !address || !email || !password) {
+        setHint(elements.registerFormHint, "Isim Soyisim, TC kimlik no, telefon, adres, e-posta ve sifre zorunludur.", "error");
         return;
     }
     try {
         const turnstileToken = await getTurnstileToken("register", state.turnstile.required);
         const data = await apiFetch("/api/auth/register", {
             method: "POST",
-            body: { name, email, password, turnstileToken },
+            body: { name, tcIdentityNo, phone, address, email, password, turnstileToken },
         });
         await hydrateAuth();
-        setHint(elements.registerFormHint, data.message || "Kayıt başarılı.", "success");
+        setHint(elements.registerFormHint, data.message || "Kayit basarili.", "success");
         if (data.debugVerifyToken) {
-            setHint(elements.registerFormHint, `Kayıt başarılı. Doğrulama tokeni: ${data.debugVerifyToken}`, "success");
+            setHint(elements.registerFormHint, `Kayit basarili. Dogrulama tokeni: ${data.debugVerifyToken}`, "success");
         }
         elements.registerForm.reset();
         resetTurnstile("register");
+        closeAuthModals();
     }
     catch (error) {
         resetTurnstile("register");
         setHint(elements.registerFormHint, error.message, "error");
+    }
+}
+async function openProfileEditor() {
+    setHint(elements.profileFormHint, "Profil bilgileri yukleniyor...", "");
+    openModal(elements.profileModal);
+    try {
+        const data = await apiFetch("/api/auth/profile");
+        const profile = data.profile || {};
+        elements.profileName.value = String(profile.name || state.auth.user?.name || "");
+        elements.profileIdentityNo.value = String(profile.tcIdentityNo || "");
+        elements.profilePhone.value = String(profile.phone || "");
+        elements.profileAddress.value = String(profile.address || "");
+        elements.profileEmail.value = String(profile.email || state.auth.user?.email || "");
+        setHint(elements.profileFormHint, "", "");
+    }
+    catch (error) {
+        setHint(elements.profileFormHint, error.message, "error");
+    }
+}
+async function handleProfileSave() {
+    const name = elements.profileName.value.trim();
+    const tcIdentityNo = elements.profileIdentityNo.value.trim();
+    const phone = elements.profilePhone.value.trim();
+    const address = elements.profileAddress.value.trim();
+    if (!name || !tcIdentityNo || !phone || !address) {
+        setHint(elements.profileFormHint, "Isim Soyisim, TC kimlik no, telefon ve adres zorunludur.", "error");
+        return;
+    }
+    try {
+        const data = await apiFetch("/api/auth/profile", {
+            method: "PUT",
+            body: { name, tcIdentityNo, phone, address },
+        });
+        if (state.auth.user) {
+            state.auth.user.name = String(data.profile?.name || name);
+        }
+        updateAuthUi();
+        setHint(elements.profileFormHint, data.message || "Profiliniz guncellendi.", "success");
+        closeModalElement(elements.profileModal);
+    }
+    catch (error) {
+        setHint(elements.profileFormHint, error.message, "error");
     }
 }
 async function handleForgotPassword() {
@@ -1064,6 +1183,8 @@ async function handleLogout() {
         // noop
     }
     state.auth.user = null;
+    closeAuthModals();
+    closeModalElement(elements.profileModal);
     updateAuthUi();
     setHint(elements.loginFormHint, "Çıkış yaptınız.", "success");
 }
@@ -1166,9 +1287,101 @@ function clearFilters() {
     elements.maxPrice.value = "";
     elements.lotNo.value = "";
 }
+function buildCountScopeFilters(filterKey) {
+    const next = {
+        productGroup: String(state.filters.productGroup || ""),
+        category: String(state.filters.category || ""),
+        city: String(state.filters.city || ""),
+        district: String(state.filters.district || ""),
+        neighborhood: String(state.filters.neighborhood || ""),
+        vehicleBrand: String(state.filters.vehicleBrand || ""),
+        vehicleModel: String(state.filters.vehicleModel || ""),
+        minPrice: String(state.filters.minPrice || ""),
+        maxPrice: String(state.filters.maxPrice || ""),
+        lotNo: String(state.filters.lotNo || ""),
+    };
+    next[filterKey] = "";
+    if (filterKey === "productGroup")
+        next.category = "";
+    if (filterKey === "city") {
+        next.district = "";
+        next.neighborhood = "";
+    }
+    if (filterKey === "district") {
+        next.neighborhood = "";
+    }
+    if (filterKey === "vehicleBrand") {
+        next.vehicleModel = "";
+    }
+    return next;
+}
+function getFilterOptionValue(item, filterKey) {
+    if (filterKey === "productGroup")
+        return String(item.productGroup || "").trim();
+    if (filterKey === "category")
+        return String(item.category || "").trim();
+    if (filterKey === "city")
+        return String(item.city || "").trim();
+    if (filterKey === "district")
+        return String(item.district || "").trim();
+    if (filterKey === "neighborhood")
+        return String(item.neighborhood || "").trim();
+    if (filterKey === "vehicleBrand")
+        return String(item.vehicleBrand || "").trim();
+    if (filterKey === "vehicleModel")
+        return String(item.vehicleModel || "").trim();
+    return "";
+}
+function getFilterOptionCountMap(filterKey) {
+    const scopedFilters = buildCountScopeFilters(filterKey);
+    const scopedRows = applyFilters(state.listings.slice(), scopedFilters);
+    const counts = new Map();
+    for (const item of scopedRows) {
+        const value = getFilterOptionValue(item, filterKey);
+        if (!value)
+            continue;
+        const key = normalizeText(value);
+        counts.set(key, Number(counts.get(key) || 0) + 1);
+    }
+    return counts;
+}
+function formatOptionCount(value) {
+    return new Intl.NumberFormat("tr-TR").format(Number(value || 0));
+}
+function applyCountsToSelectOptions(selectElement, counts) {
+    if (!selectElement)
+        return;
+    const options = Array.from(selectElement.options || []);
+    for (const option of options) {
+        const rawValue = String(option.value || "").trim();
+        if (!rawValue)
+            continue;
+        const count = Number(counts.get(normalizeText(rawValue)) || 0);
+        option.textContent = `${rawValue} (${formatOptionCount(count)})`;
+    }
+}
+function updateFilterOptionCountLabels() {
+    const countMaps = {
+        productGroup: getFilterOptionCountMap("productGroup"),
+        category: getFilterOptionCountMap("category"),
+        city: getFilterOptionCountMap("city"),
+        district: getFilterOptionCountMap("district"),
+        neighborhood: getFilterOptionCountMap("neighborhood"),
+        vehicleBrand: getFilterOptionCountMap("vehicleBrand"),
+        vehicleModel: getFilterOptionCountMap("vehicleModel"),
+    };
+    applyCountsToSelectOptions(elements.productGroup, countMaps.productGroup);
+    applyCountsToSelectOptions(elements.category, countMaps.category);
+    applyCountsToSelectOptions(elements.city, countMaps.city);
+    applyCountsToSelectOptions(elements.district, countMaps.district);
+    applyCountsToSelectOptions(elements.neighborhood, countMaps.neighborhood);
+    applyCountsToSelectOptions(elements.vehicleBrand, countMaps.vehicleBrand);
+    applyCountsToSelectOptions(elements.vehicleModel, countMaps.vehicleModel);
+}
 function render() {
     const filtered = applyFilters(state.listings.slice());
     const sorted = applySort(filtered);
+    updateFilterOptionCountLabels();
     elements.listingBoxes.innerHTML = sorted.map(renderCard).join("");
     if (sorted.length < 1) {
         const message = state.listingLoadError || "Seçiminize uygun ihale yok.";
@@ -1190,15 +1403,15 @@ function shouldUseLocalFallback() {
     const params = new URLSearchParams(window.location.search);
     return params.get("fallback") === "1";
 }
-function applyFilters(data) {
-    const groupFilter = normalizeText(state.filters.productGroup);
-    const categoryFilter = normalizeText(state.filters.category);
-    const cityFilter = normalizeText(state.filters.city);
-    const districtFilter = normalizeText(state.filters.district);
-    const neighborhoodFilter = normalizeText(state.filters.neighborhood);
-    const brandFilter = normalizeText(state.filters.vehicleBrand);
-    const modelFilter = normalizeText(state.filters.vehicleModel);
-    const lotNoFilter = normalizeText(state.filters.lotNo);
+function applyFilters(data, filters = state.filters) {
+    const groupFilter = normalizeText(filters.productGroup);
+    const categoryFilter = normalizeText(filters.category);
+    const cityFilter = normalizeText(filters.city);
+    const districtFilter = normalizeText(filters.district);
+    const neighborhoodFilter = normalizeText(filters.neighborhood);
+    const brandFilter = normalizeText(filters.vehicleBrand);
+    const modelFilter = normalizeText(filters.vehicleModel);
+    const lotNoFilter = normalizeText(filters.lotNo);
     return data.filter((item) => {
         if (!passesTabFilter(item, state.tab))
             return false;
@@ -1216,8 +1429,8 @@ function applyFilters(data) {
             return false;
         if (modelFilter && normalizeText(item.vehicleModel) !== modelFilter)
             return false;
-        const minPrice = Number(state.filters.minPrice || 0);
-        const maxPrice = Number(state.filters.maxPrice || Number.POSITIVE_INFINITY);
+        const minPrice = Number(filters.minPrice || 0);
+        const maxPrice = Number(filters.maxPrice || Number.POSITIVE_INFINITY);
         if (item.startPrice < minPrice || item.startPrice > maxPrice)
             return false;
         if (lotNoFilter && !normalizeText(item.lotNo).includes(lotNoFilter))
@@ -1313,8 +1526,7 @@ function renderCard(item) {
 async function handleBid(button) {
     if (!state.auth.user) {
         setHint(elements.loginFormHint, "Teklif verebilmek için giriş yapmalısınız.", "error");
-        elements.signInModal.classList.add("open");
-        elements.signInModal.setAttribute("aria-hidden", "false");
+        openModal(elements.signInModal);
         return;
     }
     if (state.auth.user.permissions?.[PERMISSION_BIDS_PLACE] === false) {
@@ -1448,9 +1660,21 @@ function addTime(days, hours, minutes, seconds) {
     current.setSeconds(current.getSeconds() + seconds);
     return current.toISOString();
 }
-function closeModal() {
-    elements.signInModal.classList.remove("open");
-    elements.signInModal.setAttribute("aria-hidden", "true");
+function openModal(modalElement) {
+    if (!modalElement)
+        return;
+    modalElement.classList.add("open");
+    modalElement.setAttribute("aria-hidden", "false");
+}
+function closeModalElement(modalElement) {
+    if (!modalElement)
+        return;
+    modalElement.classList.remove("open");
+    modalElement.setAttribute("aria-hidden", "true");
+}
+function closeAuthModals() {
+    closeModalElement(elements.signInModal);
+    closeModalElement(elements.registerModal);
 }
 function setHint(target, text, type) {
     target.textContent = text || "";

@@ -184,6 +184,10 @@ button {
   gap: 20px;
 }
 
+.modalWrap .ifMiddleWrap.singlePane {
+  grid-template-columns: 1fr;
+}
+
 .form-group {
   margin: 16px 0;
   position: relative;
@@ -247,12 +251,21 @@ button {
   font-size: 13px;
 }
 
+.registerForm .forgotPassBtn {
+  margin-top: 2px;
+}
+
 .newAccountWrap {
   border: 1px solid #dbe5ee;
   border-radius: 16px;
   background: #f7fafc;
   padding: 20px;
   align-self: flex-start;
+}
+
+.newAccountWrap.registerStandalone {
+  width: min(640px, 100%);
+  margin: 0 auto;
 }
 
 .newAccountWrap .naHead {
@@ -298,9 +311,27 @@ button {
   outline: none;
 }
 
-.registerForm input:focus {
+.registerForm textarea {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  outline: none;
+  resize: vertical;
+  min-height: 86px;
+  background: #fff;
+}
+
+.registerForm input:focus,
+.registerForm textarea:focus {
   border-color: #8cb8cc;
   box-shadow: 0 0 0 4px rgba(20, 98, 126, 0.15);
+}
+
+.profileForm input[readonly] {
+  background: #edf2f6;
+  color: #627688;
+  cursor: not-allowed;
 }
 
 .turnstileSlot {
@@ -442,7 +473,7 @@ button {
   border: 1px solid #b8c9d8;
   border-radius: 999px;
   padding: 10px 18px;
-  margin-left: 14px;
+  margin-left: 10px;
   font-weight: 700;
 }
 
@@ -453,6 +484,31 @@ button {
 }
 
 .headerRight a.signInModalBtn:hover i {
+  color: #fff;
+}
+
+.headerRight a.registerBtn {
+  border-color: #173652;
+  background: #173652;
+  color: #fff;
+}
+
+.headerRight a.registerBtn:hover {
+  border-color: #11283b;
+  background: #11283b;
+}
+
+.headerRight .profileBtn {
+  border: 1px solid #b8c9d8;
+  border-radius: 999px;
+  padding: 10px 18px;
+  margin-left: 10px;
+  font-weight: 700;
+}
+
+.headerRight .profileBtn:hover {
+  background: #173652;
+  border-color: #173652;
   color: #fff;
 }
 
@@ -1218,6 +1274,11 @@ button {
   }
 
   .headerRight a.signInModalBtn {
+    margin: 0;
+    border-radius: 30px;
+  }
+
+  .headerRight .profileBtn {
     margin: 0;
     border-radius: 30px;
   }
