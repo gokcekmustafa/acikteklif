@@ -92,7 +92,6 @@ const elements = {
   expertiseConditionMap: document.getElementById("expertiseConditionMap"),
   expertiseStructureList: document.getElementById("expertiseStructureList"),
   expertiseMechanicalList: document.getElementById("expertiseMechanicalList"),
-  expertiseFiles: document.getElementById("expertiseFiles"),
   documentFiles: document.getElementById("documentFiles"),
 };
 
@@ -142,7 +141,6 @@ async function loadAuctionDetail() {
   const data = await apiFetch(`/api/auctions/${encodeURIComponent(state.lotNo)}`);
   const item = data.item || {};
   const gallery = normalizeGallery(item.gallery || item.gallery_json || [], item.image_url);
-  const expertiseFiles = normalizeFiles(item.expertise_files || item.expertise_files_json || []);
   const documentFiles = normalizeFiles(item.document_files || item.document_files_json || []);
   const equipment = splitEquipment(String(item.extra_equipment || ""));
   const vehicleConditionMap = normalizeVehicleConditionMap(
@@ -156,7 +154,6 @@ async function loadAuctionDetail() {
     ...item,
     lot_no: String(item.lot_no || state.lotNo || "").toUpperCase(),
     gallery,
-    expertise_files: expertiseFiles,
     document_files: documentFiles,
     vehicle_condition_map: vehicleConditionMap,
     vehicle_expertise_meta: vehicleExpertiseMeta,
@@ -181,8 +178,7 @@ function renderAll() {
   renderInfoCards();
   renderDescription();
   renderVehicleConditionMap();
-  renderFileBlocks("expertise");
-  renderFileBlocks("document");
+  renderDocumentFiles();
 }
 
 function renderTabs() {
@@ -340,10 +336,10 @@ function renderExpertiseStatusRow(label, value, statusClass) {
   `;
 }
 
-function renderFileBlocks(mode) {
-  const isExpertise = mode === "expertise";
-  const target = isExpertise ? elements.expertiseFiles : elements.documentFiles;
-  const files = isExpertise ? state.item?.expertise_files || [] : state.item?.document_files || [];
+function renderDocumentFiles() {
+  const target = elements.documentFiles;
+  if (!target) return;
+  const files = state.item?.document_files || [];
   if (files.length < 1) {
     target.innerHTML = '<div class="empty">Kayıt bulunmuyor.</div>';
     return;
@@ -351,7 +347,7 @@ function renderFileBlocks(mode) {
 
   target.innerHTML = files
     .map((file, index) => {
-      const name = escapeHtml(file.name || `${isExpertise ? "Ekspertiz" : "Dokuman"} ${index + 1}`);
+      const name = escapeHtml(file.name || `Dokuman ${index + 1}`);
       const href = escapeHtml(file.dataUrl || "");
       const isImage = String(file.type || "").toLowerCase().startsWith("image/");
       const icon = isImage ? "fa-image" : "fa-file-pdf";
@@ -646,7 +642,6 @@ function showPageError(message) {
   if (elements.expertiseStructureList) elements.expertiseStructureList.innerHTML = "";
   if (elements.expertiseMechanicalList) elements.expertiseMechanicalList.innerHTML = "";
   if (elements.expertiseTireList) elements.expertiseTireList.innerHTML = "";
-  elements.expertiseFiles.innerHTML = '<div class="empty">Kayıt bulunmuyor.</div>';
   elements.documentFiles.innerHTML = '<div class="empty">Kayıt bulunmuyor.</div>';
   elements.galleryMainImage.src = DEFAULT_IMAGE;
   elements.galleryThumbs.innerHTML = "";

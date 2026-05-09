@@ -397,8 +397,6 @@ function getAuctionFieldBinding(fieldKey: AuctionFieldKey): AuctionFieldBinding 
   if (fieldKey === "startPrice") return { key: fieldKey, label: "Baslangic Bedeli", element: elements.auctionStartPriceInput };
   if (fieldKey === "minIncrement") return { key: fieldKey, label: "Minimum Artis", element: elements.auctionMinIncrementInput };
   if (fieldKey === "images") return { key: fieldKey, label: "Arac Gorselleri", element: elements.auctionImageDropzone };
-  if (fieldKey === "expertiseFiles")
-    return { key: fieldKey, label: "Ekspertiz Dosyalari", element: elements.auctionExpertiseDropzone };
   if (fieldKey === "documentFiles")
     return { key: fieldKey, label: "Dokumanlar", element: elements.auctionDocumentDropzone };
   return null;
@@ -416,6 +414,8 @@ init().catch((error: any) => {
 });
 
 async function init() {
+  const expertiseUploadBlock = elements.auctionExpertiseDropzone?.closest(".uploadBlock") as HTMLElement | null;
+  if (expertiseUploadBlock) expertiseUploadBlock.classList.add("hide");
   markRequiredAuctionLabels();
   setStatus("Veriler yukleniyor...", "warn");
   await bootstrapData();
@@ -1832,7 +1832,7 @@ function fillAuctionForm(auction: any) {
   elements.auctionNeighborhoodInput.value = "";
   elements.auctionDescriptionInput.value = String(auction.description || "");
   elements.auctionExtraEquipmentInput.value = String(auction.extra_equipment || auction.extraEquipment || "");
-  state.auctionExpertiseFiles = normalizeUploadedFileList(auction.expertise_files_json || auction.expertiseFiles || []);
+  state.auctionExpertiseFiles = [];
   state.auctionDocumentFiles = normalizeUploadedFileList(auction.document_files_json || auction.documentFiles || []);
   renderAuctionFileList("expertise");
   renderAuctionFileList("document");
@@ -1897,7 +1897,7 @@ function readAuctionFormPayload() {
     vehicleExpertiseMeta: readVehicleExpertiseMetaFromForm(),
     imageUrl: imageList[0] || "",
     images: imageList,
-    expertiseFiles: normalizeUploadedFileList(state.auctionExpertiseFiles || []),
+    expertiseFiles: [],
     documentFiles: normalizeUploadedFileList(state.auctionDocumentFiles || []),
   };
 }
@@ -1985,7 +1985,7 @@ function clearAuctionFieldErrors() {
   for (const hint of hints) {
     hint.remove();
   }
-  const allKeys: AuctionFieldKey[] = [...AUCTION_REQUIRED_FIELD_KEYS, "images", "expertiseFiles", "documentFiles"];
+  const allKeys: AuctionFieldKey[] = [...AUCTION_REQUIRED_FIELD_KEYS, "images", "documentFiles"];
   for (const key of allKeys) {
     const binding = getAuctionFieldBinding(key);
     if (!binding) continue;
@@ -2054,14 +2054,6 @@ function validateAuctionFormPayload(payload: any): AuctionValidationIssue[] {
   const galleryBytes = getGalleryTotalBytes(payload.images || []);
   if (galleryBytes > MAX_AUCTION_GALLERY_TOTAL_BYTES) {
     addIssue("images", `Gorsellerin toplam boyutu cok buyuk. En fazla ${formatBytes(MAX_AUCTION_GALLERY_TOTAL_BYTES)} olabilir.`);
-  }
-
-  const expertiseBytes = getReportTotalBytes(payload.expertiseFiles || []);
-  if (expertiseBytes > MAX_AUCTION_REPORT_TOTAL_BYTES) {
-    addIssue(
-      "expertiseFiles",
-      `Ekspertiz dosyalarinin toplam boyutu cok buyuk. En fazla ${formatBytes(MAX_AUCTION_REPORT_TOTAL_BYTES)} olabilir.`
-    );
   }
 
   const documentBytes = getReportTotalBytes(payload.documentFiles || []);
@@ -2138,9 +2130,6 @@ function parseAuctionValidationIssuesFromMessage(messageRaw: string): AuctionVal
   }
   if (message.includes("gorsel") && message.includes("cok buyuk")) {
     addIssue("images", "Gorsel boyutu buyuk. Daha kucuk gorseller kullanin.");
-  }
-  if (message.includes("ekspertiz") && message.includes("toplam boyut")) {
-    addIssue("expertiseFiles", "Ekspertiz dosyalarinin toplam boyutu fazla.");
   }
   if (message.includes("dokuman") && message.includes("toplam boyut")) {
     addIssue("documentFiles", "Dokumanlarin toplam boyutu fazla.");
