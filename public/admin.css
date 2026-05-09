@@ -513,6 +513,7 @@ body.modalOpen {
   width: 100%;
   height: auto;
   display: block;
+  shape-rendering: geometricPrecision;
 }
 
 .conditionBaseImage {
@@ -552,11 +553,21 @@ body.modalOpen {
 
 .conditionSvgPart text {
   fill: #ffffff;
-  font-size: 25px;
-  font-weight: 800;
-  font-family: "Manrope", sans-serif;
-  letter-spacing: 0.01em;
+  font-size: 23px;
+  font-weight: 900;
+  font-family: "Segoe UI", "Tahoma", sans-serif;
+  letter-spacing: 0;
   pointer-events: none;
+  paint-order: stroke fill;
+  stroke: rgba(14, 35, 66, 0.85);
+  stroke-width: 2.6px;
+  stroke-linejoin: round;
+  text-rendering: geometricPrecision;
+}
+
+.conditionSvgPart text.is-long {
+  font-size: 18px;
+  stroke-width: 2.3px;
 }
 
 .conditionSvgPart.original path {

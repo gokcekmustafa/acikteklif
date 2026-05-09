@@ -2286,7 +2286,7 @@ function renderAuctionVehicleConditionMap() {
       <g class="conditionSvgPart ${statusClass}" data-part-key="${part.key}" role="button" aria-label="${escapeHtml(part.label)} ${escapeHtml(getVehicleConditionStatusLabel(status))}">
         <path d="${path}" fill-rule="evenodd" clip-rule="evenodd"></path>
         ${shouldShowCode
-            ? `<text x="${Number(pos[0])}" y="${Number(pos[1])}" text-anchor="middle" dominant-baseline="middle">${escapeHtml(code)}</text>`
+            ? `<text class="conditionCode ${code.length > 1 ? "is-long" : "is-short"}" x="${Number(pos[0])}" y="${Number(pos[1])}" text-anchor="middle" dominant-baseline="middle" text-rendering="geometricPrecision">${escapeHtml(code)}</text>`
             : ""}
       </g>
     `;

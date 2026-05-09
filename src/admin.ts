@@ -2502,7 +2502,9 @@ function renderAuctionVehicleConditionMap() {
     )} ${escapeHtml(getVehicleConditionStatusLabel(status))}">
         <path d="${path}" fill-rule="evenodd" clip-rule="evenodd"></path>
         ${shouldShowCode
-          ? `<text x="${Number(pos[0])}" y="${Number(pos[1])}" text-anchor="middle" dominant-baseline="middle">${escapeHtml(
+          ? `<text class="conditionCode ${code.length > 1 ? "is-long" : "is-short"}" x="${Number(pos[0])}" y="${Number(
+              pos[1]
+            )}" text-anchor="middle" dominant-baseline="middle" text-rendering="geometricPrecision">${escapeHtml(
               code
             )}</text>`
           : ""}
