@@ -505,6 +505,11 @@ function ensureVehicleConditionLayoutEditorMarkup() {
   elements.auctionVehicleConditionResetPartBtn = byId("auctionVehicleConditionResetPartBtn");
   elements.auctionVehicleConditionResetLayoutBtn = byId("auctionVehicleConditionResetLayoutBtn");
   elements.auctionVehicleConditionSaveLayoutBtn = byId("auctionVehicleConditionSaveLayoutBtn");
+
+  const toolbar = editor.querySelector("#auctionVehicleConditionToolbar") as HTMLElement | null;
+  if (toolbar && toolbar.nextElementSibling !== mapRoot) {
+    mapRoot.insertAdjacentElement("beforebegin", toolbar);
+  }
 }
 
 init().catch((error: any) => {

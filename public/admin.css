@@ -584,9 +584,9 @@ body.modalOpen {
   background: #ffffff;
   padding: 3px;
   flex: 1;
-  min-height: 540px;
+  min-height: 500px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
 }
 
