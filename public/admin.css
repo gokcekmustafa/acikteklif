@@ -469,8 +469,8 @@ body.modalOpen {
 .conditionToolbar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 5px;
+  flex-wrap: nowrap;
 }
 
 .conditionStateBtn {
@@ -478,11 +478,23 @@ body.modalOpen {
   background: #fff;
   color: #203d61;
   border-radius: 999px;
-  padding: 6px 10px;
+  padding: 5px 8px;
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+#auctionVehicleConditionResetBtn {
+  margin-left: auto;
+  padding: 4px 8px;
+  font-size: 0.7rem;
+  line-height: 1.1;
+  white-space: nowrap;
+  border-radius: 8px;
+  flex: 0 0 auto;
 }
 
 .conditionStateBtn:hover {
