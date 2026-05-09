@@ -985,6 +985,23 @@ function bindAuctionEvents() {
             setStatus("Ihale duzenleme penceresi acildi.", "ok");
             return;
         }
+        if (action === "toggle-auction-status") {
+            const nextStatusRaw = String(btn.dataset.nextStatus || "").trim().toUpperCase();
+            const nextStatus = nextStatusRaw === "PASSIVE" ? "PASSIVE" : nextStatusRaw === "ACTIVE" ? "ACTIVE" : "";
+            if (!nextStatus)
+                return;
+            await safeAction(btn, async () => {
+                await apiFetch(`/api/admin/auctions/${encodeURIComponent(auctionId)}/status`, {
+                    method: "POST",
+                    body: { status: nextStatus },
+                });
+                await loadAuctions();
+                renderAuctions();
+                renderStats();
+                setStatus(nextStatus === "PASSIVE" ? "Ihale pasife alindi." : "Ihale aktif edildi.", "ok");
+            });
+            return;
+        }
         if (action === "delete-auction") {
             if (!confirm(`"${auction.lot_no}" nolu ihaleyi silmek istiyor musunuz?`))
                 return;
@@ -1420,6 +1437,9 @@ function renderAuctions() {
         .map((auction) => {
         const statusKey = String(auction.status || "").toUpperCase();
         const statusClass = statusKey === "ACTIVE" ? "ok" : statusKey === "PASSIVE" ? "warn" : "danger";
+        const canToggleActivePassive = statusKey === "ACTIVE" || statusKey === "PASSIVE";
+        const nextStatus = statusKey === "PASSIVE" ? "ACTIVE" : "PASSIVE";
+        const nextStatusLabel = statusKey === "PASSIVE" ? "Aktif Et" : "Pasif Et";
         return `
         <tr>
           <td>${escapeHtml(auction.lot_no || "-")}</td>
@@ -1431,6 +1451,9 @@ function renderAuctions() {
           <td><span class="pill ${statusClass}">${escapeHtml(formatAuctionStatus(auction.status))}</span></td>
           <td>
             <div class="rowActions">
+              ${canToggleActivePassive
+            ? `<button class="miniBtn ${statusKey === "PASSIVE" ? "success" : ""}" data-action="toggle-auction-status" data-id="${escapeHtml(auction.id)}" data-next-status="${escapeHtml(nextStatus)}">${nextStatusLabel}</button>`
+            : ""}
               <button class="miniBtn" data-action="edit-auction" data-id="${escapeHtml(auction.id)}">Duzenle</button>
               <button class="miniBtn danger" data-action="delete-auction" data-id="${escapeHtml(auction.id)}">Sil</button>
             </div>

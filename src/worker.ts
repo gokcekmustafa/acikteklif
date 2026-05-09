@@ -1109,6 +1109,35 @@ async function handleApi(request, env, url) {
     }
 
     const auctionMatch = path.match(/^\/api\/admin\/auctions\/([^/]+)$/);
+    const auctionStatusMatch = path.match(/^\/api\/admin\/auctions\/([^/]+)\/status$/);
+    if (auctionStatusMatch && method === "POST") {
+      if (!actorAccess.permissions[PERMISSIONS.AUCTIONS_EDIT] && !actorAccess.permissions[PERMISSIONS.AUCTIONS_CLOSE]) {
+        return json({ ok: false, error: "İhale durumunu değiştirme yetkiniz yok." }, 403);
+      }
+
+      const auctionId = decodeURIComponent(String(auctionStatusMatch[1] || ""));
+      const body = await readJson(request);
+      const statusRaw = String(body.status || "").trim().toUpperCase();
+      const status = statusRaw === "PASSIVE" ? "PASSIVE" : statusRaw === "ACTIVE" ? "ACTIVE" : "";
+      if (!status) {
+        return json({ ok: false, error: "Geçersiz ihale durumu." }, 400);
+      }
+
+      const result = await env.DB.prepare(
+        `UPDATE auctions
+         SET status = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`
+      )
+        .bind(status, auctionId)
+        .run();
+      if ((result.meta?.changes || 0) < 1) {
+        return json({ ok: false, error: "İhale bulunamadı." }, 404);
+      }
+
+      await writeAdminAuditLog(env, session.user.id, null, "auction.status", { auctionId, status });
+      return json({ ok: true, message: status === "PASSIVE" ? "İhale pasife alındı." : "İhale aktif edildi." });
+    }
+
     if (auctionMatch && method === "PUT") {
       if (!actorAccess.permissions[PERMISSIONS.AUCTIONS_EDIT]) {
         return json({ ok: false, error: "İhale düzenleme yetkiniz yok." }, 403);

@@ -98,7 +98,6 @@ const elements = {
   expertiseConditionMap: document.getElementById("expertiseConditionMap"),
   expertiseStructureList: document.getElementById("expertiseStructureList"),
   expertiseMechanicalList: document.getElementById("expertiseMechanicalList"),
-  expertiseTireList: document.getElementById("expertiseTireList"),
   expertiseFiles: document.getElementById("expertiseFiles"),
   documentFiles: document.getElementById("documentFiles"),
 };
@@ -294,7 +293,7 @@ function renderVehicleConditionMap() {
   }).join("");
 
   elements.expertiseConditionMap.innerHTML = `
-    <svg class="conditionSvg" viewBox="0 0 400 500" role="img" aria-label="Arac kaporta durum haritasi">
+    <svg class="conditionSvg" viewBox="26 0 348 500" role="img" aria-label="Arac kaporta durum haritasi">
       <g class="conditionBodyShell">
         <path d="M142 54 Q200 36 258 54 L292 146 L292 354 L258 456 Q200 474 142 456 L108 354 L108 146 Z"></path>
         <path d="M148 222 Q200 206 252 222 L258 328 Q200 346 142 328 Z"></path>
@@ -317,6 +316,7 @@ function renderVehicleExpertiseDetails() {
   const meta = normalizeVehicleExpertiseMeta(state.item?.vehicle_expertise_meta || {});
   const structure = meta.structure || {};
   const mechanical = meta.mechanical || {};
+  const tireStatus = normalizeVehicleExpertiseTireStatus(meta.tires?.general) || "IYI";
 
   if (elements.expertiseStructureList) {
     elements.expertiseStructureList.innerHTML = VEHICLE_EXPERTISE_STRUCTURE_FIELDS.map((field) => {
@@ -326,19 +326,18 @@ function renderVehicleExpertiseDetails() {
   }
 
   if (elements.expertiseMechanicalList) {
-    elements.expertiseMechanicalList.innerHTML = VEHICLE_EXPERTISE_MECHANICAL_FIELDS.map((field) => {
+    const mechanicalRows = VEHICLE_EXPERTISE_MECHANICAL_FIELDS.map((field) => {
       const status = normalizeVehicleExpertiseMechanicalStatus(mechanical[field.key]) || "NORMAL";
       return renderExpertiseStatusRow(field.label, getVehicleExpertiseMechanicalStatusLabel(status), status.toLowerCase());
-    }).join("");
-  }
-
-  if (elements.expertiseTireList) {
-    const tireStatus = normalizeVehicleExpertiseTireStatus(meta.tires?.general) || "IYI";
-    elements.expertiseTireList.innerHTML = renderExpertiseStatusRow(
-      "Lastiklerin Genel Durumu",
-      getVehicleExpertiseTireStatusLabel(tireStatus),
-      tireStatus.toLowerCase()
+    });
+    mechanicalRows.push(
+      renderExpertiseStatusRow(
+        "Lastiklerin Genel Durumu",
+        getVehicleExpertiseTireStatusLabel(tireStatus),
+        tireStatus.toLowerCase()
+      )
     );
+    elements.expertiseMechanicalList.innerHTML = mechanicalRows.join("");
   }
 }
 
