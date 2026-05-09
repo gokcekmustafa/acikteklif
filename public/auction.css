@@ -243,7 +243,7 @@ body {
 .vehicleConditionBlock {
   border: 1px solid var(--line);
   border-radius: 11px;
-  background: #f6f2e8;
+  background: #ffffff;
   padding: 10px;
   display: flex;
   flex-direction: column;
@@ -294,9 +294,9 @@ body {
 }
 
 .conditionMap {
-  border: 1px solid #d9ceb5;
+  border: 1px solid #d8e1ee;
   border-radius: 12px;
-  background: #f2ecde;
+  background: #ffffff;
   padding: 3px;
   max-width: 460px;
   margin: 0 auto;
@@ -397,9 +397,9 @@ body {
 }
 
 .conditionListCard {
-  border: 1px solid #ded5c0;
+  border: 1px solid #d8e1ee;
   border-radius: 10px;
-  background: #fbf8f1;
+  background: #ffffff;
   padding: 8px;
   min-height: 100%;
 }
