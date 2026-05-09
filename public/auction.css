@@ -421,7 +421,7 @@ body {
 .expertiseStatusRow {
   border: 1px solid #e1d8c6;
   border-radius: 9px;
-  background: #fffdf8;
+  background: #ffffff;
   padding: 6px 8px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
