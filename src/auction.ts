@@ -221,6 +221,7 @@ function renderInfoCards() {
     infoRow("Model", item.vehicle_model || "-"),
     infoRow("Model Yılı", item.vehicle_year ? String(item.vehicle_year) : "-"),
     infoRow("Model Detayı", item.vehicle_model_detail || "-"),
+    infoRow("Sase No", item.vehicle_chassis_no || "-"),
     infoRow("Kilometre", item.vehicle_km !== null && item.vehicle_km !== undefined ? `${item.vehicle_km}` : "-"),
     infoRow("Renk", item.vehicle_color || "-"),
     infoRow("Yakıt Tipi", item.vehicle_fuel_type || "-"),
@@ -557,3 +558,4 @@ async function apiFetch(path, options = {}) {
   }
   return data;
 }
+

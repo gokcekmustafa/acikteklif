@@ -1008,10 +1008,10 @@ async function handleApi(request, env, url) {
             product_group_id, category_id, city, district, neighborhood, image_url, gallery_json, description, extra_equipment,
             expertise_files_json, document_files_json,
             vehicle_brand, vehicle_model, vehicle_model_detail, vehicle_year, vehicle_km, vehicle_fuel_type,
-            vehicle_transmission, vehicle_body_type, vehicle_color, vehicle_engine_volume, vehicle_engine_power, vehicle_drive_type,
+            vehicle_transmission, vehicle_body_type, vehicle_color, vehicle_chassis_no, vehicle_engine_volume, vehicle_engine_power, vehicle_drive_type,
             vehicle_condition_map_json,
             created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, NULL, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+          ) VALUES (?, ?, ?, ?, ?, NULL, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
         )
           .bind(
             crypto.randomUUID(),
@@ -1043,6 +1043,7 @@ async function handleApi(request, env, url) {
             validation.vehicleTransmission,
             validation.vehicleBodyType,
             validation.vehicleColor,
+            validation.vehicleChassisNo,
             validation.vehicleEngineVolume,
             validation.vehicleEnginePower,
             validation.vehicleDriveType,
@@ -1897,6 +1898,7 @@ async function ensureMarketplaceSchema(env, options: { runLegacyRepair?: boolean
     "ALTER TABLE auctions ADD COLUMN vehicle_transmission TEXT",
     "ALTER TABLE auctions ADD COLUMN vehicle_body_type TEXT",
     "ALTER TABLE auctions ADD COLUMN vehicle_color TEXT",
+    "ALTER TABLE auctions ADD COLUMN vehicle_chassis_no TEXT",
     "ALTER TABLE auctions ADD COLUMN vehicle_engine_volume TEXT",
     "ALTER TABLE auctions ADD COLUMN vehicle_engine_power TEXT",
     "ALTER TABLE auctions ADD COLUMN vehicle_drive_type TEXT",
@@ -1966,7 +1968,7 @@ async function getAdminAuctionsList(env) {
       a.created_at, a.updated_at, a.product_group_id, a.category_id, a.city, a.district, a.neighborhood, a.image_url,
       a.gallery_json, a.extra_equipment, a.expertise_files_json, a.document_files_json,
       a.description, a.vehicle_brand, a.vehicle_model, a.vehicle_model_detail, a.vehicle_year, a.vehicle_km,
-      a.vehicle_fuel_type, a.vehicle_transmission, a.vehicle_body_type, a.vehicle_color, a.vehicle_engine_volume,
+      a.vehicle_fuel_type, a.vehicle_transmission, a.vehicle_body_type, a.vehicle_color, a.vehicle_chassis_no, a.vehicle_engine_volume,
       a.vehicle_engine_power, a.vehicle_drive_type, a.vehicle_condition_map_json,
       pg.name AS product_group, c.name AS category
      FROM auctions a
@@ -2001,7 +2003,7 @@ async function getPublicAuctionDetailByLotNo(env, lotNo: string) {
       a.product_group_id, a.category_id, a.city, a.district, a.neighborhood, a.image_url, a.gallery_json,
       a.description, a.extra_equipment, a.expertise_files_json, a.document_files_json,
       a.vehicle_brand, a.vehicle_model, a.vehicle_model_detail, a.vehicle_year, a.vehicle_km,
-      a.vehicle_fuel_type, a.vehicle_transmission, a.vehicle_body_type, a.vehicle_color, a.vehicle_engine_volume,
+      a.vehicle_fuel_type, a.vehicle_transmission, a.vehicle_body_type, a.vehicle_color, a.vehicle_chassis_no, a.vehicle_engine_volume,
       a.vehicle_engine_power, a.vehicle_drive_type, a.vehicle_condition_map_json,
       pg.name AS product_group, c.name AS category
      FROM auctions a
@@ -2706,6 +2708,10 @@ async function validateAuctionPayload(env, body) {
   const vehicleTransmission = String(body.vehicleTransmission || "").trim().slice(0, 80);
   const vehicleBodyType = String(body.vehicleBodyType || "").trim().slice(0, 80);
   const vehicleColor = String(body.vehicleColor || "").trim().slice(0, 80);
+  const vehicleChassisNo = String(body.vehicleChassisNo || body.vehicle_chassis_no || "")
+    .trim()
+    .toUpperCase()
+    .slice(0, 80);
   const vehicleEngineVolume = String(body.vehicleEngineVolume || "").trim().slice(0, 80);
   const vehicleEnginePower = String(body.vehicleEnginePower || "").trim().slice(0, 80);
   const vehicleDriveType = String(body.vehicleDriveType || "").trim().slice(0, 80);
@@ -2822,6 +2828,7 @@ async function validateAuctionPayload(env, body) {
     vehicleTransmission,
     vehicleBodyType,
     vehicleColor,
+    vehicleChassisNo,
     vehicleEngineVolume,
     vehicleEnginePower,
     vehicleDriveType,
@@ -2852,7 +2859,7 @@ async function updateAuctionRecord(env, auctionId: string, validation: any) {
          product_group_id = ?, category_id = ?, city = ?, district = ?, neighborhood = ?, image_url = ?, gallery_json = ?,
          description = ?, extra_equipment = ?, expertise_files_json = ?, document_files_json = ?,
          vehicle_brand = ?, vehicle_model = ?, vehicle_model_detail = ?, vehicle_year = ?, vehicle_km = ?, vehicle_fuel_type = ?,
-         vehicle_transmission = ?, vehicle_body_type = ?, vehicle_color = ?, vehicle_engine_volume = ?, vehicle_engine_power = ?, vehicle_drive_type = ?,
+         vehicle_transmission = ?, vehicle_body_type = ?, vehicle_color = ?, vehicle_chassis_no = ?, vehicle_engine_volume = ?, vehicle_engine_power = ?, vehicle_drive_type = ?,
          vehicle_condition_map_json = ?,
          updated_at = CURRENT_TIMESTAMP
      WHERE id = ?`
@@ -2885,6 +2892,7 @@ async function updateAuctionRecord(env, auctionId: string, validation: any) {
       validation.vehicleTransmission,
       validation.vehicleBodyType,
       validation.vehicleColor,
+      validation.vehicleChassisNo,
       validation.vehicleEngineVolume,
       validation.vehicleEnginePower,
       validation.vehicleDriveType,

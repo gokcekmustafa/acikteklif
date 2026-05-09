@@ -217,6 +217,7 @@ const elements = {
     auctionVehicleTransmissionInput: byId("auctionVehicleTransmissionInput"),
     auctionVehicleBodyTypeInput: byId("auctionVehicleBodyTypeInput"),
     auctionVehicleColorInput: byId("auctionVehicleColorInput"),
+    auctionVehicleChassisNoInput: byId("auctionVehicleChassisNoInput"),
     auctionVehicleEngineVolumeInput: byId("auctionVehicleEngineVolumeInput"),
     auctionVehicleEnginePowerInput: byId("auctionVehicleEnginePowerInput"),
     auctionVehicleDriveTypeInput: byId("auctionVehicleDriveTypeInput"),
@@ -710,6 +711,14 @@ function bindAuctionEvents() {
         elements.auctionLotNoInput.value = String(elements.auctionLotNoInput.value || "").toUpperCase();
         if (start !== null && end !== null) {
             elements.auctionLotNoInput.setSelectionRange(start, end);
+        }
+    });
+    elements.auctionVehicleChassisNoInput.addEventListener("input", () => {
+        const start = elements.auctionVehicleChassisNoInput.selectionStart;
+        const end = elements.auctionVehicleChassisNoInput.selectionEnd;
+        elements.auctionVehicleChassisNoInput.value = String(elements.auctionVehicleChassisNoInput.value || "").toUpperCase();
+        if (start !== null && end !== null) {
+            elements.auctionVehicleChassisNoInput.setSelectionRange(start, end);
         }
     });
     const closeDatePicker = (input) => {
@@ -1299,6 +1308,7 @@ function renderAuctions() {
             auction.vehicle_brand,
             auction.vehicle_model,
             auction.vehicle_model_detail,
+            auction.vehicle_chassis_no,
             auction.status,
         ]
             .map((item) => String(item || "").toLowerCase())
@@ -1550,6 +1560,7 @@ function fillAuctionForm(auction) {
     elements.auctionVehicleTransmissionInput.value = String(auction.vehicle_transmission || "");
     elements.auctionVehicleBodyTypeInput.value = String(auction.vehicle_body_type || "");
     elements.auctionVehicleColorInput.value = String(auction.vehicle_color || "");
+    elements.auctionVehicleChassisNoInput.value = String(auction.vehicle_chassis_no || "");
     elements.auctionVehicleEngineVolumeInput.value = String(auction.vehicle_engine_volume || "");
     elements.auctionVehicleEnginePowerInput.value = String(auction.vehicle_engine_power || "");
     elements.auctionVehicleDriveTypeInput.value = String(auction.vehicle_drive_type || "");
@@ -1586,6 +1597,7 @@ function readAuctionFormPayload() {
         vehicleTransmission: String(elements.auctionVehicleTransmissionInput.value || "").trim(),
         vehicleBodyType: String(elements.auctionVehicleBodyTypeInput.value || "").trim(),
         vehicleColor: String(elements.auctionVehicleColorInput.value || "").trim(),
+        vehicleChassisNo: String(elements.auctionVehicleChassisNoInput.value || "").trim(),
         vehicleEngineVolume: String(elements.auctionVehicleEngineVolumeInput.value || "").trim(),
         vehicleEnginePower: String(elements.auctionVehicleEnginePowerInput.value || "").trim(),
         vehicleDriveType: String(elements.auctionVehicleDriveTypeInput.value || "").trim(),
@@ -1837,6 +1849,7 @@ function resetAuctionForm() {
     elements.auctionVehicleTransmissionInput.value = "";
     elements.auctionVehicleBodyTypeInput.value = "";
     elements.auctionVehicleColorInput.value = "";
+    elements.auctionVehicleChassisNoInput.value = "";
     elements.auctionVehicleEngineVolumeInput.value = "";
     elements.auctionVehicleEnginePowerInput.value = "";
     elements.auctionVehicleDriveTypeInput.value = "";
