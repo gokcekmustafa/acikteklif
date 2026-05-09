@@ -640,6 +640,21 @@ body.modalOpen {
   shape-rendering: auto;
 }
 
+.conditionSvgPart.part-sol_on_kapi path,
+.conditionSvgPart.part-sag_on_kapi path,
+.conditionSvgPart.part-sol_arka_kapi path,
+.conditionSvgPart.part-sag_arka_kapi path {
+  stroke-width: 1.45;
+  stroke: #d8dfe9;
+}
+
+.conditionSvgPart.is-layout-selected.part-sol_on_kapi path,
+.conditionSvgPart.is-layout-selected.part-sag_on_kapi path,
+.conditionSvgPart.is-layout-selected.part-sol_arka_kapi path,
+.conditionSvgPart.is-layout-selected.part-sag_arka_kapi path {
+  stroke-width: 2.1;
+}
+
 .conditionSvgPart.is-layout-selected path {
   stroke: #122f5d;
   stroke-width: 3;

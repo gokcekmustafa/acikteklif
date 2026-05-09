@@ -284,13 +284,14 @@ function renderVehicleConditionMap() {
   const partsMarkup = VEHICLE_CONDITION_PARTS.map((part) => {
     const status = map[part.key] || VEHICLE_CONDITION_DEFAULT_STATUS;
     const statusClass = getVehicleConditionStatusClass(status);
+    const partClass = `part-${part.key}`;
     const shouldShowCode = status !== VEHICLE_CONDITION_DEFAULT_STATUS;
     const pos = VEHICLE_CONDITION_TEXT_POSITIONS[part.key] || [200, 250];
     const path = VEHICLE_CONDITION_PART_PATHS[part.key] || "";
     const offset = layout[part.key] || { x: 0, y: 0 };
     const transform = offset.x !== 0 || offset.y !== 0 ? ` transform="translate(${offset.x} ${offset.y})"` : "";
     return `
-      <g class="conditionSvgPart ${statusClass}" data-part-key="${part.key}"${transform}>
+      <g class="conditionSvgPart ${statusClass} ${partClass}" data-part-key="${part.key}"${transform}>
         <path d="${path}" fill-rule="evenodd" clip-rule="evenodd"></path>
         ${shouldShowCode
           ? `<text class="conditionCode ${

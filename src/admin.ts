@@ -2697,6 +2697,7 @@ function renderAuctionVehicleConditionMap() {
   const partsMarkup = VEHICLE_CONDITION_PARTS.map((part) => {
     const status = map[part.key] || VEHICLE_CONDITION_DEFAULT_STATUS;
     const statusClass = getVehicleConditionStatusClass(status);
+    const partClass = `part-${part.key}`;
     const shouldShowCode = status !== VEHICLE_CONDITION_DEFAULT_STATUS;
     const code = shouldShowCode ? getVehicleConditionStatusCode(status) : "";
     const pos = VEHICLE_CONDITION_TEXT_POSITIONS[part.key] || [200, 250];
@@ -2705,7 +2706,7 @@ function renderAuctionVehicleConditionMap() {
     const transform = offset.x !== 0 || offset.y !== 0 ? ` transform="translate(${offset.x} ${offset.y})"` : "";
     const selectedClass = part.key === state.auctionVehicleConditionSelectedPart ? "is-layout-selected" : "";
     return `
-      <g class="conditionSvgPart ${statusClass} ${selectedClass}" data-part-key="${part.key}" role="button" aria-label="${escapeHtml(
+      <g class="conditionSvgPart ${statusClass} ${selectedClass} ${partClass}" data-part-key="${part.key}" role="button" aria-label="${escapeHtml(
       part.label
     )} ${escapeHtml(getVehicleConditionStatusLabel(status))}"${transform}>
         <path d="${path}" fill-rule="evenodd" clip-rule="evenodd"></path>
