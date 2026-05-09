@@ -301,8 +301,8 @@ body {
   border: 1px solid #d9ceb5;
   border-radius: 12px;
   background: #f2ecde;
-  padding: 6px 8px;
-  max-width: 430px;
+  padding: 3px;
+  max-width: 460px;
   margin: 0 auto;
 }
 
@@ -344,7 +344,7 @@ body {
 
 .conditionSvgPart text {
   fill: #ffffff;
-  font-size: 23px;
+  font-size: 19px;
   font-weight: 900;
   letter-spacing: 0;
   font-family: "Segoe UI", "Tahoma", sans-serif;
@@ -354,7 +354,7 @@ body {
 }
 
 .conditionSvgPart text.is-long {
-  font-size: 18px;
+  font-size: 15px;
 }
 
 .conditionSvgPart.original path {

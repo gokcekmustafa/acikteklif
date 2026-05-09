@@ -499,7 +499,7 @@ body.modalOpen {
   border: 1px solid #d8cfbe;
   border-radius: 10px;
   background: #f2ecde;
-  padding: 8px;
+  padding: 3px;
 }
 
 .expertiseEditorLayout {
@@ -555,7 +555,7 @@ body.modalOpen {
 
 .conditionSvgPart text {
   fill: #ffffff;
-  font-size: 23px;
+  font-size: 19px;
   font-weight: 900;
   font-family: "Segoe UI", "Tahoma", sans-serif;
   letter-spacing: 0;
@@ -566,7 +566,7 @@ body.modalOpen {
 }
 
 .conditionSvgPart text.is-long {
-  font-size: 18px;
+  font-size: 15px;
 }
 
 .conditionSvgPart.original path {

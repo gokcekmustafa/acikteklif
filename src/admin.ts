@@ -2498,7 +2498,7 @@ function renderAuctionVehicleConditionMap() {
   }).join("");
 
   elements.auctionVehicleConditionMap.innerHTML = `
-    <svg class="conditionSvg conditionSvgInteractive" viewBox="0 0 467 551" role="img" aria-label="Arac kaporta durum haritasi">
+    <svg class="conditionSvg conditionSvgInteractive" viewBox="44 84 380 440" role="img" aria-label="Arac kaporta durum haritasi">
       <image class="conditionBaseImage" href="/kaporta-base.png" x="0" y="0" width="467" height="551" preserveAspectRatio="xMidYMid meet"></image>
       ${partsMarkup}
     </svg>
