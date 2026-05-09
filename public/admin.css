@@ -644,15 +644,15 @@ body.modalOpen {
 .conditionSvgPart.part-sag_on_kapi path,
 .conditionSvgPart.part-sol_arka_kapi path,
 .conditionSvgPart.part-sag_arka_kapi path {
-  stroke-width: 1.45;
-  stroke: #d8dfe9;
+  stroke-width: 0.05;
+  stroke: transparent;
 }
 
 .conditionSvgPart.is-layout-selected.part-sol_on_kapi path,
 .conditionSvgPart.is-layout-selected.part-sag_on_kapi path,
 .conditionSvgPart.is-layout-selected.part-sol_arka_kapi path,
 .conditionSvgPart.is-layout-selected.part-sag_arka_kapi path {
-  stroke-width: 2.1;
+  stroke-width: 1.25;
 }
 
 .conditionSvgPart.is-layout-selected path {
