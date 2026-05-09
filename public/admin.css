@@ -477,14 +477,7 @@ body.modalOpen {
 
 .conditionLayoutTools {
   display: grid;
-  grid-template-columns:
-    minmax(120px, 1.1fr)
-    minmax(90px, 0.7fr)
-    minmax(92px, 0.7fr)
-    minmax(60px, 0.45fr)
-    minmax(60px, 0.45fr)
-    auto
-    auto;
+  grid-template-columns: minmax(140px, 1.2fr) minmax(90px, 0.7fr) minmax(92px, 0.7fr) minmax(70px, 0.5fr) minmax(70px, 0.5fr);
   gap: 6px;
   align-items: end;
 }
@@ -518,25 +511,29 @@ body.modalOpen {
 }
 
 .conditionMovePad {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, auto));
+  grid-column: 1 / span 3;
+  display: flex;
   gap: 4px;
   align-items: end;
 }
 
 .conditionMovePad .miniBtn {
-  min-width: 30px;
+  min-width: 34px;
+  min-height: 30px;
   padding: 5px 0;
 }
 
 .conditionScalePad {
+  grid-column: 4 / -1;
   display: flex;
   align-items: end;
+  justify-content: flex-end;
   gap: 4px;
 }
 
 .conditionScalePad .miniBtn {
-  min-width: 30px;
+  min-width: 34px;
+  min-height: 30px;
   padding: 5px 6px;
 }
 
