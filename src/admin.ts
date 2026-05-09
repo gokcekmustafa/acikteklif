@@ -770,7 +770,8 @@ function bindAuctionEvents() {
   });
 
   elements.auctionCityInput.addEventListener("change", () => {
-    fillAuctionDistrictSelect("");
+    elements.auctionDistrictInput.value = "";
+    elements.auctionNeighborhoodInput.value = "";
   });
 
   elements.auctionVehicleBrandInput.addEventListener("change", () => {
@@ -1002,10 +1003,7 @@ function renderAll() {
   renderCatalog();
   renderAuctions();
   renderSettings();
-  refreshAuctionLocationSelects(
-    String(elements.auctionCityInput.value || "").trim(),
-    String(elements.auctionDistrictInput.value || "").trim()
-  );
+  refreshAuctionLocationSelects(String(elements.auctionCityInput.value || "").trim());
   refreshAuctionVehicleSelects(
     String(elements.auctionVehicleBrandInput.value || "").trim(),
     String(elements.auctionVehicleModelInput.value || "").trim()
@@ -1652,11 +1650,12 @@ function fillAuctionVehicleModelSelect(preferredModel = "") {
   elements.auctionVehicleModelInput.value = matched || "";
 }
 
-function refreshAuctionLocationSelects(preferredCity = "", preferredDistrict = "") {
+function refreshAuctionLocationSelects(preferredCity = "") {
   const currentCity = preferredCity || String(elements.auctionCityInput.value || "").trim();
-  const currentDistrict = preferredDistrict || String(elements.auctionDistrictInput.value || "").trim();
   fillAuctionCitySelect(currentCity);
-  fillAuctionDistrictSelect(currentDistrict);
+  fillAuctionDistrictSelect("");
+  elements.auctionDistrictInput.value = "";
+  elements.auctionNeighborhoodInput.value = "";
 }
 
 function refreshAuctionVehicleSelects(preferredBrand = "", preferredModel = "") {
@@ -1686,8 +1685,8 @@ function fillAuctionForm(auction: any) {
     if (legacyImage) state.auctionImageDataUrls = [legacyImage];
   }
   renderAuctionImageGallery();
-  refreshAuctionLocationSelects(String(auction.city || ""), String(auction.district || ""));
-  elements.auctionNeighborhoodInput.value = String(auction.neighborhood || "");
+  refreshAuctionLocationSelects(String(auction.city || ""));
+  elements.auctionNeighborhoodInput.value = "";
   elements.auctionDescriptionInput.value = String(auction.description || "");
   elements.auctionExtraEquipmentInput.value = String(auction.extra_equipment || auction.extraEquipment || "");
   state.auctionExpertiseFiles = normalizeUploadedFileList(auction.expertise_files_json || auction.expertiseFiles || []);
@@ -1728,8 +1727,8 @@ function readAuctionFormPayload() {
     startsAt: toIsoFromDateTimeLocal(startsAtLocal),
     endsAt: toIsoFromDateTimeLocal(endsAtLocal),
     city: String(elements.auctionCityInput.value || "").trim(),
-    district: String(elements.auctionDistrictInput.value || "").trim(),
-    neighborhood: String(elements.auctionNeighborhoodInput.value || "").trim(),
+    district: "",
+    neighborhood: "",
     description: String(elements.auctionDescriptionInput.value || "").trim(),
     extraEquipment: String(elements.auctionExtraEquipmentInput.value || "").trim(),
     vehicleBrand: String(elements.auctionVehicleBrandInput.value || "").trim(),
@@ -1981,7 +1980,7 @@ function resetAuctionForm() {
   elements.auctionStartsAtInput.value = toDateTimeLocal(startsAt.toISOString());
   elements.auctionEndsAtInput.value = toDateTimeLocal(endsAt.toISOString());
   clearAuctionImageSelection();
-  refreshAuctionLocationSelects("", "");
+  refreshAuctionLocationSelects("");
   elements.auctionNeighborhoodInput.value = "";
   elements.auctionDescriptionInput.value = "";
   elements.auctionExtraEquipmentInput.value = "";

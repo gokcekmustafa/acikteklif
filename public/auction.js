@@ -144,7 +144,7 @@ function renderAll() {
         return;
     }
     elements.auctionTitle.textContent = `${item.title || "İhale"} (${item.lot_no || "-"})`;
-    elements.auctionMeta.textContent = `${item.product_group || "Genel"} / ${item.category || "Genel"} | ${item.city || "-"} / ${item.district || "-"} / ${item.neighborhood || "-"}`;
+    elements.auctionMeta.textContent = `${item.product_group || "Genel"} / ${item.category || "Genel"} | ${item.city || "-"}`;
     renderGallery();
     renderTabs();
     renderInfoCards();
@@ -195,7 +195,7 @@ function setActiveImage(index) {
 function renderInfoCards() {
     const item = state.item || {};
     const basicRows = [
-        infoRow("Konum", `${item.city || "-"} / ${item.district || "-"} / ${item.neighborhood || "-"}`),
+        infoRow("Konum", `${item.city || "-"}`),
         infoRow("Kategori", `${item.product_group || "-"} / ${item.category || "-"}`),
         infoRow("Marka", item.vehicle_brand || "-"),
         infoRow("Model", item.vehicle_model || "-"),

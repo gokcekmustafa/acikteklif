@@ -442,8 +442,6 @@ function hydrateFilterOptions() {
   const previousGroup = String(state.filters.productGroup || elements.productGroup.value || "").trim();
   const previousCategory = String(state.filters.category || elements.category.value || "").trim();
   const previousCity = String(state.filters.city || elements.city.value || "").trim();
-  const previousDistrict = String(state.filters.district || elements.district.value || "").trim();
-  const previousNeighborhood = String(state.filters.neighborhood || elements.neighborhood.value || "").trim();
   const previousBrand = String(state.filters.vehicleBrand || elements.vehicleBrand.value || "").trim();
   const previousModel = String(state.filters.vehicleModel || elements.vehicleModel.value || "").trim();
 
@@ -467,8 +465,8 @@ function hydrateFilterOptions() {
   const matchedCity = findMatchingOptionValue(state.filterOptions.cities, previousCity);
   elements.city.value = matchedCity || "";
 
-  refreshDistrictOptions(previousDistrict);
-  refreshNeighborhoodOptions(previousNeighborhood);
+  refreshDistrictOptions("");
+  refreshNeighborhoodOptions("");
 
   const brandValues = state.filterOptions.vehicleBrands || [];
   refillSelect(elements.vehicleBrand, brandValues, LABEL_ALL_BRANDS);
@@ -963,10 +961,8 @@ function bindEvents() {
   });
 
   elements.city.addEventListener("change", () => {
-    const previousDistrict = String(elements.district.value || "").trim();
-    const previousNeighborhood = String(elements.neighborhood.value || "").trim();
-    refreshDistrictOptions(previousDistrict);
-    refreshNeighborhoodOptions(previousNeighborhood);
+    refreshDistrictOptions("");
+    refreshNeighborhoodOptions("");
     applyFiltersAndRender();
   });
 
@@ -1376,8 +1372,8 @@ function readFiltersFromForm() {
     productGroup: ONLY_AUTOMOBILE_MODE ? AUTOMOBILE_PRODUCT_GROUP : elements.productGroup.value,
     category: elements.category.value,
     city: elements.city.value,
-    district: elements.district.value,
-    neighborhood: elements.neighborhood.value,
+    district: "",
+    neighborhood: "",
     vehicleBrand: elements.vehicleBrand.value,
     vehicleModel: elements.vehicleModel.value,
     minPrice: elements.minPrice.value,
@@ -1420,8 +1416,8 @@ function buildCountScopeFilters(filterKey) {
     productGroup: String(state.filters.productGroup || ""),
     category: String(state.filters.category || ""),
     city: String(state.filters.city || ""),
-    district: String(state.filters.district || ""),
-    neighborhood: String(state.filters.neighborhood || ""),
+    district: "",
+    neighborhood: "",
     vehicleBrand: String(state.filters.vehicleBrand || ""),
     vehicleModel: String(state.filters.vehicleModel || ""),
     minPrice: String(state.filters.minPrice || ""),
@@ -1432,13 +1428,7 @@ function buildCountScopeFilters(filterKey) {
   next[filterKey] = "";
 
   if (filterKey === "productGroup") next.category = "";
-  if (filterKey === "city") {
-    next.district = "";
-    next.neighborhood = "";
-  }
-  if (filterKey === "district") {
-    next.neighborhood = "";
-  }
+  if (filterKey === "city") next.district = "";
   if (filterKey === "vehicleBrand") {
     next.vehicleModel = "";
   }
@@ -1491,8 +1481,6 @@ function updateFilterOptionCountLabels() {
     productGroup: getFilterOptionCountMap("productGroup"),
     category: getFilterOptionCountMap("category"),
     city: getFilterOptionCountMap("city"),
-    district: getFilterOptionCountMap("district"),
-    neighborhood: getFilterOptionCountMap("neighborhood"),
     vehicleBrand: getFilterOptionCountMap("vehicleBrand"),
     vehicleModel: getFilterOptionCountMap("vehicleModel"),
   };
@@ -1500,8 +1488,6 @@ function updateFilterOptionCountLabels() {
   applyCountsToSelectOptions(elements.productGroup, countMaps.productGroup);
   applyCountsToSelectOptions(elements.category, countMaps.category);
   applyCountsToSelectOptions(elements.city, countMaps.city);
-  applyCountsToSelectOptions(elements.district, countMaps.district);
-  applyCountsToSelectOptions(elements.neighborhood, countMaps.neighborhood);
   applyCountsToSelectOptions(elements.vehicleBrand, countMaps.vehicleBrand);
   applyCountsToSelectOptions(elements.vehicleModel, countMaps.vehicleModel);
 }
@@ -1537,8 +1523,6 @@ function applyFilters(data, filters = state.filters) {
   const groupFilter = normalizeText(filters.productGroup);
   const categoryFilter = normalizeText(filters.category);
   const cityFilter = normalizeText(filters.city);
-  const districtFilter = normalizeText(filters.district);
-  const neighborhoodFilter = normalizeText(filters.neighborhood);
   const brandFilter = normalizeText(filters.vehicleBrand);
   const modelFilter = normalizeText(filters.vehicleModel);
   const lotNoFilter = normalizeText(filters.lotNo);
@@ -1548,8 +1532,6 @@ function applyFilters(data, filters = state.filters) {
     if (groupFilter && normalizeText(item.productGroup) !== groupFilter) return false;
     if (categoryFilter && normalizeText(item.category) !== categoryFilter) return false;
     if (cityFilter && normalizeText(item.city) !== cityFilter) return false;
-    if (districtFilter && normalizeText(item.district) !== districtFilter) return false;
-    if (neighborhoodFilter && normalizeText(item.neighborhood) !== neighborhoodFilter) return false;
     if (brandFilter && normalizeText(item.vehicleBrand) !== brandFilter) return false;
     if (modelFilter && normalizeText(item.vehicleModel) !== modelFilter) return false;
 
@@ -1631,9 +1613,7 @@ function renderCard(item) {
           <a href="${escapeHtml(item.detailUrl || buildAuctionDetailUrl(item.lotNo))}" class="headline">
             <h1><span>${escapeHtml(item.title)} (${escapeHtml(item.lotNo)})</span></h1>
           </a>
-          <div class="location"><i class="fas fa-map-marker-alt"></i> <span>${escapeHtml(
-            `${item.city} / ${item.district} / ${item.neighborhood}`
-          )}</span></div>
+          <div class="location"><i class="fas fa-map-marker-alt"></i> <span>${escapeHtml(item.city || "-")}</span></div>
           <h2 class="type"><i class="far fa-car"></i> <span>${escapeHtml(`${item.productGroup} / ${item.category}`)}</span></h2>
           ${vehicleHtml}
           <div class="counterWrap">
