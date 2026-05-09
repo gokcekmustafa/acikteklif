@@ -389,11 +389,10 @@ body {
   border-radius: 9px;
   background: #fffdf8;
   padding: 6px 8px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: flex-start;
-  gap: 6px;
-  flex-wrap: wrap;
+  column-gap: 6px;
 }
 
 .expertiseStatusLabel {
@@ -412,6 +411,9 @@ body {
   background: #f5f9ff;
   color: #1f3f63;
   white-space: nowrap;
+  justify-self: end;
+  text-align: center;
+  min-width: 106px;
 }
 
 .expertiseStatusValue.original,
