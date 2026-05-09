@@ -96,6 +96,7 @@ const LABEL_ALL_DISTRICTS = "Tüm İlçeler";
 const LABEL_ALL_NEIGHBORHOODS = "Tüm Mahalleler";
 const LABEL_ALL_BRANDS = "Tüm Markalar";
 const LABEL_ALL_MODELS = "Tüm Modeller";
+const NEW_LISTING_WINDOW_DAYS = 30;
 const VEHICLE_BRAND_MODEL_CATALOG = {
     "Alfa Romeo": ["159", "Giulia", "Giulietta", "Stelvio", "Tonale"],
     "Audi": ["A1", "A3", "A4", "A5", "A6", "A7", "A8", "Q2", "Q3", "Q5", "Q7", "Q8", "E-Tron"],
@@ -738,6 +739,54 @@ function normalizeText(value) {
         .replaceAll("ş", "s")
         .replaceAll("ü", "u");
 }
+function parseDateMs(value) {
+    const raw = String(value || "").trim();
+    if (!raw)
+        return Number.NaN;
+    const direct = Date.parse(raw);
+    if (Number.isFinite(direct))
+        return direct;
+    const normalized = raw.replace(" ", "T");
+    const normalizedParsed = Date.parse(normalized);
+    if (Number.isFinite(normalizedParsed))
+        return normalizedParsed;
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(normalized)) {
+        const utcParsed = Date.parse(`${normalized}Z`);
+        if (Number.isFinite(utcParsed))
+            return utcParsed;
+    }
+    return Number.NaN;
+}
+function isWithinLastDays(value, days) {
+    const timestamp = parseDateMs(value);
+    if (!Number.isFinite(timestamp))
+        return false;
+    const now = Date.now();
+    const windowMs = Math.max(1, Number(days) || 0) * 24 * 60 * 60 * 1000;
+    return timestamp >= now - windowMs;
+}
+function readBooleanValue(...values) {
+    for (const value of values) {
+        if (typeof value === "boolean")
+            return value;
+        if (typeof value === "number") {
+            if (value === 1)
+                return true;
+            if (value === 0)
+                return false;
+            continue;
+        }
+        const raw = String(value ?? "").trim();
+        if (!raw)
+            continue;
+        const folded = raw.toLocaleLowerCase("tr-TR");
+        if (["1", "true", "evet", "yes"].includes(folded))
+            return true;
+        if (["0", "false", "hayir", "hayır", "no"].includes(folded))
+            return false;
+    }
+    return null;
+}
 function toListingModel(item, index) {
     const lotNo = String(item?.lot_no || item?.lotNo || "").trim().toUpperCase();
     const fallback = fallbackListingByLotNo.get(lotNo) || {};
@@ -748,7 +797,12 @@ function toListingModel(item, index) {
     const minIncrement = Number.isFinite(Number(minIncrementRaw)) ? Number(minIncrementRaw) : guessIncrement({ startPrice });
     const endAt = String(item?.ends_at || item?.endAt || fallback.endAt || addTime(0, 1, 0, 0));
     const status = String(item?.status || fallback.status || "ACTIVE").toUpperCase();
-    const createdAt = String(item?.created_at || item?.createdAt || fallback.createdAt || new Date().toISOString());
+    const createdAt = String(item?.created_at ||
+        item?.createdAt ||
+        item?.starts_at ||
+        item?.startsAt ||
+        fallback.createdAt ||
+        new Date().toISOString());
     const productGroup = String(item?.product_group || item?.productGroup || fallback.productGroup || "Genel");
     const category = String(item?.category || fallback.category || "Genel");
     const city = String(item?.city || fallback.city || "Belirtilmemiş");
@@ -762,6 +816,8 @@ function toListingModel(item, index) {
     const vehicleYear = Number(item?.vehicle_year || item?.vehicleYear || 0);
     const vehicleKm = Number(item?.vehicle_km || item?.vehicleKm || 0);
     const detailUrl = buildAuctionDetailUrl(lotNo || fallback.lotNo || `LOT${String(index + 1).padStart(3, "0")}`);
+    const isNewExplicit = readBooleanValue(item?.is_new, item?.isNew, item?.new);
+    const isNewComputed = isWithinLastDays(createdAt, NEW_LISTING_WINDOW_DAYS);
     return {
         id: item?.id || fallback.id || lotNo || String(index + 1),
         lotNo: lotNo || fallback.lotNo || `LOT${String(index + 1).padStart(3, "0")}`,
@@ -774,7 +830,7 @@ function toListingModel(item, index) {
         startPrice: Number.isFinite(startPrice) ? startPrice : 0,
         lastBid: Number.isFinite(currentBid) ? currentBid : null,
         hasOffer: Number.isFinite(currentBid) && currentBid > 0,
-        isNew: fallback.isNew ?? false,
+        isNew: isNewExplicit ?? fallback.isNew ?? isNewComputed,
         isOpportunity: fallback.isOpportunity ?? false,
         priceDropped: fallback.priceDropped ?? false,
         endAt,
