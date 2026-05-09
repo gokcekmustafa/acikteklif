@@ -72,7 +72,6 @@ const elements = {
     basicInfoGrid: document.getElementById("basicInfoGrid"),
     auctionInfoGrid: document.getElementById("auctionInfoGrid"),
     descriptionBox: document.getElementById("descriptionBox"),
-    equipmentList: document.getElementById("equipmentList"),
     expertiseConditionMap: document.getElementById("expertiseConditionMap"),
     paintedPartsList: document.getElementById("paintedPartsList"),
     changedPartsList: document.getElementById("changedPartsList"),
@@ -149,7 +148,6 @@ function renderAll() {
     renderTabs();
     renderInfoCards();
     renderDescription();
-    renderEquipment();
     renderVehicleConditionMap();
     renderFileBlocks("expertise");
     renderFileBlocks("document");
@@ -227,14 +225,6 @@ function renderInfoCards() {
 function renderDescription() {
     const text = String(state.item?.description || "").trim();
     elements.descriptionBox.textContent = text || "Açıklama girilmemiş.";
-}
-function renderEquipment() {
-    const rows = Array.isArray(state.item?.equipment) ? state.item.equipment : [];
-    if (rows.length < 1) {
-        elements.equipmentList.innerHTML = '<li>Ek donanım bilgisi girilmemiş.</li>';
-        return;
-    }
-    elements.equipmentList.innerHTML = rows.map((line) => `<li>${escapeHtml(line)}</li>`).join("");
 }
 function renderVehicleConditionMap() {
     if (!elements.expertiseConditionMap)
