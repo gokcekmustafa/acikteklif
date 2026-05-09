@@ -473,6 +473,9 @@ body.modalOpen {
   align-items: center;
   gap: 5px;
   flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 1px;
 }
 
 .conditionLayoutTools {
@@ -582,9 +585,16 @@ body.modalOpen {
   border: 1px solid #d8cfbe;
   border-radius: 10px;
   background: #ffffff;
-  padding: 3px;
+  padding: 6px;
   flex: 1;
   min-height: 540px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 6px;
+}
+
+.conditionMapCanvas {
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
