@@ -57,6 +57,9 @@ const MAX_VEHICLE_EXPERTISE_META_JSON_LENGTH = 12000;
 const FILTER_ORDER_SETTING_KEY = "filter_option_order";
 const VEHICLE_CONDITION_LAYOUT_SETTING_KEY = "vehicle_condition_layout_v1";
 const VEHICLE_CONDITION_LAYOUT_MAX_OFFSET = 200;
+const VEHICLE_CONDITION_SCALE_SETTING_KEY = "vehicle_condition_scale_v1";
+const VEHICLE_CONDITION_SCALE_MIN = 0.7;
+const VEHICLE_CONDITION_SCALE_MAX = 1.7;
 const DEFAULT_TURKEY_CITIES = TURKEY_CITIES as readonly string[];
 const VEHICLE_CONDITION_PART_KEYS = [
   "on_tampon",
@@ -599,6 +602,7 @@ async function handleApi(request, env, url) {
       ok: true,
       item: detail,
       vehicleConditionLayout: await getVehicleConditionLayoutSafe(env),
+      vehicleConditionScale: await getVehicleConditionScaleSafe(env),
     });
   }
 
@@ -720,6 +724,7 @@ async function handleApi(request, env, url) {
         ? await getPublicFilterOptionsSafe(env)
         : { order: emptyFilterOrderOption(), options: emptyFilterOrderOption() };
       const vehicleConditionLayout = await getVehicleConditionLayoutSafe(env);
+      const vehicleConditionScale = await getVehicleConditionScaleSafe(env);
 
       return json({
         ok: true,
@@ -740,6 +745,7 @@ async function handleApi(request, env, url) {
         auctions,
         filterOrdering,
         vehicleConditionLayout,
+        vehicleConditionScale,
       });
     }
 
@@ -778,6 +784,7 @@ async function handleApi(request, env, url) {
       return json({
         ok: true,
         layout: await getVehicleConditionLayoutSafe(env),
+        scale: await getVehicleConditionScaleSafe(env),
       });
     }
 
@@ -786,15 +793,31 @@ async function handleApi(request, env, url) {
         return json({ ok: false, error: "Sema ayari guncelleme yetkiniz yok." }, 403);
       }
       const body = await readJson(request);
-      const layout = normalizeVehicleConditionLayoutInput(body?.layout ?? body ?? {});
+      const source = parseJsonObjectFromUnknown(body);
+      const hasLayoutPayload =
+        source.layout !== undefined ||
+        source.parts !== undefined ||
+        source.offsets !== undefined ||
+        VEHICLE_CONDITION_PART_KEYS.some((partKey) => source[partKey] !== undefined);
+      const hasScalePayload = source.scale !== undefined;
+
+      const layout = hasLayoutPayload
+        ? normalizeVehicleConditionLayoutInput(source.layout ?? source)
+        : await getVehicleConditionLayoutSafe(env);
+      const scale = hasScalePayload
+        ? normalizeVehicleConditionScale(source.scale)
+        : await getVehicleConditionScaleSafe(env);
       await setAppSettingJsonSafe(env, VEHICLE_CONDITION_LAYOUT_SETTING_KEY, layout, session.user.id);
+      await setAppSettingJsonSafe(env, VEHICLE_CONDITION_SCALE_SETTING_KEY, scale, session.user.id);
       await writeAdminAuditLog(env, session.user.id, null, "vehicle_condition_layout.update", {
         partCount: Object.keys(layout || {}).length,
+        scale,
       });
       return json({
         ok: true,
         message: "Kaporta sema konumlari guncellendi.",
         layout,
+        scale,
       });
     }
 
@@ -2295,9 +2318,23 @@ function normalizeVehicleConditionLayoutInput(rawInput: any) {
   return out;
 }
 
+function normalizeVehicleConditionScale(rawInput: any) {
+  const value = Number(rawInput);
+  if (!Number.isFinite(value)) return 1;
+  const rounded = Math.round(value * 100) / 100;
+  if (rounded < VEHICLE_CONDITION_SCALE_MIN) return VEHICLE_CONDITION_SCALE_MIN;
+  if (rounded > VEHICLE_CONDITION_SCALE_MAX) return VEHICLE_CONDITION_SCALE_MAX;
+  return rounded;
+}
+
 async function getVehicleConditionLayoutSafe(env) {
   const rawValue = await getAppSettingJsonSafe(env, VEHICLE_CONDITION_LAYOUT_SETTING_KEY, emptyVehicleConditionLayout());
   return normalizeVehicleConditionLayoutInput(rawValue);
+}
+
+async function getVehicleConditionScaleSafe(env) {
+  const rawValue = await getAppSettingJsonSafe(env, VEHICLE_CONDITION_SCALE_SETTING_KEY, 1);
+  return normalizeVehicleConditionScale(rawValue);
 }
 
 function buildDistrictOptionsByCity(cityValues: string[], auctions: any[], districtOrder: string[]) {

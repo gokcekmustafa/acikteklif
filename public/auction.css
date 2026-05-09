@@ -245,8 +245,10 @@ body {
   border-radius: 11px;
   background: #f6f2e8;
   padding: 10px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+  height: 100%;
 }
 
 .vehicleConditionBlock h3 {
@@ -304,11 +306,17 @@ body {
   padding: 3px;
   max-width: 460px;
   margin: 0 auto;
+  min-height: 540px;
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .conditionSvg {
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
   shape-rendering: auto;
 }
@@ -390,7 +398,7 @@ body {
   display: grid;
   grid-template-columns: minmax(280px, 1.2fr) minmax(220px, 1fr) minmax(220px, 1fr);
   gap: 10px;
-  align-items: start;
+  align-items: stretch;
   margin-bottom: 12px;
 }
 
@@ -548,5 +556,9 @@ body {
 
   .expertiseOverview {
     grid-template-columns: 1fr;
+  }
+
+  .conditionMap {
+    min-height: 420px;
   }
 }

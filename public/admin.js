@@ -67,6 +67,10 @@ const VEHICLE_CONDITION_TEXT_POSITIONS = {
 };
 const VEHICLE_CONDITION_LAYOUT_MAX_OFFSET = 200;
 const VEHICLE_CONDITION_LAYOUT_MAX_STEP = 20;
+const VEHICLE_CONDITION_SCALE_MIN = 0.7;
+const VEHICLE_CONDITION_SCALE_MAX = 1.7;
+const VEHICLE_CONDITION_SCALE_DEFAULT = 1;
+const VEHICLE_CONDITION_SCALE_CENTER = [236, 304];
 const VEHICLE_EXPERTISE_STRUCTURE_FIELDS = [
     { key: "sag_podye", label: "Sağ Podye", legacyKeys: ["sag_sol_podye"] },
     { key: "sol_podye", label: "Sol Podye", legacyKeys: ["sag_sol_podye"] },
@@ -162,6 +166,7 @@ const state = {
     auctionVehicleConditionMap: {},
     auctionVehicleConditionSelectedStatus: VEHICLE_CONDITION_DEFAULT_STATUS,
     auctionVehicleConditionLayout: createDefaultVehicleConditionLayout(),
+    auctionVehicleConditionScale: VEHICLE_CONDITION_SCALE_DEFAULT,
     auctionVehicleConditionSelectedPart: VEHICLE_CONDITION_PARTS[0]?.key || "",
     auctionVehicleConditionStep: 2,
     auctionVehicleConditionLayoutSaveTimer: null,
@@ -287,6 +292,10 @@ const elements = {
     auctionVehicleConditionStepInput: byId("auctionVehicleConditionStepInput"),
     auctionVehicleConditionOffsetXInput: byId("auctionVehicleConditionOffsetXInput"),
     auctionVehicleConditionOffsetYInput: byId("auctionVehicleConditionOffsetYInput"),
+    auctionVehicleConditionScaleInput: byId("auctionVehicleConditionScaleInput"),
+    auctionVehicleConditionScaleDownBtn: byId("auctionVehicleConditionScaleDownBtn"),
+    auctionVehicleConditionScaleUpBtn: byId("auctionVehicleConditionScaleUpBtn"),
+    auctionVehicleConditionScaleResetBtn: byId("auctionVehicleConditionScaleResetBtn"),
     auctionVehicleConditionMoveUpBtn: byId("auctionVehicleConditionMoveUpBtn"),
     auctionVehicleConditionMoveLeftBtn: byId("auctionVehicleConditionMoveLeftBtn"),
     auctionVehicleConditionMoveRightBtn: byId("auctionVehicleConditionMoveRightBtn"),
@@ -390,6 +399,10 @@ function ensureVehicleConditionLayoutEditorMarkup() {
           <span>Adim (px)</span>
           <input id="auctionVehicleConditionStepInput" type="number" min="1" max="20" step="1" value="2">
         </label>
+        <label class="conditionMiniField conditionScaleField">
+          <span>Olcek (%)</span>
+          <input id="auctionVehicleConditionScaleInput" type="number" min="70" max="170" step="1" value="100">
+        </label>
         <label class="conditionMiniField conditionOffsetField">
           <span>X</span>
           <input id="auctionVehicleConditionOffsetXInput" type="number" readonly value="0">
@@ -404,6 +417,11 @@ function ensureVehicleConditionLayoutEditorMarkup() {
           <button class="miniBtn iconBtn" type="button" id="auctionVehicleConditionMoveRightBtn" title="Saga"><i class="fas fa-arrow-right"></i></button>
           <button class="miniBtn iconBtn" type="button" id="auctionVehicleConditionMoveDownBtn" title="Asagi"><i class="fas fa-arrow-down"></i></button>
         </div>
+        <div class="conditionScalePad" role="group" aria-label="Sema olcekleme">
+          <button class="miniBtn iconBtn" type="button" id="auctionVehicleConditionScaleDownBtn" title="Olcegi kucult"><i class="fas fa-magnifying-glass-minus"></i></button>
+          <button class="miniBtn iconBtn" type="button" id="auctionVehicleConditionScaleUpBtn" title="Olcegi buyut"><i class="fas fa-magnifying-glass-plus"></i></button>
+          <button class="miniBtn" type="button" id="auctionVehicleConditionScaleResetBtn">Olcegi Sifirla</button>
+        </div>
         <div class="conditionLayoutActions">
           <button class="miniBtn" type="button" id="auctionVehicleConditionResetPartBtn">Parcayi Sifirla</button>
           <button class="miniBtn" type="button" id="auctionVehicleConditionResetLayoutBtn">Tum Konumlari Sifirla</button>
@@ -416,6 +434,10 @@ function ensureVehicleConditionLayoutEditorMarkup() {
     elements.auctionVehicleConditionStepInput = byId("auctionVehicleConditionStepInput");
     elements.auctionVehicleConditionOffsetXInput = byId("auctionVehicleConditionOffsetXInput");
     elements.auctionVehicleConditionOffsetYInput = byId("auctionVehicleConditionOffsetYInput");
+    elements.auctionVehicleConditionScaleInput = byId("auctionVehicleConditionScaleInput");
+    elements.auctionVehicleConditionScaleDownBtn = byId("auctionVehicleConditionScaleDownBtn");
+    elements.auctionVehicleConditionScaleUpBtn = byId("auctionVehicleConditionScaleUpBtn");
+    elements.auctionVehicleConditionScaleResetBtn = byId("auctionVehicleConditionScaleResetBtn");
     elements.auctionVehicleConditionMoveUpBtn = byId("auctionVehicleConditionMoveUpBtn");
     elements.auctionVehicleConditionMoveLeftBtn = byId("auctionVehicleConditionMoveLeftBtn");
     elements.auctionVehicleConditionMoveRightBtn = byId("auctionVehicleConditionMoveRightBtn");
@@ -464,6 +486,7 @@ function applyBootstrapPayload(data) {
     state.auctions = Array.isArray(data.auctions) ? data.auctions : [];
     state.filterOrdering = normalizeFilterOrderingPayload(data.filterOrdering);
     state.auctionVehicleConditionLayout = normalizeVehicleConditionLayout(data.vehicleConditionLayout || {});
+    state.auctionVehicleConditionScale = normalizeVehicleConditionScale(data.vehicleConditionScale);
     if (!isVehicleConditionPartKey(String(state.auctionVehicleConditionSelectedPart || ""))) {
         state.auctionVehicleConditionSelectedPart = VEHICLE_CONDITION_PARTS[0]?.key || "";
     }
@@ -928,6 +951,10 @@ function bindAuctionEvents() {
     });
     if (elements.auctionVehicleConditionPartSelect &&
         elements.auctionVehicleConditionStepInput &&
+        elements.auctionVehicleConditionScaleInput &&
+        elements.auctionVehicleConditionScaleDownBtn &&
+        elements.auctionVehicleConditionScaleUpBtn &&
+        elements.auctionVehicleConditionScaleResetBtn &&
         elements.auctionVehicleConditionMoveUpBtn &&
         elements.auctionVehicleConditionMoveDownBtn &&
         elements.auctionVehicleConditionMoveLeftBtn &&
@@ -947,6 +974,12 @@ function bindAuctionEvents() {
             state.auctionVehicleConditionStep = normalizeVehicleConditionLayoutStep(elements.auctionVehicleConditionStepInput.value);
             syncVehicleConditionLayoutControls();
         });
+        elements.auctionVehicleConditionScaleInput.addEventListener("change", () => {
+            state.auctionVehicleConditionScale = normalizeVehicleConditionScalePercentInput(elements.auctionVehicleConditionScaleInput.value);
+            renderAuctionVehicleConditionMap();
+            syncVehicleConditionLayoutControls();
+            queueVehicleConditionLayoutAutosave();
+        });
         const moveSelectedPart = (dx, dy) => {
             const partKey = String(state.auctionVehicleConditionSelectedPart || "");
             if (!isVehicleConditionPartKey(partKey))
@@ -958,10 +991,26 @@ function bindAuctionEvents() {
             syncVehicleConditionLayoutControls();
             queueVehicleConditionLayoutAutosave();
         };
+        const shiftScale = (deltaPercent) => {
+            const currentPercent = Math.round(normalizeVehicleConditionScale(state.auctionVehicleConditionScale) * 100);
+            state.auctionVehicleConditionScale = normalizeVehicleConditionScalePercentInput(currentPercent + deltaPercent);
+            renderAuctionVehicleConditionMap();
+            syncVehicleConditionLayoutControls();
+            queueVehicleConditionLayoutAutosave();
+        };
         elements.auctionVehicleConditionMoveUpBtn.addEventListener("click", () => moveSelectedPart(0, -1));
         elements.auctionVehicleConditionMoveDownBtn.addEventListener("click", () => moveSelectedPart(0, 1));
         elements.auctionVehicleConditionMoveLeftBtn.addEventListener("click", () => moveSelectedPart(-1, 0));
         elements.auctionVehicleConditionMoveRightBtn.addEventListener("click", () => moveSelectedPart(1, 0));
+        elements.auctionVehicleConditionScaleDownBtn.addEventListener("click", () => shiftScale(-2));
+        elements.auctionVehicleConditionScaleUpBtn.addEventListener("click", () => shiftScale(2));
+        elements.auctionVehicleConditionScaleResetBtn.addEventListener("click", () => {
+            state.auctionVehicleConditionScale = VEHICLE_CONDITION_SCALE_DEFAULT;
+            renderAuctionVehicleConditionMap();
+            syncVehicleConditionLayoutControls();
+            queueVehicleConditionLayoutAutosave();
+            setStatus("Sema olcegi varsayilan degere getirildi.", "ok");
+        });
         elements.auctionVehicleConditionResetPartBtn.addEventListener("click", () => {
             const partKey = String(state.auctionVehicleConditionSelectedPart || "");
             if (!isVehicleConditionPartKey(partKey))
@@ -2410,6 +2459,8 @@ function renderAuctionVehicleConditionMap() {
     state.auctionVehicleConditionMap = map;
     const layout = normalizeVehicleConditionLayout(state.auctionVehicleConditionLayout || {});
     state.auctionVehicleConditionLayout = layout;
+    const scale = normalizeVehicleConditionScale(state.auctionVehicleConditionScale);
+    state.auctionVehicleConditionScale = scale;
     if (!isVehicleConditionPartKey(String(state.auctionVehicleConditionSelectedPart || ""))) {
         state.auctionVehicleConditionSelectedPart = VEHICLE_CONDITION_PARTS[0]?.key || "";
     }
@@ -2437,10 +2488,16 @@ function renderAuctionVehicleConditionMap() {
       </g>
     `;
     }).join("");
+    const [scaleCenterX, scaleCenterY] = VEHICLE_CONDITION_SCALE_CENTER;
+    const scaleTransform = Math.abs(scale - 1) > 0.001
+        ? `transform="translate(${scaleCenterX} ${scaleCenterY}) scale(${scale}) translate(${-scaleCenterX} ${-scaleCenterY})"`
+        : "";
     elements.auctionVehicleConditionMap.innerHTML = `
     <svg class="conditionSvg conditionSvgInteractive" viewBox="44 84 380 440" role="img" aria-label="Arac kaporta durum haritasi">
-      <image class="conditionBaseImage" href="/kaporta-base.png" x="0" y="0" width="467" height="551" preserveAspectRatio="xMidYMid meet"></image>
-      ${partsMarkup}
+      <g class="conditionScaleLayer" ${scaleTransform}>
+        <image class="conditionBaseImage" href="/kaporta-base.png" x="0" y="0" width="467" height="551" preserveAspectRatio="xMidYMid meet"></image>
+        ${partsMarkup}
+      </g>
     </svg>
   `;
     syncVehicleConditionLayoutControls();
@@ -2545,6 +2602,24 @@ function normalizeVehicleConditionLayoutStep(input) {
         return VEHICLE_CONDITION_LAYOUT_MAX_STEP;
     return rounded;
 }
+function normalizeVehicleConditionScale(input) {
+    const value = Number(input);
+    if (!Number.isFinite(value))
+        return VEHICLE_CONDITION_SCALE_DEFAULT;
+    const rounded = Math.round(value * 100) / 100;
+    if (rounded < VEHICLE_CONDITION_SCALE_MIN)
+        return VEHICLE_CONDITION_SCALE_MIN;
+    if (rounded > VEHICLE_CONDITION_SCALE_MAX)
+        return VEHICLE_CONDITION_SCALE_MAX;
+    return rounded;
+}
+function normalizeVehicleConditionScalePercentInput(input) {
+    const value = Number(input);
+    if (!Number.isFinite(value))
+        return VEHICLE_CONDITION_SCALE_DEFAULT;
+    const asScale = value / 100;
+    return normalizeVehicleConditionScale(asScale);
+}
 function setVehicleConditionPartOffset(partKey, x, y) {
     const nextLayout = normalizeVehicleConditionLayout(state.auctionVehicleConditionLayout || {});
     nextLayout[partKey] = {
@@ -2578,6 +2653,11 @@ function syncVehicleConditionLayoutControls() {
     if (elements.auctionVehicleConditionStepInput) {
         elements.auctionVehicleConditionStepInput.value = String(step);
     }
+    const scale = normalizeVehicleConditionScale(state.auctionVehicleConditionScale);
+    state.auctionVehicleConditionScale = scale;
+    if (elements.auctionVehicleConditionScaleInput) {
+        elements.auctionVehicleConditionScaleInput.value = String(Math.round(scale * 100));
+    }
     const layout = normalizeVehicleConditionLayout(state.auctionVehicleConditionLayout || {});
     state.auctionVehicleConditionLayout = layout;
     const row = isVehicleConditionPartKey(selectedPart) ? layout[selectedPart] || { x: 0, y: 0 } : { x: 0, y: 0 };
@@ -2595,9 +2675,13 @@ async function persistVehicleConditionLayout(silent = false) {
     try {
         const data = await apiFetch("/api/admin/vehicle-condition-layout", {
             method: "POST",
-            body: { layout: serializeVehicleConditionLayout(state.auctionVehicleConditionLayout) },
+            body: {
+                layout: serializeVehicleConditionLayout(state.auctionVehicleConditionLayout),
+                scale: normalizeVehicleConditionScale(state.auctionVehicleConditionScale),
+            },
         });
         state.auctionVehicleConditionLayout = normalizeVehicleConditionLayout(data.layout || {});
+        state.auctionVehicleConditionScale = normalizeVehicleConditionScale(data.scale);
         renderAuctionVehicleConditionMap();
         syncVehicleConditionLayoutControls();
         if (!silent) {

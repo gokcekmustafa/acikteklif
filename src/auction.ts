@@ -50,6 +50,10 @@ const VEHICLE_CONDITION_TEXT_POSITIONS = {
   sag_arka_camurluk: [371, 448],
 };
 const VEHICLE_CONDITION_LAYOUT_MAX_OFFSET = 200;
+const VEHICLE_CONDITION_SCALE_MIN = 0.7;
+const VEHICLE_CONDITION_SCALE_MAX = 1.7;
+const VEHICLE_CONDITION_SCALE_DEFAULT = 1;
+const VEHICLE_CONDITION_SCALE_CENTER = [236, 304];
 const VEHICLE_EXPERTISE_STRUCTURE_FIELDS = [
   { key: "sag_podye", label: "Sağ Podye", legacyKeys: ["sag_sol_podye"] },
   { key: "sol_podye", label: "Sol Podye", legacyKeys: ["sag_sol_podye"] },
@@ -79,6 +83,7 @@ const state = {
   activeImageIndex: 0,
   activeTab: "basic",
   vehicleConditionLayout: createDefaultVehicleConditionLayout(),
+  vehicleConditionScale: VEHICLE_CONDITION_SCALE_DEFAULT,
 };
 
 const elements = {
@@ -163,6 +168,7 @@ async function loadAuctionDetail() {
     equipment,
   };
   state.vehicleConditionLayout = normalizeVehicleConditionLayout(data.vehicleConditionLayout || item.vehicle_condition_layout || {});
+  state.vehicleConditionScale = normalizeVehicleConditionScale(data.vehicleConditionScale);
   state.gallery = gallery;
   state.activeImageIndex = 0;
 }
@@ -272,6 +278,8 @@ function renderVehicleConditionMap() {
   const map = normalizeVehicleConditionMap(state.item?.vehicle_condition_map || {});
   const layout = normalizeVehicleConditionLayout(state.vehicleConditionLayout || {});
   state.vehicleConditionLayout = layout;
+  const scale = normalizeVehicleConditionScale(state.vehicleConditionScale);
+  state.vehicleConditionScale = scale;
 
   const partsMarkup = VEHICLE_CONDITION_PARTS.map((part) => {
     const status = map[part.key] || VEHICLE_CONDITION_DEFAULT_STATUS;
@@ -297,10 +305,18 @@ function renderVehicleConditionMap() {
     `;
   }).join("");
 
+  const [scaleCenterX, scaleCenterY] = VEHICLE_CONDITION_SCALE_CENTER;
+  const scaleTransform =
+    Math.abs(scale - 1) > 0.001
+      ? `transform="translate(${scaleCenterX} ${scaleCenterY}) scale(${scale}) translate(${-scaleCenterX} ${-scaleCenterY})"`
+      : "";
+
   elements.expertiseConditionMap.innerHTML = `
     <svg class="conditionSvg" viewBox="44 84 380 440" role="img" aria-label="Arac kaporta durum haritasi">
-      <image class="conditionBaseImage" href="/kaporta-base.png" x="0" y="0" width="467" height="551" preserveAspectRatio="xMidYMid meet"></image>
-      ${partsMarkup}
+      <g class="conditionScaleLayer" ${scaleTransform}>
+        <image class="conditionBaseImage" href="/kaporta-base.png" x="0" y="0" width="467" height="551" preserveAspectRatio="xMidYMid meet"></image>
+        ${partsMarkup}
+      </g>
     </svg>
   `;
   renderVehicleExpertiseDetails();
@@ -423,6 +439,15 @@ function normalizeVehicleConditionLayout(input) {
   }
 
   return out;
+}
+
+function normalizeVehicleConditionScale(input) {
+  const value = Number(input);
+  if (!Number.isFinite(value)) return VEHICLE_CONDITION_SCALE_DEFAULT;
+  const rounded = Math.round(value * 100) / 100;
+  if (rounded < VEHICLE_CONDITION_SCALE_MIN) return VEHICLE_CONDITION_SCALE_MIN;
+  if (rounded > VEHICLE_CONDITION_SCALE_MAX) return VEHICLE_CONDITION_SCALE_MAX;
+  return rounded;
 }
 
 function normalizeVehicleConditionStatus(input) {

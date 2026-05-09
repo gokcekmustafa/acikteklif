@@ -452,8 +452,10 @@ body.modalOpen {
   background: #f4f8ff;
   border-radius: 10px;
   padding: 10px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+  height: 100%;
 }
 
 .conditionHead {
@@ -475,7 +477,14 @@ body.modalOpen {
 
 .conditionLayoutTools {
   display: grid;
-  grid-template-columns: minmax(120px, 1.1fr) minmax(90px, 0.7fr) minmax(60px, 0.45fr) minmax(60px, 0.45fr) auto;
+  grid-template-columns:
+    minmax(120px, 1.1fr)
+    minmax(90px, 0.7fr)
+    minmax(92px, 0.7fr)
+    minmax(60px, 0.45fr)
+    minmax(60px, 0.45fr)
+    auto
+    auto;
   gap: 6px;
   align-items: end;
 }
@@ -518,6 +527,17 @@ body.modalOpen {
 .conditionMovePad .miniBtn {
   min-width: 30px;
   padding: 5px 0;
+}
+
+.conditionScalePad {
+  display: flex;
+  align-items: end;
+  gap: 4px;
+}
+
+.conditionScalePad .miniBtn {
+  min-width: 30px;
+  padding: 5px 6px;
 }
 
 .conditionLayoutActions {
@@ -566,18 +586,23 @@ body.modalOpen {
   border-radius: 10px;
   background: #f2ecde;
   padding: 3px;
+  flex: 1;
+  min-height: 540px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .expertiseEditorLayout {
   display: grid;
   grid-template-columns: minmax(320px, 460px) minmax(0, 1fr);
   gap: 10px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .conditionSvg {
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
   shape-rendering: auto;
 }
@@ -1406,9 +1431,14 @@ th {
     grid-column: 1 / -1;
   }
 
+  .conditionScalePad {
+    grid-column: 1 / -1;
+  }
+
   .conditionMap {
     max-width: 520px;
     margin: 0 auto;
+    min-height: 420px;
   }
 
   .expertiseEditorLayout {
