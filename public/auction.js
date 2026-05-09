@@ -5,7 +5,7 @@ const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1486406146926-c627a92ad
 const VEHICLE_CONDITION_DEFAULT_STATUS = "ORIGINAL";
 const VEHICLE_CONDITION_PARTS = [
     { key: "on_tampon", label: "On Tampon" },
-    { key: "kaput", label: "Motor Kaputu" },
+    { key: "kaput", label: "Kaput" },
     { key: "sol_on_camurluk", label: "Sol On Camurluk" },
     { key: "sag_on_camurluk", label: "Sag On Camurluk" },
     { key: "sol_on_kapi", label: "Sol On Kapi" },
@@ -21,39 +21,56 @@ const VEHICLE_CONDITION_PARTS = [
     { key: "sag_ayna", label: "Sag Ayna" },
 ];
 const VEHICLE_CONDITION_PART_PATHS = {
-    on_tampon: "M108 84 H212 Q218 84 218 90 V108 Q218 114 212 114 H108 Q102 114 102 108 V90 Q102 84 108 84 Z",
-    kaput: "M100 126 Q160 98 220 126 L212 208 Q160 188 108 208 Z",
-    tavan: "M116 210 Q160 188 204 210 L210 302 Q160 322 110 302 Z",
-    bagaj: "M112 308 Q160 326 208 308 L202 350 Q160 364 118 350 Z",
-    arka_tampon: "M108 366 H212 Q218 366 218 372 V390 Q218 396 212 396 H108 Q102 396 102 390 V372 Q102 366 108 366 Z",
-    sol_on_camurluk: "M54 132 L94 138 L104 200 L54 216 Z",
-    sol_on_kapi: "M54 216 L104 202 L106 258 L54 274 Z",
-    sol_arka_kapi: "M54 274 L106 260 L100 316 L54 330 Z",
-    sol_arka_camurluk: "M54 330 L100 318 L90 372 L54 372 Z",
-    sag_on_camurluk: "M266 132 L226 138 L216 200 L266 216 Z",
-    sag_on_kapi: "M266 216 L216 202 L214 258 L266 274 Z",
-    sag_arka_kapi: "M266 274 L214 260 L220 316 L266 330 Z",
-    sag_arka_camurluk: "M266 330 L220 318 L230 372 L266 372 Z",
-    sol_ayna: "M56 116 H88 V138 H56 Z",
-    sag_ayna: "M264 116 H232 V138 H264 Z",
+    on_tampon: "M141 64 H259 Q267 64 267 72 V92 Q267 100 259 100 H141 Q133 100 133 92 V72 Q133 64 141 64 Z",
+    kaput: "M136 116 Q200 92 264 116 L254 215 Q200 200 146 215 Z",
+    tavan: "M148 222 Q200 206 252 222 L258 328 Q200 346 142 328 Z",
+    bagaj: "M146 336 Q200 356 254 336 L248 386 Q200 404 152 386 Z",
+    arka_tampon: "M139 404 H261 Q269 404 269 412 V434 Q269 442 261 442 H139 Q131 442 131 434 V412 Q131 404 139 404 Z",
+    sol_on_camurluk: "M66 126 L122 136 L130 204 L66 224 Z",
+    sol_on_kapi: "M66 228 L130 210 L132 284 L66 304 Z",
+    sol_arka_kapi: "M66 308 L132 288 L126 358 L66 376 Z",
+    sol_arka_camurluk: "M66 380 L126 362 L116 430 L66 430 Z",
+    sag_on_camurluk: "M334 126 L278 136 L270 204 L334 224 Z",
+    sag_on_kapi: "M334 228 L270 210 L268 284 L334 304 Z",
+    sag_arka_kapi: "M334 308 L268 288 L274 358 L334 376 Z",
+    sag_arka_camurluk: "M334 380 L274 362 L284 430 L334 430 Z",
+    sol_ayna: "M69 109 H109 V139 H69 Z",
+    sag_ayna: "M331 109 H291 V139 H331 Z",
 };
 const VEHICLE_CONDITION_TEXT_POSITIONS = {
-    on_tampon: [160, 100],
-    kaput: [160, 159],
-    tavan: [160, 256],
-    bagaj: [160, 336],
-    arka_tampon: [160, 382],
-    sol_on_camurluk: [75, 174],
-    sol_on_kapi: [76, 242],
-    sol_arka_kapi: [76, 302],
-    sol_arka_camurluk: [74, 353],
-    sag_on_camurluk: [245, 174],
-    sag_on_kapi: [244, 242],
-    sag_arka_kapi: [244, 302],
-    sag_arka_camurluk: [246, 353],
-    sol_ayna: [72, 129],
-    sag_ayna: [248, 129],
+    on_tampon: [200, 82],
+    kaput: [200, 162],
+    tavan: [200, 274],
+    bagaj: [200, 368],
+    arka_tampon: [200, 423],
+    sol_on_camurluk: [95, 178],
+    sol_on_kapi: [96, 256],
+    sol_arka_kapi: [96, 332],
+    sol_arka_camurluk: [92, 403],
+    sag_on_camurluk: [305, 178],
+    sag_on_kapi: [304, 256],
+    sag_arka_kapi: [304, 332],
+    sag_arka_camurluk: [308, 403],
+    sol_ayna: [89, 124],
+    sag_ayna: [311, 124],
 };
+const VEHICLE_EXPERTISE_STRUCTURE_FIELDS = [
+    { key: "sag_sol_podye", label: "Sag Sol Podye" },
+    { key: "sag_sol_kilic_saci", label: "Sag Sol Kilic Saci" },
+    { key: "on_ic_direkler", label: "On Ic Direkler" },
+    { key: "orta_ic_direkler_arka_kilit_karsiliklari", label: "Orta Ic Direkler ve Arka Kilit Karsiliklari" },
+    { key: "on_panel_arka_panel", label: "On Panel - Arka Panel" },
+    { key: "sag_sol_marsbiyel", label: "Sag Sol Marsbiyel" },
+    { key: "sag_sol_ust_direkler_frangart", label: "Sag Sol Ust Direkler (Frangart)" },
+];
+const VEHICLE_EXPERTISE_MECHANICAL_FIELDS = [
+    { key: "motor_alt_ust_yag_kacagi", label: "Motor Alt/Ust Yag Kacagi" },
+    { key: "sanziman", label: "Sanziman" },
+    { key: "turbo", label: "Turbo" },
+    { key: "radyator", label: "Radyator" },
+    { key: "interkol", label: "Interkol" },
+    { key: "on_arka_takim", label: "On ve Arka Takim" },
+];
 const state = {
     lotNo: "",
     item: null,
@@ -73,8 +90,9 @@ const elements = {
     auctionInfoGrid: document.getElementById("auctionInfoGrid"),
     descriptionBox: document.getElementById("descriptionBox"),
     expertiseConditionMap: document.getElementById("expertiseConditionMap"),
-    paintedPartsList: document.getElementById("paintedPartsList"),
-    changedPartsList: document.getElementById("changedPartsList"),
+    expertiseStructureList: document.getElementById("expertiseStructureList"),
+    expertiseMechanicalList: document.getElementById("expertiseMechanicalList"),
+    expertiseTireList: document.getElementById("expertiseTireList"),
     expertiseFiles: document.getElementById("expertiseFiles"),
     documentFiles: document.getElementById("documentFiles"),
 };
@@ -124,6 +142,7 @@ async function loadAuctionDetail() {
     const documentFiles = normalizeFiles(item.document_files || item.document_files_json || []);
     const equipment = splitEquipment(String(item.extra_equipment || ""));
     const vehicleConditionMap = normalizeVehicleConditionMap(item.vehicle_condition_map_json || item.vehicle_condition_map || item.vehicleConditionMap || {});
+    const vehicleExpertiseMeta = normalizeVehicleExpertiseMeta(item.vehicle_expertise_meta_json || item.vehicle_expertise_meta || item.vehicleExpertiseMeta || {});
     state.item = {
         ...item,
         lot_no: String(item.lot_no || state.lotNo || "").toUpperCase(),
@@ -131,6 +150,7 @@ async function loadAuctionDetail() {
         expertise_files: expertiseFiles,
         document_files: documentFiles,
         vehicle_condition_map: vehicleConditionMap,
+        vehicle_expertise_meta: vehicleExpertiseMeta,
         equipment,
     };
     state.gallery = gallery;
@@ -230,18 +250,10 @@ function renderVehicleConditionMap() {
     if (!elements.expertiseConditionMap)
         return;
     const map = normalizeVehicleConditionMap(state.item?.vehicle_condition_map || {});
-    const paintedRows = [];
-    const changedRows = [];
     const partsMarkup = VEHICLE_CONDITION_PARTS.map((part) => {
         const status = map[part.key] || VEHICLE_CONDITION_DEFAULT_STATUS;
-        if (status === "PAINTED" || status === "LOCAL_PAINTED") {
-            paintedRows.push(status === "LOCAL_PAINTED" ? `${part.label} (Lokal)` : part.label);
-        }
-        else if (status === "CHANGED") {
-            changedRows.push(part.label);
-        }
         const statusClass = getVehicleConditionStatusClass(status);
-        const pos = VEHICLE_CONDITION_TEXT_POSITIONS[part.key] || [160, 160];
+        const pos = VEHICLE_CONDITION_TEXT_POSITIONS[part.key] || [200, 250];
         const path = VEHICLE_CONDITION_PART_PATHS[part.key] || "";
         return `
       <g class="conditionSvgPart ${statusClass}" data-part-key="${part.key}">
@@ -251,20 +263,52 @@ function renderVehicleConditionMap() {
     `;
     }).join("");
     elements.expertiseConditionMap.innerHTML = `
-    <svg class="conditionSvg" viewBox="0 0 320 430" role="img" aria-label="Arac kaporta durum haritasi">
-      <g class="conditionBase">
-        <path d="M92 76 Q160 46 228 76 L248 182 L248 322 L228 406 Q160 426 92 406 L72 322 L72 182 Z"></path>
-        <path d="M114 206 Q160 188 206 206 L212 304 Q160 324 108 304 Z"></path>
-        <circle cx="58" cy="178" r="24"></circle>
-        <circle cx="58" cy="310" r="24"></circle>
-        <circle cx="262" cy="178" r="24"></circle>
-        <circle cx="262" cy="310" r="24"></circle>
+    <svg class="conditionSvg" viewBox="0 0 400 500" role="img" aria-label="Arac kaporta durum haritasi">
+      <g class="conditionBodyShell">
+        <path d="M142 54 Q200 36 258 54 L292 146 L292 354 L258 456 Q200 474 142 456 L108 354 L108 146 Z"></path>
+        <path d="M148 222 Q200 206 252 222 L258 328 Q200 346 142 328 Z"></path>
+        <path d="M52 118 Q82 104 126 112 L132 438 Q84 448 52 430 Z"></path>
+        <path d="M348 118 Q318 104 274 112 L268 438 Q316 448 348 430 Z"></path>
+      </g>
+      <g class="conditionWheelSet">
+        <circle cx="56" cy="195" r="27"></circle>
+        <circle cx="56" cy="369" r="27"></circle>
+        <circle cx="344" cy="195" r="27"></circle>
+        <circle cx="344" cy="369" r="27"></circle>
       </g>
       ${partsMarkup}
     </svg>
   `;
-    renderConditionList(elements.paintedPartsList, paintedRows);
-    renderConditionList(elements.changedPartsList, changedRows);
+    renderVehicleExpertiseDetails();
+}
+function renderVehicleExpertiseDetails() {
+    const meta = normalizeVehicleExpertiseMeta(state.item?.vehicle_expertise_meta || {});
+    const structure = meta.structure || {};
+    const mechanical = meta.mechanical || {};
+    if (elements.expertiseStructureList) {
+        elements.expertiseStructureList.innerHTML = VEHICLE_EXPERTISE_STRUCTURE_FIELDS.map((field) => {
+            const status = normalizeVehicleExpertiseStructureStatus(structure[field.key]) || "ORIGINAL";
+            return renderExpertiseStatusRow(field.label, getVehicleExpertiseStructureStatusLabel(status), status.toLowerCase());
+        }).join("");
+    }
+    if (elements.expertiseMechanicalList) {
+        elements.expertiseMechanicalList.innerHTML = VEHICLE_EXPERTISE_MECHANICAL_FIELDS.map((field) => {
+            const status = normalizeVehicleExpertiseMechanicalStatus(mechanical[field.key]) || "NORMAL";
+            return renderExpertiseStatusRow(field.label, getVehicleExpertiseMechanicalStatusLabel(status), status.toLowerCase());
+        }).join("");
+    }
+    if (elements.expertiseTireList) {
+        const tireStatus = normalizeVehicleExpertiseTireStatus(meta.tires?.general) || "IYI";
+        elements.expertiseTireList.innerHTML = renderExpertiseStatusRow("Lastiklerin Genel Durumu", getVehicleExpertiseTireStatusLabel(tireStatus), tireStatus.toLowerCase());
+    }
+}
+function renderExpertiseStatusRow(label, value, statusClass) {
+    return `
+    <li class="expertiseStatusRow">
+      <span class="expertiseStatusLabel">${escapeHtml(label)}</span>
+      <span class="expertiseStatusValue ${escapeHtml(statusClass)}">${escapeHtml(value)}</span>
+    </li>
+  `;
 }
 function renderFileBlocks(mode) {
     const isExpertise = mode === "expertise";
@@ -348,14 +392,108 @@ function getVehicleConditionStatusCode(status) {
         return "D";
     return "O";
 }
-function renderConditionList(target, rows) {
-    if (!target)
-        return;
-    if (!Array.isArray(rows) || rows.length < 1) {
-        target.innerHTML = "<li>Yok</li>";
-        return;
+function normalizeVehicleExpertiseMeta(input) {
+    const source = parseJsonObject(input);
+    const structureSource = parseJsonObject(source.structure || source.structural || {});
+    const mechanicalSource = parseJsonObject(source.mechanical || {});
+    const tireSource = parseJsonObject(source.tires || {});
+    const structure = {};
+    for (const field of VEHICLE_EXPERTISE_STRUCTURE_FIELDS) {
+        const normalized = normalizeVehicleExpertiseStructureStatus(structureSource[field.key] ?? source[field.key]);
+        if (!normalized || normalized === "ORIGINAL")
+            continue;
+        structure[field.key] = normalized;
     }
-    target.innerHTML = rows.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+    const mechanical = {};
+    for (const field of VEHICLE_EXPERTISE_MECHANICAL_FIELDS) {
+        const normalized = normalizeVehicleExpertiseMechanicalStatus(mechanicalSource[field.key] ?? source[field.key]);
+        if (!normalized || normalized === "NORMAL")
+            continue;
+        mechanical[field.key] = normalized;
+    }
+    const tireRaw = tireSource.general || tireSource.lastik_genel_durum || source.lastik_genel_durum || source.tireGeneral || source.lastikDurum;
+    const tireStatus = normalizeVehicleExpertiseTireStatus(tireRaw);
+    const out = {};
+    if (Object.keys(structure).length > 0)
+        out.structure = structure;
+    if (Object.keys(mechanical).length > 0)
+        out.mechanical = mechanical;
+    if (tireStatus && tireStatus !== "IYI")
+        out.tires = { general: tireStatus };
+    return out;
+}
+function normalizeVehicleExpertiseStructureStatus(input) {
+    const raw = String(input || "").trim();
+    if (!raw)
+        return null;
+    const folded = raw
+        .toUpperCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    if (folded === "ORIGINAL" || folded === "ORIJINAL")
+        return "ORIGINAL";
+    if (folded === "ISLEMLI" || folded === "ISLEM GORMUS" || folded === "DUZELTILMIS" || folded === "DUZELTME")
+        return "ISLEMLI";
+    if (folded === "DEGISMIS" || folded === "DEGISEN" || folded === "CHANGED")
+        return "DEGISMIS";
+    return null;
+}
+function normalizeVehicleExpertiseMechanicalStatus(input) {
+    const raw = String(input || "").trim();
+    if (!raw)
+        return null;
+    const folded = raw
+        .toUpperCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    if (folded === "NORMAL" || folded === "IYI" || folded === "SORUNSUZ" || folded === "YOK")
+        return "NORMAL";
+    if (folded === "BAKIM_GEREKLI" || folded === "KONTROL_GEREKLI" || folded === "BAKIM" || folded === "KONTROL")
+        return "BAKIM_GEREKLI";
+    if (folded === "ONARIM_GEREKLI" || folded === "ONARIM" || folded === "ARIZALI" || folded === "KACAK VAR")
+        return "ONARIM_GEREKLI";
+    return null;
+}
+function normalizeVehicleExpertiseTireStatus(input) {
+    const raw = String(input || "").trim();
+    if (!raw)
+        return null;
+    const folded = raw
+        .toUpperCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    if (folded === "IYI" || folded === "GOOD")
+        return "IYI";
+    if (folded === "ORTA" || folded === "MEDIUM")
+        return "ORTA";
+    if (folded === "ZAYIF" || folded === "KOTU" || folded === "DUSUK")
+        return "ZAYIF";
+    if (folded === "DEGISTIRILMELI" || folded === "DEGISIM GEREKLI" || folded === "CHANGE_REQUIRED")
+        return "DEGISTIRILMELI";
+    return null;
+}
+function getVehicleExpertiseStructureStatusLabel(status) {
+    if (status === "ISLEMLI")
+        return "Islemli";
+    if (status === "DEGISMIS")
+        return "Degismis";
+    return "Orijinal";
+}
+function getVehicleExpertiseMechanicalStatusLabel(status) {
+    if (status === "BAKIM_GEREKLI")
+        return "Bakim Gerekli";
+    if (status === "ONARIM_GEREKLI")
+        return "Onarim Gerekli";
+    return "Sorunsuz";
+}
+function getVehicleExpertiseTireStatusLabel(status) {
+    if (status === "ORTA")
+        return "Orta";
+    if (status === "ZAYIF")
+        return "Zayif";
+    if (status === "DEGISTIRILMELI")
+        return "Degistirilmeli";
+    return "Iyi";
 }
 function normalizeGallery(rawInput, fallbackImage) {
     let values = [];
@@ -467,13 +605,14 @@ function showPageError(message) {
     elements.descriptionBox.innerHTML = `<div class="empty">${escapeHtml(message || "Bir hata oluştu.")}</div>`;
     elements.basicInfoGrid.innerHTML = "";
     elements.auctionInfoGrid.innerHTML = "";
-    elements.equipmentList.innerHTML = '<li>Kayıt bulunamadı.</li>';
     if (elements.expertiseConditionMap)
         elements.expertiseConditionMap.innerHTML = "";
-    if (elements.paintedPartsList)
-        elements.paintedPartsList.innerHTML = "";
-    if (elements.changedPartsList)
-        elements.changedPartsList.innerHTML = "";
+    if (elements.expertiseStructureList)
+        elements.expertiseStructureList.innerHTML = "";
+    if (elements.expertiseMechanicalList)
+        elements.expertiseMechanicalList.innerHTML = "";
+    if (elements.expertiseTireList)
+        elements.expertiseTireList.innerHTML = "";
     elements.expertiseFiles.innerHTML = '<div class="empty">Kayıt bulunmuyor.</div>';
     elements.documentFiles.innerHTML = '<div class="empty">Kayıt bulunmuyor.</div>';
     elements.galleryMainImage.src = DEFAULT_IMAGE;

@@ -244,15 +244,15 @@ body {
   border: 1px solid var(--line);
   border-radius: 11px;
   background: #f6f2e8;
-  padding: 12px;
+  padding: 14px;
   margin-bottom: 10px;
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .vehicleConditionBlock h3 {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 1rem;
   color: #1f3f63;
 }
 
@@ -298,18 +298,13 @@ body {
   border-color: #d5472a;
 }
 
-.conditionLayout {
-  display: grid;
-  grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
-  gap: 18px;
-  align-items: start;
-}
-
 .conditionMap {
   border: 1px solid #d9ceb5;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #f2ecde;
-  padding: 8px;
+  padding: 10px;
+  max-width: 540px;
+  margin: 0 auto;
 }
 
 .conditionSvg {
@@ -318,27 +313,27 @@ body {
   display: block;
 }
 
-.conditionBase path {
-  fill: #cbcbcb;
-  stroke: #b6b6b6;
-  stroke-width: 2;
+.conditionBodyShell path {
+  fill: #d4d4d4;
+  stroke: #e7e7e7;
+  stroke-width: 4;
 }
 
-.conditionBase circle {
-  fill: #c4c4c4;
-  stroke: #dedede;
-  stroke-width: 3;
+.conditionWheelSet circle {
+  fill: #cecece;
+  stroke: #e2e2e2;
+  stroke-width: 4;
 }
 
 .conditionSvgPart path {
   stroke: #e6e6e6;
-  stroke-width: 2.5;
+  stroke-width: 2.8;
   transition: fill 120ms ease;
 }
 
 .conditionSvgPart text {
   fill: #ffffff;
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 800;
   letter-spacing: 0.01em;
   font-family: "Manrope", sans-serif;
@@ -360,9 +355,9 @@ body {
   fill: #ff5a36;
 }
 
-.conditionLists {
+.expertiseLists {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -376,21 +371,68 @@ body {
 
 .conditionListCard h4 {
   margin: 0 0 8px;
-  font-size: 1.02rem;
+  font-size: 0.92rem;
   color: #1c3553;
 }
 
-.conditionPartList {
+.expertiseStatusList {
   margin: 0;
-  padding-left: 16px;
+  padding: 0;
+  list-style: none;
   display: grid;
   gap: 6px;
 }
 
-.conditionPartList li {
-  font-size: 1.03rem;
-  color: #243d5d;
+.expertiseStatusRow {
+  border: 1px solid #e1d8c6;
+  border-radius: 9px;
+  background: #fffdf8;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.expertiseStatusLabel {
+  font-size: 0.78rem;
+  color: #304b6c;
   font-weight: 700;
+}
+
+.expertiseStatusValue {
+  font-size: 0.74rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid #d1dbe9;
+  background: #f5f9ff;
+  color: #1f3f63;
+  white-space: nowrap;
+}
+
+.expertiseStatusValue.original,
+.expertiseStatusValue.normal,
+.expertiseStatusValue.iyi {
+  background: #eef4fb;
+  border-color: #ccd8e8;
+}
+
+.expertiseStatusValue.islemli,
+.expertiseStatusValue.bakim_gerekli,
+.expertiseStatusValue.orta {
+  background: #fff4dd;
+  border-color: #e4c079;
+  color: #7f4d15;
+}
+
+.expertiseStatusValue.degismis,
+.expertiseStatusValue.onarim_gerekli,
+.expertiseStatusValue.zayif,
+.expertiseStatusValue.degistirilmeli {
+  background: #ffe7e2;
+  border-color: #e6a09b;
+  color: #8f2d22;
 }
 
 .fileGrid {
@@ -466,8 +508,7 @@ body {
     justify-content: center;
   }
 
-  .conditionLayout,
-  .conditionLists {
+  .expertiseLists {
     grid-template-columns: 1fr;
   }
 }

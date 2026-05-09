@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-  <link rel="stylesheet" href="./admin.css?v=20260509-3">
-  <script src="./admin.js?v=20260509-3" defer></script>
+  <link rel="stylesheet" href="./admin.css?v=20260509-4">
+  <script src="./admin.js?v=20260509-4" defer></script>
 </head>
 <body>
   <div class="shell">
@@ -301,6 +301,136 @@
                     <button class="miniBtn" type="button" id="auctionVehicleConditionResetBtn">Tumunu Orijinal Yap</button>
                   </div>
                   <div class="conditionMap" id="auctionVehicleConditionMap" aria-label="Arac parca durum haritasi"></div>
+                </div>
+                <div class="expertiseDetailGrid">
+                  <article class="expertiseDetailCard">
+                    <h5>Sase ve Govde Kontrolleri</h5>
+                    <div class="expertiseFieldList">
+                      <label class="expertiseField">
+                        <span>Sag Sol Podye</span>
+                        <select id="expertiseStructureSagSolPodyeInput">
+                          <option value="ORIGINAL">Orijinal</option>
+                          <option value="ISLEMLI">Islemli</option>
+                          <option value="DEGISMIS">Degismis</option>
+                        </select>
+                      </label>
+                      <label class="expertiseField">
+                        <span>Sag Sol Kilic Saci</span>
+                        <select id="expertiseStructureSagSolKilicSaciInput">
+                          <option value="ORIGINAL">Orijinal</option>
+                          <option value="ISLEMLI">Islemli</option>
+                          <option value="DEGISMIS">Degismis</option>
+                        </select>
+                      </label>
+                      <label class="expertiseField">
+                        <span>On Ic Direkler</span>
+                        <select id="expertiseStructureOnIcDireklerInput">
+                          <option value="ORIGINAL">Orijinal</option>
+                          <option value="ISLEMLI">Islemli</option>
+                          <option value="DEGISMIS">Degismis</option>
+                        </select>
+                      </label>
+                      <label class="expertiseField">
+                        <span>Orta Ic Direkler ve Arka Kilit Karsiliklari</span>
+                        <select id="expertiseStructureOrtaIcDireklerInput">
+                          <option value="ORIGINAL">Orijinal</option>
+                          <option value="ISLEMLI">Islemli</option>
+                          <option value="DEGISMIS">Degismis</option>
+                        </select>
+                      </label>
+                      <label class="expertiseField">
+                        <span>On Panel - Arka Panel</span>
+                        <select id="expertiseStructureOnArkaPanelInput">
+                          <option value="ORIGINAL">Orijinal</option>
+                          <option value="ISLEMLI">Islemli</option>
+                          <option value="DEGISMIS">Degismis</option>
+                        </select>
+                      </label>
+                      <label class="expertiseField">
+                        <span>Sag Sol Marsbiyel</span>
+                        <select id="expertiseStructureSagSolMarsbiyelInput">
+                          <option value="ORIGINAL">Orijinal</option>
+                          <option value="ISLEMLI">Islemli</option>
+                          <option value="DEGISMIS">Degismis</option>
+                        </select>
+                      </label>
+                      <label class="expertiseField">
+                        <span>Sag Sol Ust Direkler (Frangart)</span>
+                        <select id="expertiseStructureSagSolUstDireklerInput">
+                          <option value="ORIGINAL">Orijinal</option>
+                          <option value="ISLEMLI">Islemli</option>
+                          <option value="DEGISMIS">Degismis</option>
+                        </select>
+                      </label>
+                    </div>
+                  </article>
+                  <article class="expertiseDetailCard">
+                    <h5>Mekanik</h5>
+                    <div class="expertiseFieldList">
+                      <label class="expertiseField">
+                        <span>Motor Alt/Ust Yag Kacagi</span>
+                        <select id="expertiseMechanicalYagKacagiInput">
+                          <option value="NORMAL">Sorunsuz</option>
+                          <option value="BAKIM_GEREKLI">Bakim Gerekli</option>
+                          <option value="ONARIM_GEREKLI">Onarim Gerekli</option>
+                        </select>
+                      </label>
+                      <label class="expertiseField">
+                        <span>Sanziman</span>
+                        <select id="expertiseMechanicalSanzimanInput">
+                          <option value="NORMAL">Sorunsuz</option>
+                          <option value="BAKIM_GEREKLI">Bakim Gerekli</option>
+                          <option value="ONARIM_GEREKLI">Onarim Gerekli</option>
+                        </select>
+                      </label>
+                      <label class="expertiseField">
+                        <span>Turbo</span>
+                        <select id="expertiseMechanicalTurboInput">
+                          <option value="NORMAL">Sorunsuz</option>
+                          <option value="BAKIM_GEREKLI">Bakim Gerekli</option>
+                          <option value="ONARIM_GEREKLI">Onarim Gerekli</option>
+                        </select>
+                      </label>
+                      <label class="expertiseField">
+                        <span>Radyator</span>
+                        <select id="expertiseMechanicalRadyatorInput">
+                          <option value="NORMAL">Sorunsuz</option>
+                          <option value="BAKIM_GEREKLI">Bakim Gerekli</option>
+                          <option value="ONARIM_GEREKLI">Onarim Gerekli</option>
+                        </select>
+                      </label>
+                      <label class="expertiseField">
+                        <span>Interkol</span>
+                        <select id="expertiseMechanicalInterkolInput">
+                          <option value="NORMAL">Sorunsuz</option>
+                          <option value="BAKIM_GEREKLI">Bakim Gerekli</option>
+                          <option value="ONARIM_GEREKLI">Onarim Gerekli</option>
+                        </select>
+                      </label>
+                      <label class="expertiseField">
+                        <span>On ve Arka Takim</span>
+                        <select id="expertiseMechanicalOnArkaTakimInput">
+                          <option value="NORMAL">Sorunsuz</option>
+                          <option value="BAKIM_GEREKLI">Bakim Gerekli</option>
+                          <option value="ONARIM_GEREKLI">Onarim Gerekli</option>
+                        </select>
+                      </label>
+                    </div>
+                  </article>
+                  <article class="expertiseDetailCard">
+                    <h5>Lastiklerin Genel Durumu</h5>
+                    <div class="expertiseFieldList">
+                      <label class="expertiseField">
+                        <span>Genel Durum</span>
+                        <select id="expertiseTireGeneralInput">
+                          <option value="IYI">Iyi</option>
+                          <option value="ORTA">Orta</option>
+                          <option value="ZAYIF">Zayif</option>
+                          <option value="DEGISTIRILMELI">Degistirilmeli</option>
+                        </select>
+                      </label>
+                    </div>
+                  </article>
                 </div>
                 <label class="fieldWrap">
                   <span>Aciklama</span>

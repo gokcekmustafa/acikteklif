@@ -53,6 +53,7 @@ const MAX_ATTACHMENT_DATA_URL_LENGTH = 2_700_000;
 const MAX_GALLERY_TOTAL_DATA_URL_LENGTH = 2_400_000;
 const MAX_ATTACHMENT_TOTAL_DATA_URL_LENGTH = 3_200_000;
 const MAX_VEHICLE_CONDITION_JSON_LENGTH = 5000;
+const MAX_VEHICLE_EXPERTISE_META_JSON_LENGTH = 12000;
 const FILTER_ORDER_SETTING_KEY = "filter_option_order";
 const DEFAULT_TURKEY_CITIES = TURKEY_CITIES as readonly string[];
 const VEHICLE_CONDITION_PART_KEYS = [
@@ -71,6 +72,23 @@ const VEHICLE_CONDITION_PART_KEYS = [
   "arka_tampon",
   "sol_ayna",
   "sag_ayna",
+] as const;
+const VEHICLE_EXPERTISE_STRUCTURE_KEYS = [
+  "sag_sol_podye",
+  "sag_sol_kilic_saci",
+  "on_ic_direkler",
+  "orta_ic_direkler_arka_kilit_karsiliklari",
+  "on_panel_arka_panel",
+  "sag_sol_marsbiyel",
+  "sag_sol_ust_direkler_frangart",
+] as const;
+const VEHICLE_EXPERTISE_MECHANICAL_KEYS = [
+  "motor_alt_ust_yag_kacagi",
+  "sanziman",
+  "turbo",
+  "radyator",
+  "interkol",
+  "on_arka_takim",
 ] as const;
 
 type RuntimeSchemaState = {
@@ -1009,9 +1027,9 @@ async function handleApi(request, env, url) {
             expertise_files_json, document_files_json,
             vehicle_brand, vehicle_model, vehicle_model_detail, vehicle_year, vehicle_km, vehicle_fuel_type,
             vehicle_transmission, vehicle_body_type, vehicle_color, vehicle_chassis_no, vehicle_engine_volume, vehicle_engine_power, vehicle_drive_type,
-            vehicle_condition_map_json,
+            vehicle_condition_map_json, vehicle_expertise_meta_json,
             created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, NULL, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+          ) VALUES (?, ?, ?, ?, ?, NULL, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
         )
           .bind(
             crypto.randomUUID(),
@@ -1047,7 +1065,8 @@ async function handleApi(request, env, url) {
             validation.vehicleEngineVolume,
             validation.vehicleEnginePower,
             validation.vehicleDriveType,
-            validation.vehicleConditionMapJson
+            validation.vehicleConditionMapJson,
+            validation.vehicleExpertiseMetaJson
           )
           .run();
       } catch (error) {
@@ -1903,6 +1922,7 @@ async function ensureMarketplaceSchema(env, options: { runLegacyRepair?: boolean
     "ALTER TABLE auctions ADD COLUMN vehicle_engine_power TEXT",
     "ALTER TABLE auctions ADD COLUMN vehicle_drive_type TEXT",
     "ALTER TABLE auctions ADD COLUMN vehicle_condition_map_json TEXT",
+    "ALTER TABLE auctions ADD COLUMN vehicle_expertise_meta_json TEXT",
   ];
 
   for (const sql of baseStatements) {
@@ -1969,7 +1989,7 @@ async function getAdminAuctionsList(env) {
       a.gallery_json, a.extra_equipment, a.expertise_files_json, a.document_files_json,
       a.description, a.vehicle_brand, a.vehicle_model, a.vehicle_model_detail, a.vehicle_year, a.vehicle_km,
       a.vehicle_fuel_type, a.vehicle_transmission, a.vehicle_body_type, a.vehicle_color, a.vehicle_chassis_no, a.vehicle_engine_volume,
-      a.vehicle_engine_power, a.vehicle_drive_type, a.vehicle_condition_map_json,
+      a.vehicle_engine_power, a.vehicle_drive_type, a.vehicle_condition_map_json, a.vehicle_expertise_meta_json,
       pg.name AS product_group, c.name AS category
      FROM auctions a
      LEFT JOIN product_groups pg ON pg.id = a.product_group_id
@@ -2004,7 +2024,7 @@ async function getPublicAuctionDetailByLotNo(env, lotNo: string) {
       a.description, a.extra_equipment, a.expertise_files_json, a.document_files_json,
       a.vehicle_brand, a.vehicle_model, a.vehicle_model_detail, a.vehicle_year, a.vehicle_km,
       a.vehicle_fuel_type, a.vehicle_transmission, a.vehicle_body_type, a.vehicle_color, a.vehicle_chassis_no, a.vehicle_engine_volume,
-      a.vehicle_engine_power, a.vehicle_drive_type, a.vehicle_condition_map_json,
+      a.vehicle_engine_power, a.vehicle_drive_type, a.vehicle_condition_map_json, a.vehicle_expertise_meta_json,
       pg.name AS product_group, c.name AS category
      FROM auctions a
      LEFT JOIN product_groups pg ON pg.id = a.product_group_id
@@ -2718,6 +2738,9 @@ async function validateAuctionPayload(env, body) {
   const vehicleConditionMap = normalizeVehicleConditionMapInput(
     body.vehicleConditionMap || body.vehicle_condition_map || body.vehicle_condition_map_json || {}
   );
+  const vehicleExpertiseMeta = normalizeVehicleExpertiseMetaInput(
+    body.vehicleExpertiseMeta || body.vehicle_expertise_meta || body.vehicle_expertise_meta_json || {}
+  );
   const description = String(body.description || "").trim().slice(0, 5000);
   const extraEquipment = String(body.extraEquipment || body.extra_equipment || "").trim().slice(0, 5000);
   const rawImageUrl = String(body.imageUrl || "").trim();
@@ -2780,6 +2803,10 @@ async function validateAuctionPayload(env, body) {
   if (vehicleConditionMapJson.length > MAX_VEHICLE_CONDITION_JSON_LENGTH) {
     return { error: "Kaporta durum haritasi kaydedilemedi. Lutfen daha az parca secimi yapin." };
   }
+  const vehicleExpertiseMetaJson = JSON.stringify(vehicleExpertiseMeta);
+  if (vehicleExpertiseMetaJson.length > MAX_VEHICLE_EXPERTISE_META_JSON_LENGTH) {
+    return { error: "Ekspertiz detay alanlari cok uzun. Lutfen secimleri azaltin." };
+  }
 
   let groupId = groupIdRaw;
   let categoryId = categoryIdRaw;
@@ -2833,6 +2860,7 @@ async function validateAuctionPayload(env, body) {
     vehicleEnginePower,
     vehicleDriveType,
     vehicleConditionMapJson,
+    vehicleExpertiseMetaJson,
     imageUrl,
     galleryJson: JSON.stringify(imageList),
     expertiseFilesJson: JSON.stringify(expertiseFiles),
@@ -2859,9 +2887,9 @@ async function updateAuctionRecord(env, auctionId: string, validation: any) {
          product_group_id = ?, category_id = ?, city = ?, district = ?, neighborhood = ?, image_url = ?, gallery_json = ?,
          description = ?, extra_equipment = ?, expertise_files_json = ?, document_files_json = ?,
          vehicle_brand = ?, vehicle_model = ?, vehicle_model_detail = ?, vehicle_year = ?, vehicle_km = ?, vehicle_fuel_type = ?,
-         vehicle_transmission = ?, vehicle_body_type = ?, vehicle_color = ?, vehicle_chassis_no = ?, vehicle_engine_volume = ?, vehicle_engine_power = ?, vehicle_drive_type = ?,
-         vehicle_condition_map_json = ?,
-         updated_at = CURRENT_TIMESTAMP
+        vehicle_transmission = ?, vehicle_body_type = ?, vehicle_color = ?, vehicle_chassis_no = ?, vehicle_engine_volume = ?, vehicle_engine_power = ?, vehicle_drive_type = ?,
+        vehicle_condition_map_json = ?, vehicle_expertise_meta_json = ?,
+        updated_at = CURRENT_TIMESTAMP
      WHERE id = ?`
   )
     .bind(
@@ -2897,6 +2925,7 @@ async function updateAuctionRecord(env, auctionId: string, validation: any) {
       validation.vehicleEnginePower,
       validation.vehicleDriveType,
       validation.vehicleConditionMapJson,
+      validation.vehicleExpertiseMetaJson,
       auctionId
     )
     .run();
@@ -3032,6 +3061,106 @@ function normalizeVehicleConditionStatusValue(rawInput: any): "ORIGINAL" | "LOCA
   if (folded === "LOCAL_PAINTED" || folded === "LOKAL BOYALI" || folded === "LOKALBOYALI") return "LOCAL_PAINTED";
   if (folded === "PAINTED" || folded === "BOYALI") return "PAINTED";
   if (folded === "CHANGED" || folded === "DEGISEN") return "CHANGED";
+  return null;
+}
+
+function normalizeVehicleExpertiseMetaInput(rawInput: any) {
+  const source = parseJsonObjectFromUnknown(rawInput);
+  const structureSource = parseJsonObjectFromUnknown(source.structure || source.structural || {});
+  const mechanicalSource = parseJsonObjectFromUnknown(source.mechanical || {});
+  const tireSource = parseJsonObjectFromUnknown(source.tires || {});
+
+  const structure: Record<string, "ORIGINAL" | "ISLEMLI" | "DEGISMIS"> = {};
+  for (const key of VEHICLE_EXPERTISE_STRUCTURE_KEYS) {
+    const rawValue = structureSource[key] ?? source[key];
+    const normalized = normalizeVehicleExpertiseStructureStatusValue(rawValue);
+    if (!normalized || normalized === "ORIGINAL") continue;
+    structure[key] = normalized;
+  }
+
+  const mechanical: Record<string, "NORMAL" | "BAKIM_GEREKLI" | "ONARIM_GEREKLI"> = {};
+  for (const key of VEHICLE_EXPERTISE_MECHANICAL_KEYS) {
+    const rawValue = mechanicalSource[key] ?? source[key];
+    const normalized = normalizeVehicleExpertiseMechanicalStatusValue(rawValue);
+    if (!normalized || normalized === "NORMAL") continue;
+    mechanical[key] = normalized;
+  }
+
+  const tireRaw =
+    tireSource.general || tireSource.lastik_genel_durum || source.lastik_genel_durum || source.tireGeneral || source.lastikDurum;
+  const tireGeneral = normalizeVehicleExpertiseTireStatusValue(tireRaw);
+
+  const out: Record<string, any> = {};
+  if (Object.keys(structure).length > 0) out.structure = structure;
+  if (Object.keys(mechanical).length > 0) out.mechanical = mechanical;
+  if (tireGeneral && tireGeneral !== "IYI") out.tires = { general: tireGeneral };
+  return out;
+}
+
+function normalizeVehicleExpertiseStructureStatusValue(rawInput: any): "ORIGINAL" | "ISLEMLI" | "DEGISMIS" | null {
+  const text = String(rawInput || "").trim();
+  if (!text) return null;
+  const folded = text
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (folded === "ORIGINAL" || folded === "ORIJINAL") return "ORIGINAL";
+  if (
+    folded === "ISLEMLI" ||
+    folded === "ISLEM GORMUS" ||
+    folded === "ISLEM GORMUS" ||
+    folded === "DUZELTILMIS" ||
+    folded === "DUZELTME"
+  ) {
+    return "ISLEMLI";
+  }
+  if (folded === "DEGISMIS" || folded === "DEGISEN" || folded === "CHANGED") return "DEGISMIS";
+  return null;
+}
+
+function normalizeVehicleExpertiseMechanicalStatusValue(
+  rawInput: any
+): "NORMAL" | "BAKIM_GEREKLI" | "ONARIM_GEREKLI" | null {
+  const text = String(rawInput || "").trim();
+  if (!text) return null;
+  const folded = text
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (folded === "NORMAL" || folded === "IYI" || folded === "SORUNSUZ" || folded === "YOK") return "NORMAL";
+  if (folded === "BAKIM_GEREKLI" || folded === "KONTROL_GEREKLI" || folded === "BAKIM" || folded === "KONTROL") {
+    return "BAKIM_GEREKLI";
+  }
+  if (
+    folded === "ONARIM_GEREKLI" ||
+    folded === "ONARIM" ||
+    folded === "ARIZALI" ||
+    folded === "KACAK VAR" ||
+    folded === "KACAK_VAR"
+  ) {
+    return "ONARIM_GEREKLI";
+  }
+  return null;
+}
+
+function normalizeVehicleExpertiseTireStatusValue(rawInput: any): "IYI" | "ORTA" | "ZAYIF" | "DEGISTIRILMELI" | null {
+  const text = String(rawInput || "").trim();
+  if (!text) return null;
+  const folded = text
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (folded === "IYI" || folded === "GOOD") return "IYI";
+  if (folded === "ORTA" || folded === "MEDIUM") return "ORTA";
+  if (folded === "ZAYIF" || folded === "KOTU" || folded === "DUSUK") return "ZAYIF";
+  if (
+    folded === "DEGISTIRILMELI" ||
+    folded === "DEGISMELI" ||
+    folded === "DEGISIM GEREKLI" ||
+    folded === "CHANGE_REQUIRED"
+  ) {
+    return "DEGISTIRILMELI";
+  }
   return null;
 }
 

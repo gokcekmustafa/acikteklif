@@ -36,6 +36,60 @@ const VEHICLE_CONDITION_PARTS = [
   { key: "sol_ayna", label: "Sol Ayna" },
   { key: "sag_ayna", label: "Sag Ayna" },
 ] as const;
+const VEHICLE_CONDITION_PART_PATHS: Record<string, string> = {
+  on_tampon: "M141 64 H259 Q267 64 267 72 V92 Q267 100 259 100 H141 Q133 100 133 92 V72 Q133 64 141 64 Z",
+  kaput: "M136 116 Q200 92 264 116 L254 215 Q200 200 146 215 Z",
+  tavan: "M148 222 Q200 206 252 222 L258 328 Q200 346 142 328 Z",
+  bagaj: "M146 336 Q200 356 254 336 L248 386 Q200 404 152 386 Z",
+  arka_tampon: "M139 404 H261 Q269 404 269 412 V434 Q269 442 261 442 H139 Q131 442 131 434 V412 Q131 404 139 404 Z",
+  sol_on_camurluk: "M66 126 L122 136 L130 204 L66 224 Z",
+  sol_on_kapi: "M66 228 L130 210 L132 284 L66 304 Z",
+  sol_arka_kapi: "M66 308 L132 288 L126 358 L66 376 Z",
+  sol_arka_camurluk: "M66 380 L126 362 L116 430 L66 430 Z",
+  sag_on_camurluk: "M334 126 L278 136 L270 204 L334 224 Z",
+  sag_on_kapi: "M334 228 L270 210 L268 284 L334 304 Z",
+  sag_arka_kapi: "M334 308 L268 288 L274 358 L334 376 Z",
+  sag_arka_camurluk: "M334 380 L274 362 L284 430 L334 430 Z",
+  sol_ayna: "M69 109 H109 V139 H69 Z",
+  sag_ayna: "M331 109 H291 V139 H331 Z",
+};
+const VEHICLE_CONDITION_TEXT_POSITIONS: Record<string, [number, number]> = {
+  on_tampon: [200, 82],
+  kaput: [200, 162],
+  tavan: [200, 274],
+  bagaj: [200, 368],
+  arka_tampon: [200, 423],
+  sol_on_camurluk: [95, 178],
+  sol_on_kapi: [96, 256],
+  sol_arka_kapi: [96, 332],
+  sol_arka_camurluk: [92, 403],
+  sag_on_camurluk: [305, 178],
+  sag_on_kapi: [304, 256],
+  sag_arka_kapi: [304, 332],
+  sag_arka_camurluk: [308, 403],
+  sol_ayna: [89, 124],
+  sag_ayna: [311, 124],
+};
+const VEHICLE_EXPERTISE_STRUCTURE_FIELDS = [
+  { key: "sag_sol_podye", label: "Sag Sol Podye" },
+  { key: "sag_sol_kilic_saci", label: "Sag Sol Kilic Saci" },
+  { key: "on_ic_direkler", label: "On Ic Direkler" },
+  { key: "orta_ic_direkler_arka_kilit_karsiliklari", label: "Orta Ic Direkler ve Arka Kilit Karsiliklari" },
+  { key: "on_panel_arka_panel", label: "On Panel - Arka Panel" },
+  { key: "sag_sol_marsbiyel", label: "Sag Sol Marsbiyel" },
+  { key: "sag_sol_ust_direkler_frangart", label: "Sag Sol Ust Direkler (Frangart)" },
+] as const;
+const VEHICLE_EXPERTISE_MECHANICAL_FIELDS = [
+  { key: "motor_alt_ust_yag_kacagi", label: "Motor Alt/Ust Yag Kacagi" },
+  { key: "sanziman", label: "Sanziman" },
+  { key: "turbo", label: "Turbo" },
+  { key: "radyator", label: "Radyator" },
+  { key: "interkol", label: "Interkol" },
+  { key: "on_arka_takim", label: "On ve Arka Takim" },
+] as const;
+const VEHICLE_EXPERTISE_STRUCTURE_DEFAULT_STATUS = "ORIGINAL" as const;
+const VEHICLE_EXPERTISE_MECHANICAL_DEFAULT_STATUS = "NORMAL" as const;
+const VEHICLE_EXPERTISE_TIRE_DEFAULT_STATUS = "IYI" as const;
 const VEHICLE_BRAND_MODEL_CATALOG: Record<string, string[]> = {
   "Alfa Romeo": ["159", "Giulia", "Giulietta", "Stelvio", "Tonale"],
   Audi: ["A1", "A3", "A4", "A5", "A6", "A7", "A8", "Q2", "Q3", "Q5", "Q7", "Q8", "E-Tron"],
@@ -141,6 +195,16 @@ type UploadedFileEntry = {
 type VehicleConditionStatusKey = (typeof VEHICLE_CONDITION_STATUS_KEYS)[number];
 type VehicleConditionPartKey = (typeof VEHICLE_CONDITION_PARTS)[number]["key"];
 type VehicleConditionMap = Record<string, VehicleConditionStatusKey>;
+type VehicleExpertiseStructureKey = (typeof VEHICLE_EXPERTISE_STRUCTURE_FIELDS)[number]["key"];
+type VehicleExpertiseMechanicalKey = (typeof VEHICLE_EXPERTISE_MECHANICAL_FIELDS)[number]["key"];
+type VehicleExpertiseStructureStatus = "ORIGINAL" | "ISLEMLI" | "DEGISMIS";
+type VehicleExpertiseMechanicalStatus = "NORMAL" | "BAKIM_GEREKLI" | "ONARIM_GEREKLI";
+type VehicleExpertiseTireStatus = "IYI" | "ORTA" | "ZAYIF" | "DEGISTIRILMELI";
+type VehicleExpertiseMeta = {
+  structure?: Partial<Record<VehicleExpertiseStructureKey, VehicleExpertiseStructureStatus>>;
+  mechanical?: Partial<Record<VehicleExpertiseMechanicalKey, VehicleExpertiseMechanicalStatus>>;
+  tires?: { general?: VehicleExpertiseTireStatus };
+};
 
 type SafeActionOptions = {
   onError?: (error: any) => void;
@@ -271,6 +335,20 @@ const elements = {
   auctionVehicleConditionToolbar: byId("auctionVehicleConditionToolbar"),
   auctionVehicleConditionResetBtn: byId("auctionVehicleConditionResetBtn"),
   auctionVehicleConditionMap: byId("auctionVehicleConditionMap"),
+  expertiseStructureSagSolPodyeInput: byId("expertiseStructureSagSolPodyeInput"),
+  expertiseStructureSagSolKilicSaciInput: byId("expertiseStructureSagSolKilicSaciInput"),
+  expertiseStructureOnIcDireklerInput: byId("expertiseStructureOnIcDireklerInput"),
+  expertiseStructureOrtaIcDireklerInput: byId("expertiseStructureOrtaIcDireklerInput"),
+  expertiseStructureOnArkaPanelInput: byId("expertiseStructureOnArkaPanelInput"),
+  expertiseStructureSagSolMarsbiyelInput: byId("expertiseStructureSagSolMarsbiyelInput"),
+  expertiseStructureSagSolUstDireklerInput: byId("expertiseStructureSagSolUstDireklerInput"),
+  expertiseMechanicalYagKacagiInput: byId("expertiseMechanicalYagKacagiInput"),
+  expertiseMechanicalSanzimanInput: byId("expertiseMechanicalSanzimanInput"),
+  expertiseMechanicalTurboInput: byId("expertiseMechanicalTurboInput"),
+  expertiseMechanicalRadyatorInput: byId("expertiseMechanicalRadyatorInput"),
+  expertiseMechanicalInterkolInput: byId("expertiseMechanicalInterkolInput"),
+  expertiseMechanicalOnArkaTakimInput: byId("expertiseMechanicalOnArkaTakimInput"),
+  expertiseTireGeneralInput: byId("expertiseTireGeneralInput"),
   auctionResetBtn: byId("auctionResetBtn"),
   auctionFormTitle: byId("auctionFormTitle"),
   auctionSaveBtn: byId("auctionSaveBtn"),
@@ -282,6 +360,25 @@ const elements = {
   filterOrderDistricts: byId("filterOrderDistricts"),
   filterOrderNeighborhoods: byId("filterOrderNeighborhoods"),
   filterOrderResetBtn: byId("filterOrderResetBtn"),
+};
+
+const VEHICLE_EXPERTISE_STRUCTURE_INPUTS: Record<VehicleExpertiseStructureKey, HTMLSelectElement> = {
+  sag_sol_podye: elements.expertiseStructureSagSolPodyeInput as HTMLSelectElement,
+  sag_sol_kilic_saci: elements.expertiseStructureSagSolKilicSaciInput as HTMLSelectElement,
+  on_ic_direkler: elements.expertiseStructureOnIcDireklerInput as HTMLSelectElement,
+  orta_ic_direkler_arka_kilit_karsiliklari: elements.expertiseStructureOrtaIcDireklerInput as HTMLSelectElement,
+  on_panel_arka_panel: elements.expertiseStructureOnArkaPanelInput as HTMLSelectElement,
+  sag_sol_marsbiyel: elements.expertiseStructureSagSolMarsbiyelInput as HTMLSelectElement,
+  sag_sol_ust_direkler_frangart: elements.expertiseStructureSagSolUstDireklerInput as HTMLSelectElement,
+};
+
+const VEHICLE_EXPERTISE_MECHANICAL_INPUTS: Record<VehicleExpertiseMechanicalKey, HTMLSelectElement> = {
+  motor_alt_ust_yag_kacagi: elements.expertiseMechanicalYagKacagiInput as HTMLSelectElement,
+  sanziman: elements.expertiseMechanicalSanzimanInput as HTMLSelectElement,
+  turbo: elements.expertiseMechanicalTurboInput as HTMLSelectElement,
+  radyator: elements.expertiseMechanicalRadyatorInput as HTMLSelectElement,
+  interkol: elements.expertiseMechanicalInterkolInput as HTMLSelectElement,
+  on_arka_takim: elements.expertiseMechanicalOnArkaTakimInput as HTMLSelectElement,
 };
 
 function getAuctionFieldBinding(fieldKey: AuctionFieldKey): AuctionFieldBinding | null {
@@ -1721,6 +1818,11 @@ function fillAuctionForm(auction: any) {
   );
   state.auctionVehicleConditionSelectedStatus = VEHICLE_CONDITION_DEFAULT_STATUS;
   renderAuctionVehicleConditionMap();
+  fillVehicleExpertiseMetaForm(
+    normalizeVehicleExpertiseMeta(
+      auction.vehicle_expertise_meta_json || auction.vehicle_expertise_meta || auction.vehicleExpertiseMeta || {}
+    )
+  );
   updateFormHeadings();
 }
 
@@ -1757,11 +1859,75 @@ function readAuctionFormPayload() {
     vehicleEnginePower: String(elements.auctionVehicleEnginePowerInput.value || "").trim(),
     vehicleDriveType: String(elements.auctionVehicleDriveTypeInput.value || "").trim(),
     vehicleConditionMap: normalizeVehicleConditionMap(state.auctionVehicleConditionMap || {}),
+    vehicleExpertiseMeta: readVehicleExpertiseMetaFromForm(),
     imageUrl: imageList[0] || "",
     images: imageList,
     expertiseFiles: normalizeUploadedFileList(state.auctionExpertiseFiles || []),
     documentFiles: normalizeUploadedFileList(state.auctionDocumentFiles || []),
   };
+}
+
+function readVehicleExpertiseMetaFromForm(): VehicleExpertiseMeta {
+  const structure: Partial<Record<VehicleExpertiseStructureKey, VehicleExpertiseStructureStatus>> = {};
+  for (const field of VEHICLE_EXPERTISE_STRUCTURE_FIELDS) {
+    const select = VEHICLE_EXPERTISE_STRUCTURE_INPUTS[field.key];
+    const normalized = normalizeVehicleExpertiseStructureStatus(select?.value);
+    if (!normalized || normalized === VEHICLE_EXPERTISE_STRUCTURE_DEFAULT_STATUS) continue;
+    structure[field.key] = normalized;
+  }
+
+  const mechanical: Partial<Record<VehicleExpertiseMechanicalKey, VehicleExpertiseMechanicalStatus>> = {};
+  for (const field of VEHICLE_EXPERTISE_MECHANICAL_FIELDS) {
+    const select = VEHICLE_EXPERTISE_MECHANICAL_INPUTS[field.key];
+    const normalized = normalizeVehicleExpertiseMechanicalStatus(select?.value);
+    if (!normalized || normalized === VEHICLE_EXPERTISE_MECHANICAL_DEFAULT_STATUS) continue;
+    mechanical[field.key] = normalized;
+  }
+
+  const tireStatus = normalizeVehicleExpertiseTireStatus(elements.expertiseTireGeneralInput?.value);
+
+  const out: VehicleExpertiseMeta = {};
+  if (Object.keys(structure).length > 0) out.structure = structure;
+  if (Object.keys(mechanical).length > 0) out.mechanical = mechanical;
+  if (tireStatus && tireStatus !== VEHICLE_EXPERTISE_TIRE_DEFAULT_STATUS) out.tires = { general: tireStatus };
+  return out;
+}
+
+function fillVehicleExpertiseMetaForm(input: any) {
+  const meta = normalizeVehicleExpertiseMeta(input);
+  const structure = meta.structure || {};
+  const mechanical = meta.mechanical || {};
+  const tireStatus = normalizeVehicleExpertiseTireStatus(meta.tires?.general) || VEHICLE_EXPERTISE_TIRE_DEFAULT_STATUS;
+
+  for (const field of VEHICLE_EXPERTISE_STRUCTURE_FIELDS) {
+    const value = normalizeVehicleExpertiseStructureStatus(structure[field.key]) || VEHICLE_EXPERTISE_STRUCTURE_DEFAULT_STATUS;
+    const select = VEHICLE_EXPERTISE_STRUCTURE_INPUTS[field.key];
+    if (select) select.value = value;
+  }
+
+  for (const field of VEHICLE_EXPERTISE_MECHANICAL_FIELDS) {
+    const value = normalizeVehicleExpertiseMechanicalStatus(mechanical[field.key]) || VEHICLE_EXPERTISE_MECHANICAL_DEFAULT_STATUS;
+    const select = VEHICLE_EXPERTISE_MECHANICAL_INPUTS[field.key];
+    if (select) select.value = value;
+  }
+
+  if (elements.expertiseTireGeneralInput) {
+    elements.expertiseTireGeneralInput.value = tireStatus;
+  }
+}
+
+function resetVehicleExpertiseMetaForm() {
+  for (const field of VEHICLE_EXPERTISE_STRUCTURE_FIELDS) {
+    const select = VEHICLE_EXPERTISE_STRUCTURE_INPUTS[field.key];
+    if (select) select.value = VEHICLE_EXPERTISE_STRUCTURE_DEFAULT_STATUS;
+  }
+  for (const field of VEHICLE_EXPERTISE_MECHANICAL_FIELDS) {
+    const select = VEHICLE_EXPERTISE_MECHANICAL_INPUTS[field.key];
+    if (select) select.value = VEHICLE_EXPERTISE_MECHANICAL_DEFAULT_STATUS;
+  }
+  if (elements.expertiseTireGeneralInput) {
+    elements.expertiseTireGeneralInput.value = VEHICLE_EXPERTISE_TIRE_DEFAULT_STATUS;
+  }
 }
 
 function markRequiredAuctionLabels() {
@@ -2016,6 +2182,7 @@ function resetAuctionForm() {
   state.auctionVehicleConditionMap = {};
   state.auctionVehicleConditionSelectedStatus = VEHICLE_CONDITION_DEFAULT_STATUS;
   renderAuctionVehicleConditionMap();
+  resetVehicleExpertiseMetaForm();
   updateFormHeadings();
 }
 
@@ -2281,18 +2448,39 @@ function renderAuctionVehicleConditionMap() {
     button.classList.toggle("active", key === selectedStatus);
   }
 
-  elements.auctionVehicleConditionMap.innerHTML = VEHICLE_CONDITION_PARTS.map((part) => {
+  const partsMarkup = VEHICLE_CONDITION_PARTS.map((part) => {
     const status = map[part.key] || VEHICLE_CONDITION_DEFAULT_STATUS;
-    const statusClass = status.toLowerCase();
+    const statusClass = getVehicleConditionStatusClass(status);
+    const code = getVehicleConditionStatusCode(status);
+    const pos = VEHICLE_CONDITION_TEXT_POSITIONS[part.key] || [200, 250];
+    const path = VEHICLE_CONDITION_PART_PATHS[part.key] || "";
     return `
-      <button class="conditionPart ${statusClass}" type="button" data-part-key="${part.key}" aria-label="${escapeHtml(
+      <g class="conditionSvgPart ${statusClass}" data-part-key="${part.key}" role="button" aria-label="${escapeHtml(
       part.label
     )} ${escapeHtml(getVehicleConditionStatusLabel(status))}">
-        <span class="partName">${escapeHtml(part.label)}</span>
-        <span class="partState">${escapeHtml(getVehicleConditionStatusLabel(status))}</span>
-      </button>
+        <path d="${path}"></path>
+        <text x="${Number(pos[0])}" y="${Number(pos[1])}" text-anchor="middle" dominant-baseline="middle">${escapeHtml(code)}</text>
+      </g>
     `;
   }).join("");
+
+  elements.auctionVehicleConditionMap.innerHTML = `
+    <svg class="conditionSvg conditionSvgInteractive" viewBox="0 0 400 500" role="img" aria-label="Arac kaporta durum haritasi">
+      <g class="conditionBodyShell">
+        <path d="M142 54 Q200 36 258 54 L292 146 L292 354 L258 456 Q200 474 142 456 L108 354 L108 146 Z"></path>
+        <path d="M148 222 Q200 206 252 222 L258 328 Q200 346 142 328 Z"></path>
+        <path d="M52 118 Q82 104 126 112 L132 438 Q84 448 52 430 Z"></path>
+        <path d="M348 118 Q318 104 274 112 L268 438 Q316 448 348 430 Z"></path>
+      </g>
+      <g class="conditionWheelSet">
+        <circle cx="56" cy="195" r="27"></circle>
+        <circle cx="56" cy="369" r="27"></circle>
+        <circle cx="344" cy="195" r="27"></circle>
+        <circle cx="344" cy="369" r="27"></circle>
+      </g>
+      ${partsMarkup}
+    </svg>
+  `;
 }
 
 function getVehicleConditionStatusLabel(status: VehicleConditionStatusKey) {
@@ -2300,6 +2488,20 @@ function getVehicleConditionStatusLabel(status: VehicleConditionStatusKey) {
   if (status === "PAINTED") return "Boyali";
   if (status === "CHANGED") return "Degisen";
   return "Orijinal";
+}
+
+function getVehicleConditionStatusClass(status: VehicleConditionStatusKey) {
+  if (status === "LOCAL_PAINTED") return "local_painted";
+  if (status === "PAINTED") return "painted";
+  if (status === "CHANGED") return "changed";
+  return "original";
+}
+
+function getVehicleConditionStatusCode(status: VehicleConditionStatusKey) {
+  if (status === "LOCAL_PAINTED") return "LB";
+  if (status === "PAINTED") return "B";
+  if (status === "CHANGED") return "D";
+  return "O";
 }
 
 function normalizeVehicleConditionMap(input: any): VehicleConditionMap {
@@ -2334,6 +2536,81 @@ function normalizeVehicleConditionStatusKey(input: any): VehicleConditionStatusK
   if (folded === "LOCAL_PAINTED" || folded === "LOKAL BOYALI" || folded === "LOKALBOYALI") return "LOCAL_PAINTED";
   if (folded === "PAINTED" || folded === "BOYALI") return "PAINTED";
   if (folded === "CHANGED" || folded === "DEGISEN") return "CHANGED";
+  return null;
+}
+
+function normalizeVehicleExpertiseMeta(input: any): VehicleExpertiseMeta {
+  const source = parseJsonObjectMaybe(input);
+  const structureSource = parseJsonObjectMaybe(source.structure || source.structural || {});
+  const mechanicalSource = parseJsonObjectMaybe(source.mechanical || {});
+  const tireSource = parseJsonObjectMaybe(source.tires || {});
+
+  const structure: Partial<Record<VehicleExpertiseStructureKey, VehicleExpertiseStructureStatus>> = {};
+  for (const field of VEHICLE_EXPERTISE_STRUCTURE_FIELDS) {
+    const normalized = normalizeVehicleExpertiseStructureStatus(structureSource[field.key] ?? source[field.key]);
+    if (!normalized || normalized === VEHICLE_EXPERTISE_STRUCTURE_DEFAULT_STATUS) continue;
+    structure[field.key] = normalized;
+  }
+
+  const mechanical: Partial<Record<VehicleExpertiseMechanicalKey, VehicleExpertiseMechanicalStatus>> = {};
+  for (const field of VEHICLE_EXPERTISE_MECHANICAL_FIELDS) {
+    const normalized = normalizeVehicleExpertiseMechanicalStatus(mechanicalSource[field.key] ?? source[field.key]);
+    if (!normalized || normalized === VEHICLE_EXPERTISE_MECHANICAL_DEFAULT_STATUS) continue;
+    mechanical[field.key] = normalized;
+  }
+
+  const tireRaw =
+    tireSource.general || tireSource.lastik_genel_durum || source.lastik_genel_durum || source.tireGeneral || source.lastikDurum;
+  const tireStatus = normalizeVehicleExpertiseTireStatus(tireRaw);
+
+  const out: VehicleExpertiseMeta = {};
+  if (Object.keys(structure).length > 0) out.structure = structure;
+  if (Object.keys(mechanical).length > 0) out.mechanical = mechanical;
+  if (tireStatus && tireStatus !== VEHICLE_EXPERTISE_TIRE_DEFAULT_STATUS) out.tires = { general: tireStatus };
+  return out;
+}
+
+function normalizeVehicleExpertiseStructureStatus(input: any): VehicleExpertiseStructureStatus | null {
+  const raw = String(input || "").trim();
+  if (!raw) return null;
+  const folded = raw
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (folded === "ORIGINAL" || folded === "ORIJINAL") return "ORIGINAL";
+  if (folded === "ISLEMLI" || folded === "ISLEM GORMUS" || folded === "DUZELTILMIS" || folded === "DUZELTME")
+    return "ISLEMLI";
+  if (folded === "DEGISMIS" || folded === "DEGISEN" || folded === "CHANGED") return "DEGISMIS";
+  return null;
+}
+
+function normalizeVehicleExpertiseMechanicalStatus(input: any): VehicleExpertiseMechanicalStatus | null {
+  const raw = String(input || "").trim();
+  if (!raw) return null;
+  const folded = raw
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (folded === "NORMAL" || folded === "IYI" || folded === "SORUNSUZ" || folded === "YOK") return "NORMAL";
+  if (folded === "BAKIM_GEREKLI" || folded === "KONTROL_GEREKLI" || folded === "BAKIM" || folded === "KONTROL")
+    return "BAKIM_GEREKLI";
+  if (folded === "ONARIM_GEREKLI" || folded === "ONARIM" || folded === "ARIZALI" || folded === "KACAK VAR")
+    return "ONARIM_GEREKLI";
+  return null;
+}
+
+function normalizeVehicleExpertiseTireStatus(input: any): VehicleExpertiseTireStatus | null {
+  const raw = String(input || "").trim();
+  if (!raw) return null;
+  const folded = raw
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (folded === "IYI" || folded === "GOOD") return "IYI";
+  if (folded === "ORTA" || folded === "MEDIUM") return "ORTA";
+  if (folded === "ZAYIF" || folded === "KOTU" || folded === "DUSUK") return "ZAYIF";
+  if (folded === "DEGISTIRILMELI" || folded === "DEGISIM GEREKLI" || folded === "CHANGE_REQUIRED")
+    return "DEGISTIRILMELI";
   return null;
 }
 

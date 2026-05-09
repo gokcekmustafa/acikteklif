@@ -496,131 +496,112 @@ body.modalOpen {
 }
 
 .conditionMap {
+  border: 1px solid #d8cfbe;
+  border-radius: 10px;
+  background: #f2ecde;
+  padding: 8px;
+}
+
+.conditionSvg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.conditionBodyShell path {
+  fill: #d4d4d4;
+  stroke: #e7e7e7;
+  stroke-width: 4;
+}
+
+.conditionWheelSet circle {
+  fill: #cecece;
+  stroke: #e2e2e2;
+  stroke-width: 4;
+}
+
+.conditionSvgPart {
+  cursor: pointer;
+}
+
+.conditionSvgPart path {
+  stroke: #e6e6e6;
+  stroke-width: 2.8;
+  transition: filter 120ms ease;
+}
+
+.conditionSvgPart:hover path {
+  filter: brightness(0.95);
+}
+
+.conditionSvgPart text {
+  fill: #ffffff;
+  font-size: 22px;
+  font-weight: 800;
+  font-family: "Manrope", sans-serif;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}
+
+.conditionSvgPart.original path {
+  fill: #989898;
+}
+
+.conditionSvgPart.local_painted path {
+  fill: #f39a4c;
+}
+
+.conditionSvgPart.painted path {
+  fill: #3f79bf;
+}
+
+.conditionSvgPart.changed path {
+  fill: #ff5a36;
+}
+
+.expertiseDetailGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-areas:
-    "sol_ayna on_tampon on_tampon sag_ayna"
-    "sol_on_camurluk kaput kaput sag_on_camurluk"
-    "sol_on_kapi tavan tavan sag_on_kapi"
-    "sol_arka_kapi tavan tavan sag_arka_kapi"
-    "sol_arka_camurluk bagaj bagaj sag_arka_camurluk"
-    ". arka_tampon arka_tampon .";
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.expertiseDetailCard {
+  border: 1px solid #d4dfef;
+  background: #f8fbff;
+  border-radius: 10px;
+  padding: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.expertiseDetailCard h5 {
+  margin: 0;
+  font-size: 0.76rem;
+  color: #1e426d;
+}
+
+.expertiseFieldList {
+  display: grid;
   gap: 6px;
 }
 
-.conditionPart {
-  appearance: none;
-  border: 1px solid #b7c8e4;
-  border-radius: 10px;
-  min-height: 44px;
-  background: #f8fbff;
-  color: #213f63;
-  padding: 6px;
-  text-align: center;
+.expertiseField {
   display: grid;
-  gap: 1px;
-  place-content: center;
-  cursor: pointer;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  gap: 4px;
 }
 
-.conditionPart:hover,
-.conditionPart:focus-visible {
-  border-color: #0d49ba;
-  box-shadow: 0 0 0 2px rgba(13, 73, 186, 0.12);
-  outline: none;
-}
-
-.conditionPart .partName {
-  font-size: 0.72rem;
-  font-weight: 800;
-  line-height: 1.2;
-}
-
-.conditionPart .partState {
-  font-size: 0.65rem;
+.expertiseField span {
+  font-size: 0.7rem;
   font-weight: 700;
-  color: #556c8d;
+  color: #35557c;
 }
 
-.conditionPart.original {
-  background: #f4f7fc;
-  border-color: #becce2;
-}
-
-.conditionPart.painted {
-  background: #fff3cc;
-  border-color: #e3bf55;
-}
-
-.conditionPart.local_painted {
-  background: #ffe6cc;
-  border-color: #e5ab63;
-}
-
-.conditionPart.changed {
-  background: #fee2e2;
-  border-color: #dd7f7f;
-}
-
-.conditionPart[data-part-key="on_tampon"] {
-  grid-area: on_tampon;
-}
-
-.conditionPart[data-part-key="kaput"] {
-  grid-area: kaput;
-}
-
-.conditionPart[data-part-key="tavan"] {
-  grid-area: tavan;
-}
-
-.conditionPart[data-part-key="bagaj"] {
-  grid-area: bagaj;
-}
-
-.conditionPart[data-part-key="arka_tampon"] {
-  grid-area: arka_tampon;
-}
-
-.conditionPart[data-part-key="sol_on_camurluk"] {
-  grid-area: sol_on_camurluk;
-}
-
-.conditionPart[data-part-key="sag_on_camurluk"] {
-  grid-area: sag_on_camurluk;
-}
-
-.conditionPart[data-part-key="sol_on_kapi"] {
-  grid-area: sol_on_kapi;
-}
-
-.conditionPart[data-part-key="sag_on_kapi"] {
-  grid-area: sag_on_kapi;
-}
-
-.conditionPart[data-part-key="sol_arka_kapi"] {
-  grid-area: sol_arka_kapi;
-}
-
-.conditionPart[data-part-key="sag_arka_kapi"] {
-  grid-area: sag_arka_kapi;
-}
-
-.conditionPart[data-part-key="sol_arka_camurluk"] {
-  grid-area: sol_arka_camurluk;
-}
-
-.conditionPart[data-part-key="sag_arka_camurluk"] {
-  grid-area: sag_arka_camurluk;
-}
-
-.conditionPart[data-part-key="sol_ayna"] {
-  grid-area: sol_ayna;
-}
-
-.conditionPart[data-part-key="sag_ayna"] {
-  grid-area: sag_ayna;
+.expertiseField select {
+  border: 1px solid #c8d7ed;
+  border-radius: 8px;
+  min-height: 34px;
+  padding: 0 9px;
+  background: #fff;
 }
 
 .checkWrap {
@@ -1283,18 +1264,12 @@ th {
   }
 
   .conditionMap {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-areas:
-      "on_tampon on_tampon"
-      "kaput kaput"
-      "sol_on_camurluk sag_on_camurluk"
-      "sol_on_kapi sag_on_kapi"
-      "tavan tavan"
-      "sol_arka_kapi sag_arka_kapi"
-      "sol_arka_camurluk sag_arka_camurluk"
-      "bagaj bagaj"
-      "arka_tampon arka_tampon"
-      "sol_ayna sag_ayna";
+    max-width: 520px;
+    margin: 0 auto;
+  }
+
+  .expertiseDetailGrid {
+    grid-template-columns: 1fr;
   }
 
   #groupForm.quickForm,
