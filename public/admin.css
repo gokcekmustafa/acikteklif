@@ -569,6 +569,18 @@ body.modalOpen {
   fill: #ff5a36;
 }
 
+.conditionCutouts {
+  pointer-events: none;
+}
+
+.conditionCutouts path {
+  fill: #f3f3f6;
+  stroke: #d8d8db;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
 .expertiseDetailGrid {
   display: grid;
   grid-template-columns: 1fr;

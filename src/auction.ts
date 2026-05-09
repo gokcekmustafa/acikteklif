@@ -26,14 +26,14 @@ const VEHICLE_CONDITION_PART_PATHS = {
   tavan: "M151 223 Q200 209 249 223 L255 328 Q200 341 145 328 Z",
   bagaj: "M148 333 Q200 351 252 333 L247 386 Q200 401 153 386 Z",
   arka_tampon: "M142 404 H258 Q267 404 267 412 V434 Q267 442 258 442 H142 Q133 442 133 434 V412 Q133 404 142 404 Z",
-  sol_on_camurluk: "M74 136 L120 144 L126 198 Q107 196 97 186 Q86 175 74 182 Z",
-  sol_on_kapi: "M74 228 L126 212 L128 286 L74 302 Z",
-  sol_arka_kapi: "M74 308 L128 292 L124 360 L74 376 Z",
-  sol_arka_camurluk: "M74 382 L120 366 L112 430 L74 430 Z",
-  sag_on_camurluk: "M326 136 L280 144 L274 198 Q293 196 303 186 Q314 175 326 182 Z",
-  sag_on_kapi: "M326 228 L274 212 L272 286 L326 302 Z",
-  sag_arka_kapi: "M326 308 L272 292 L276 360 L326 376 Z",
-  sag_arka_camurluk: "M326 382 L280 366 L288 430 L326 430 Z",
+  sol_on_camurluk: "M74 136 L108 140 L108 182 L74 182 Z",
+  sol_on_kapi: "M74 182 Q86 174 96 184 Q107 195 126 198 L131 286 L74 302 Z",
+  sol_arka_kapi: "M74 306 L131 291 L128 360 L74 376 Z",
+  sol_arka_camurluk: "M74 382 L112 382 L112 430 L74 430 Z",
+  sag_on_camurluk: "M326 136 L292 140 L292 182 L326 182 Z",
+  sag_on_kapi: "M326 182 Q314 174 304 184 Q293 195 274 198 L269 286 L326 302 Z",
+  sag_arka_kapi: "M326 306 L269 291 L272 360 L326 376 Z",
+  sag_arka_camurluk: "M326 382 L288 382 L288 430 L326 430 Z",
   sol_ayna: "M76 109 H109 Q114 109 111 116 L108 134 H76 Z",
   sag_ayna: "M324 109 H291 Q286 109 289 116 L292 134 H324 Z",
 };
@@ -43,14 +43,14 @@ const VEHICLE_CONDITION_TEXT_POSITIONS = {
   tavan: [200, 274],
   bagaj: [200, 368],
   arka_tampon: [200, 423],
-  sol_on_camurluk: [98, 170],
-  sol_on_kapi: [96, 256],
-  sol_arka_kapi: [96, 332],
-  sol_arka_camurluk: [91, 404],
-  sag_on_camurluk: [302, 170],
-  sag_on_kapi: [304, 256],
-  sag_arka_kapi: [304, 332],
-  sag_arka_camurluk: [309, 404],
+  sol_on_camurluk: [92, 161],
+  sol_on_kapi: [106, 248],
+  sol_arka_kapi: [106, 335],
+  sol_arka_camurluk: [93, 405],
+  sag_on_camurluk: [308, 161],
+  sag_on_kapi: [294, 248],
+  sag_arka_kapi: [294, 335],
+  sag_arka_camurluk: [307, 405],
   sol_ayna: [92, 122],
   sag_ayna: [308, 122],
 };
@@ -307,6 +307,16 @@ function renderVehicleConditionMap() {
         <circle cx="344" cy="369" r="27"></circle>
       </g>
       ${partsMarkup}
+      <g class="conditionCutouts" aria-hidden="true">
+        <path d="M90 214 Q101 187 124 198 L123 286 L83 275 Q86 238 90 214 Z"></path>
+        <path d="M83 307 L123 294 L122 360 L89 374 Q83 362 83 346 Z"></path>
+        <path d="M310 214 Q299 187 276 198 L277 286 L317 275 Q314 238 310 214 Z"></path>
+        <path d="M317 307 L277 294 L278 360 L311 374 Q317 362 317 346 Z"></path>
+        <path d="M158 79 H176 Q181 79 181 84 V88 Q181 93 176 93 H158 Q153 93 153 88 V84 Q153 79 158 79 Z"></path>
+        <path d="M224 79 H242 Q247 79 247 84 V88 Q247 93 242 93 H224 Q219 93 219 88 V84 Q219 79 224 79 Z"></path>
+        <path d="M158 417 H176 Q181 417 181 422 V426 Q181 431 176 431 H158 Q153 431 153 426 V422 Q153 417 158 417 Z"></path>
+        <path d="M224 417 H242 Q247 417 247 422 V426 Q247 431 242 431 H224 Q219 431 219 426 V422 Q219 417 224 417 Z"></path>
+      </g>
     </svg>
   `;
   renderVehicleExpertiseDetails();

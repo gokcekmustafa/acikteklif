@@ -357,6 +357,18 @@ body {
   fill: #ff5a36;
 }
 
+.conditionCutouts {
+  pointer-events: none;
+}
+
+.conditionCutouts path {
+  fill: #f3f3f6;
+  stroke: #d8d8db;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
 .expertiseOverview {
   display: grid;
   grid-template-columns: minmax(280px, 1.2fr) minmax(220px, 1fr) minmax(220px, 1fr);
