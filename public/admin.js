@@ -43,14 +43,14 @@ const VEHICLE_CONDITION_PART_PATHS = {
     tavan: "M151 223 Q200 209 249 223 L255 328 Q200 341 145 328 Z",
     bagaj: "M148 333 Q200 351 252 333 L247 386 Q200 401 153 386 Z",
     arka_tampon: "M142 404 H258 Q267 404 267 412 V434 Q267 442 258 442 H142 Q133 442 133 434 V412 Q133 404 142 404 Z",
-    sol_on_camurluk: "M124 138 Q98 130 72 132 L72 224 Q84 220 92 208 Q104 190 126 196 Z",
-    sol_on_kapi: "M72 228 L126 208 L129 286 L72 304 Z",
-    sol_arka_kapi: "M72 308 L129 288 L124 362 L72 378 Z",
-    sol_arka_camurluk: "M72 382 L120 366 L112 430 L72 430 Z",
-    sag_on_camurluk: "M276 138 Q302 130 328 132 L328 224 Q316 220 308 208 Q296 190 274 196 Z",
-    sag_on_kapi: "M328 228 L274 208 L271 286 L328 304 Z",
-    sag_arka_kapi: "M328 308 L271 288 L276 362 L328 378 Z",
-    sag_arka_camurluk: "M328 382 L280 366 L288 430 L328 430 Z",
+    sol_on_camurluk: "M74 136 L120 144 L126 198 Q107 196 97 186 Q86 175 74 182 Z",
+    sol_on_kapi: "M74 228 L126 212 L128 286 L74 302 Z",
+    sol_arka_kapi: "M74 308 L128 292 L124 360 L74 376 Z",
+    sol_arka_camurluk: "M74 382 L120 366 L112 430 L74 430 Z",
+    sag_on_camurluk: "M326 136 L280 144 L274 198 Q293 196 303 186 Q314 175 326 182 Z",
+    sag_on_kapi: "M326 228 L274 212 L272 286 L326 302 Z",
+    sag_arka_kapi: "M326 308 L272 292 L276 360 L326 376 Z",
+    sag_arka_camurluk: "M326 382 L280 366 L288 430 L326 430 Z",
     sol_ayna: "M76 109 H109 Q114 109 111 116 L108 134 H76 Z",
     sag_ayna: "M324 109 H291 Q286 109 289 116 L292 134 H324 Z",
 };
@@ -60,11 +60,11 @@ const VEHICLE_CONDITION_TEXT_POSITIONS = {
     tavan: [200, 274],
     bagaj: [200, 368],
     arka_tampon: [200, 423],
-    sol_on_camurluk: [98, 176],
+    sol_on_camurluk: [98, 170],
     sol_on_kapi: [96, 256],
     sol_arka_kapi: [96, 332],
     sol_arka_camurluk: [91, 404],
-    sag_on_camurluk: [302, 176],
+    sag_on_camurluk: [302, 170],
     sag_on_kapi: [304, 256],
     sag_arka_kapi: [304, 332],
     sag_arka_camurluk: [309, 404],
@@ -836,10 +836,10 @@ function bindAuctionEvents() {
         renderAuctionVehicleConditionMap();
     });
     elements.auctionVehicleConditionMap.addEventListener("click", (event) => {
-        const btn = event.target.closest("button[data-part-key]");
-        if (!btn)
+        const partNode = event.target?.closest("[data-part-key]");
+        if (!partNode)
             return;
-        const partKey = String(btn.dataset.partKey || "").trim();
+        const partKey = String(partNode.dataset?.partKey || "").trim();
         if (!isVehicleConditionPartKey(partKey))
             return;
         const selectedStatus = normalizeVehicleConditionStatusKey(state.auctionVehicleConditionSelectedStatus) || VEHICLE_CONDITION_DEFAULT_STATUS;
