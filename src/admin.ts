@@ -37,21 +37,21 @@ const VEHICLE_CONDITION_PARTS = [
   { key: "sag_ayna", label: "Sag Ayna" },
 ] as const;
 const VEHICLE_CONDITION_PART_PATHS: Record<string, string> = {
-  on_tampon: "M141 64 H259 Q267 64 267 72 V92 Q267 100 259 100 H141 Q133 100 133 92 V72 Q133 64 141 64 Z",
-  kaput: "M136 116 Q200 92 264 116 L254 215 Q200 200 146 215 Z",
-  tavan: "M148 222 Q200 206 252 222 L258 328 Q200 346 142 328 Z",
-  bagaj: "M146 336 Q200 356 254 336 L248 386 Q200 404 152 386 Z",
-  arka_tampon: "M139 404 H261 Q269 404 269 412 V434 Q269 442 261 442 H139 Q131 442 131 434 V412 Q131 404 139 404 Z",
-  sol_on_camurluk: "M66 126 L122 136 L130 204 L66 224 Z",
-  sol_on_kapi: "M66 228 L130 210 L132 284 L66 304 Z",
-  sol_arka_kapi: "M66 308 L132 288 L126 358 L66 376 Z",
-  sol_arka_camurluk: "M66 380 L126 362 L116 430 L66 430 Z",
-  sag_on_camurluk: "M334 126 L278 136 L270 204 L334 224 Z",
-  sag_on_kapi: "M334 228 L270 210 L268 284 L334 304 Z",
-  sag_arka_kapi: "M334 308 L268 288 L274 358 L334 376 Z",
-  sag_arka_camurluk: "M334 380 L274 362 L284 430 L334 430 Z",
-  sol_ayna: "M69 109 H109 V139 H69 Z",
-  sag_ayna: "M331 109 H291 V139 H331 Z",
+  on_tampon: "M144 66 H256 Q265 66 265 74 V96 Q265 104 256 104 H144 Q135 104 135 96 V74 Q135 66 144 66 Z",
+  kaput: "M140 118 Q200 94 260 118 L254 217 Q200 201 146 217 Z",
+  tavan: "M151 223 Q200 209 249 223 L255 328 Q200 341 145 328 Z",
+  bagaj: "M148 333 Q200 351 252 333 L247 386 Q200 401 153 386 Z",
+  arka_tampon: "M142 404 H258 Q267 404 267 412 V434 Q267 442 258 442 H142 Q133 442 133 434 V412 Q133 404 142 404 Z",
+  sol_on_camurluk: "M124 138 Q98 130 72 132 L72 224 Q84 220 92 208 Q104 190 126 196 Z",
+  sol_on_kapi: "M72 228 L126 208 L129 286 L72 304 Z",
+  sol_arka_kapi: "M72 308 L129 288 L124 362 L72 378 Z",
+  sol_arka_camurluk: "M72 382 L120 366 L112 430 L72 430 Z",
+  sag_on_camurluk: "M276 138 Q302 130 328 132 L328 224 Q316 220 308 208 Q296 190 274 196 Z",
+  sag_on_kapi: "M328 228 L274 208 L271 286 L328 304 Z",
+  sag_arka_kapi: "M328 308 L271 288 L276 362 L328 378 Z",
+  sag_arka_camurluk: "M328 382 L280 366 L288 430 L328 430 Z",
+  sol_ayna: "M76 109 H109 Q114 109 111 116 L108 134 H76 Z",
+  sag_ayna: "M324 109 H291 Q286 109 289 116 L292 134 H324 Z",
 };
 const VEHICLE_CONDITION_TEXT_POSITIONS: Record<string, [number, number]> = {
   on_tampon: [200, 82],
@@ -59,16 +59,16 @@ const VEHICLE_CONDITION_TEXT_POSITIONS: Record<string, [number, number]> = {
   tavan: [200, 274],
   bagaj: [200, 368],
   arka_tampon: [200, 423],
-  sol_on_camurluk: [95, 178],
+  sol_on_camurluk: [98, 176],
   sol_on_kapi: [96, 256],
   sol_arka_kapi: [96, 332],
-  sol_arka_camurluk: [92, 403],
-  sag_on_camurluk: [305, 178],
+  sol_arka_camurluk: [91, 404],
+  sag_on_camurluk: [302, 176],
   sag_on_kapi: [304, 256],
   sag_arka_kapi: [304, 332],
-  sag_arka_camurluk: [308, 403],
-  sol_ayna: [89, 124],
-  sag_ayna: [311, 124],
+  sag_arka_camurluk: [309, 404],
+  sol_ayna: [92, 122],
+  sag_ayna: [308, 122],
 };
 const VEHICLE_EXPERTISE_STRUCTURE_FIELDS = [
   { key: "sag_podye", label: "Sağ Podye", legacyKeys: ["sag_sol_podye"] },
@@ -2508,10 +2508,10 @@ function renderAuctionVehicleConditionMap() {
   elements.auctionVehicleConditionMap.innerHTML = `
     <svg class="conditionSvg conditionSvgInteractive" viewBox="0 0 400 500" role="img" aria-label="Arac kaporta durum haritasi">
       <g class="conditionBodyShell">
-        <path d="M142 54 Q200 36 258 54 L292 146 L292 354 L258 456 Q200 474 142 456 L108 354 L108 146 Z"></path>
-        <path d="M148 222 Q200 206 252 222 L258 328 Q200 346 142 328 Z"></path>
-        <path d="M52 118 Q82 104 126 112 L132 438 Q84 448 52 430 Z"></path>
-        <path d="M348 118 Q318 104 274 112 L268 438 Q316 448 348 430 Z"></path>
+        <path d="M140 56 Q200 34 260 56 L294 146 L294 354 L260 454 Q200 476 140 454 L106 354 L106 146 Z"></path>
+        <path d="M152 224 Q200 210 248 224 L254 328 Q200 342 146 328 Z"></path>
+        <path d="M52 118 Q86 100 130 110 L136 438 Q88 452 52 432 Z"></path>
+        <path d="M348 118 Q314 100 270 110 L264 438 Q312 452 348 432 Z"></path>
       </g>
       <g class="conditionWheelSet">
         <circle cx="56" cy="195" r="27"></circle>

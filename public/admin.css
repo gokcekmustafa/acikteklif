@@ -518,13 +518,14 @@ body.modalOpen {
 .conditionBodyShell path {
   fill: #d4d4d4;
   stroke: #e7e7e7;
-  stroke-width: 4;
+  stroke-width: 3.2;
+  stroke-linejoin: round;
 }
 
 .conditionWheelSet circle {
   fill: #cecece;
   stroke: #e2e2e2;
-  stroke-width: 4;
+  stroke-width: 3.2;
 }
 
 .conditionSvgPart {
@@ -533,7 +534,9 @@ body.modalOpen {
 
 .conditionSvgPart path {
   stroke: #e6e6e6;
-  stroke-width: 2.8;
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
   transition: filter 120ms ease;
 }
 
