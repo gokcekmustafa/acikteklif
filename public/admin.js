@@ -2477,8 +2477,8 @@ function renderAuctionVehicleConditionMap() {
         const status = map[part.key] || VEHICLE_CONDITION_DEFAULT_STATUS;
         const statusClass = getVehicleConditionStatusClass(status);
         const partClass = `part-${part.key}`;
-        const shouldShowCode = status !== VEHICLE_CONDITION_DEFAULT_STATUS;
-        const code = shouldShowCode ? getVehicleConditionStatusCode(status) : "";
+        const shouldShowCode = true;
+        const code = getVehicleConditionStatusCode(status);
         const pos = VEHICLE_CONDITION_TEXT_POSITIONS[part.key] || [200, 250];
         const path = VEHICLE_CONDITION_PART_PATHS[part.key] || "";
         const offset = layout[part.key] || { x: 0, y: 0 };
