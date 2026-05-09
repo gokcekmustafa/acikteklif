@@ -714,13 +714,16 @@ th {
 }
 
 .auctionRowActions {
+  display: inline-flex;
   flex-wrap: nowrap;
   white-space: nowrap;
+  gap: 4px;
 }
 
 .auctionRowActions .miniBtn {
   padding: 5px 6px;
   font-size: 0.72rem;
+  flex: 0 0 auto;
 }
 
 .rowActions .miniBtn {

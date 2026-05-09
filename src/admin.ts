@@ -416,6 +416,8 @@ init().catch((error: any) => {
 async function init() {
   const expertiseUploadBlock = elements.auctionExpertiseDropzone?.closest(".uploadBlock") as HTMLElement | null;
   if (expertiseUploadBlock) expertiseUploadBlock.classList.add("hide");
+  const extraEquipmentSection = elements.auctionExtraEquipmentInput?.closest(".formSection") as HTMLElement | null;
+  if (extraEquipmentSection) extraEquipmentSection.classList.add("hide");
   markRequiredAuctionLabels();
   setStatus("Veriler yukleniyor...", "warn");
   await bootstrapData();
@@ -1596,7 +1598,7 @@ function renderAuctions() {
             formatAuctionStatus(auction.status)
           )}</span></td>
           <td>
-            <div class="rowActions">
+            <div class="rowActions auctionRowActions">
               ${
                 canToggleActivePassive
                   ? `<button class="miniBtn ${statusKey === "PASSIVE" ? "success" : ""}" data-action="toggle-auction-status" data-id="${escapeHtml(
@@ -1879,7 +1881,7 @@ function readAuctionFormPayload() {
     district: "",
     neighborhood: "",
     description: String(elements.auctionDescriptionInput.value || "").trim(),
-    extraEquipment: String(elements.auctionExtraEquipmentInput.value || "").trim(),
+    extraEquipment: "",
     vehicleBrand: String(elements.auctionVehicleBrandInput.value || "").trim(),
     vehicleModel: String(elements.auctionVehicleModelInput.value || "").trim(),
     vehicleModelDetail: String(elements.auctionVehicleModelDetailInput.value || "").trim(),
