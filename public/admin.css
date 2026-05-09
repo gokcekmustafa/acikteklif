@@ -502,6 +502,13 @@ body.modalOpen {
   padding: 8px;
 }
 
+.expertiseEditorLayout {
+  display: grid;
+  grid-template-columns: minmax(320px, 460px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
 .conditionSvg {
   width: 100%;
   height: auto;
@@ -561,7 +568,7 @@ body.modalOpen {
 
 .expertiseDetailGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
@@ -706,6 +713,12 @@ th {
   color: #b02a2a;
   background: #fdeeee;
   border-color: #f7caca;
+}
+
+.pill.warn {
+  color: #8a4f0a;
+  background: #fff4e6;
+  border-color: #f2d2a9;
 }
 
 .userList {
@@ -1266,6 +1279,10 @@ th {
   .conditionMap {
     max-width: 520px;
     margin: 0 auto;
+  }
+
+  .expertiseEditorLayout {
+    grid-template-columns: 1fr;
   }
 
   .expertiseDetailGrid {

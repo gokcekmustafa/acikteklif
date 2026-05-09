@@ -55,21 +55,25 @@ const VEHICLE_CONDITION_TEXT_POSITIONS = {
     sag_ayna: [311, 124],
 };
 const VEHICLE_EXPERTISE_STRUCTURE_FIELDS = [
-    { key: "sag_sol_podye", label: "Sag Sol Podye" },
-    { key: "sag_sol_kilic_saci", label: "Sag Sol Kilic Saci" },
-    { key: "on_ic_direkler", label: "On Ic Direkler" },
-    { key: "orta_ic_direkler_arka_kilit_karsiliklari", label: "Orta Ic Direkler ve Arka Kilit Karsiliklari" },
-    { key: "on_panel_arka_panel", label: "On Panel - Arka Panel" },
-    { key: "sag_sol_marsbiyel", label: "Sag Sol Marsbiyel" },
-    { key: "sag_sol_ust_direkler_frangart", label: "Sag Sol Ust Direkler (Frangart)" },
+    { key: "sag_podye", label: "Sağ Podye", legacyKeys: ["sag_sol_podye"] },
+    { key: "sol_podye", label: "Sol Podye", legacyKeys: ["sag_sol_podye"] },
+    { key: "sag_kilic_saci", label: "Sağ Kılıç Sacı", legacyKeys: ["sag_sol_kilic_saci"] },
+    { key: "sol_kilic_saci", label: "Sol Kılıç Sacı", legacyKeys: ["sag_sol_kilic_saci"] },
+    { key: "on_ic_direkler", label: "Ön İç Direkler" },
+    { key: "orta_ic_direkler_arka_kilit_karsiliklari", label: "Orta İç Direkler ve Arka Kilit Karşılıkları" },
+    { key: "on_panel_arka_panel", label: "Ön Panel - Arka Panel" },
+    { key: "sag_marsbiyel", label: "Sağ Marşbiyel", legacyKeys: ["sag_sol_marsbiyel"] },
+    { key: "sol_marsbiyel", label: "Sol Marşbiyel", legacyKeys: ["sag_sol_marsbiyel"] },
+    { key: "sag_ust_direkler_frangart", label: "Sağ Üst Direkler (Frangart)", legacyKeys: ["sag_sol_ust_direkler_frangart"] },
+    { key: "sol_ust_direkler_frangart", label: "Sol Üst Direkler (Frangart)", legacyKeys: ["sag_sol_ust_direkler_frangart"] },
 ];
 const VEHICLE_EXPERTISE_MECHANICAL_FIELDS = [
-    { key: "motor_alt_ust_yag_kacagi", label: "Motor Alt/Ust Yag Kacagi" },
-    { key: "sanziman", label: "Sanziman" },
+    { key: "motor_alt_ust_yag_kacagi", label: "Motor Alt/Üst Yağ Kaçağı" },
+    { key: "sanziman", label: "Şanzıman" },
     { key: "turbo", label: "Turbo" },
-    { key: "radyator", label: "Radyator" },
-    { key: "interkol", label: "Interkol" },
-    { key: "on_arka_takim", label: "On ve Arka Takim" },
+    { key: "radyator", label: "Radyatör" },
+    { key: "intercooler", label: "Intercooler" },
+    { key: "on_arka_takim", label: "Ön ve Arka Takım" },
 ];
 const state = {
     lotNo: "",
@@ -219,7 +223,7 @@ function renderInfoCards() {
         infoRow("Model", item.vehicle_model || "-"),
         infoRow("Model Yılı", item.vehicle_year ? String(item.vehicle_year) : "-"),
         infoRow("Model Detayı", item.vehicle_model_detail || "-"),
-        infoRow("Sase No", item.vehicle_chassis_no || "-"),
+        infoRow("Şase No", item.vehicle_chassis_no || "-"),
         infoRow("Kilometre", item.vehicle_km !== null && item.vehicle_km !== undefined ? `${item.vehicle_km}` : "-"),
         infoRow("Renk", item.vehicle_color || "-"),
         infoRow("Yakıt Tipi", item.vehicle_fuel_type || "-"),
@@ -367,11 +371,11 @@ function normalizeVehicleConditionStatus(input) {
 }
 function getVehicleConditionStatusLabel(status) {
     if (status === "LOCAL_PAINTED")
-        return "Lokal Boyali";
+        return "Lokal Boyalı";
     if (status === "PAINTED")
-        return "Boyali";
+        return "Boyalı";
     if (status === "CHANGED")
-        return "Degisen";
+        return "Değişen";
     return "Orijinal";
 }
 function getVehicleConditionStatusClass(status) {
@@ -399,14 +403,43 @@ function normalizeVehicleExpertiseMeta(input) {
     const tireSource = parseJsonObject(source.tires || {});
     const structure = {};
     for (const field of VEHICLE_EXPERTISE_STRUCTURE_FIELDS) {
-        const normalized = normalizeVehicleExpertiseStructureStatus(structureSource[field.key] ?? source[field.key]);
+        const candidates = [field.key, ...(Array.isArray(field.legacyKeys) ? field.legacyKeys : [])];
+        let rawValue = undefined;
+        for (const candidateKey of candidates) {
+            const valueFromStructure = structureSource[candidateKey];
+            const valueFromRoot = source[candidateKey];
+            if (valueFromStructure !== undefined && valueFromStructure !== null && String(valueFromStructure).trim() !== "") {
+                rawValue = valueFromStructure;
+                break;
+            }
+            if (valueFromRoot !== undefined && valueFromRoot !== null && String(valueFromRoot).trim() !== "") {
+                rawValue = valueFromRoot;
+                break;
+            }
+        }
+        const normalized = normalizeVehicleExpertiseStructureStatus(rawValue);
         if (!normalized || normalized === "ORIGINAL")
             continue;
         structure[field.key] = normalized;
     }
     const mechanical = {};
     for (const field of VEHICLE_EXPERTISE_MECHANICAL_FIELDS) {
-        const normalized = normalizeVehicleExpertiseMechanicalStatus(mechanicalSource[field.key] ?? source[field.key]);
+        const legacyKeys = field.key === "intercooler" ? ["interkol"] : [];
+        const candidates = [field.key, ...legacyKeys];
+        let rawValue = undefined;
+        for (const candidateKey of candidates) {
+            const valueFromMechanical = mechanicalSource[candidateKey];
+            const valueFromRoot = source[candidateKey];
+            if (valueFromMechanical !== undefined && valueFromMechanical !== null && String(valueFromMechanical).trim() !== "") {
+                rawValue = valueFromMechanical;
+                break;
+            }
+            if (valueFromRoot !== undefined && valueFromRoot !== null && String(valueFromRoot).trim() !== "") {
+                rawValue = valueFromRoot;
+                break;
+            }
+        }
+        const normalized = normalizeVehicleExpertiseMechanicalStatus(rawValue);
         if (!normalized || normalized === "NORMAL")
             continue;
         mechanical[field.key] = normalized;
@@ -474,26 +507,26 @@ function normalizeVehicleExpertiseTireStatus(input) {
 }
 function getVehicleExpertiseStructureStatusLabel(status) {
     if (status === "ISLEMLI")
-        return "Islemli";
+        return "İşlemli";
     if (status === "DEGISMIS")
-        return "Degismis";
+        return "Değişmiş";
     return "Orijinal";
 }
 function getVehicleExpertiseMechanicalStatusLabel(status) {
     if (status === "BAKIM_GEREKLI")
-        return "Bakim Gerekli";
+        return "Bakım Gerekli";
     if (status === "ONARIM_GEREKLI")
-        return "Onarim Gerekli";
+        return "Onarım Gerekli";
     return "Sorunsuz";
 }
 function getVehicleExpertiseTireStatusLabel(status) {
     if (status === "ORTA")
         return "Orta";
     if (status === "ZAYIF")
-        return "Zayif";
+        return "Zayıf";
     if (status === "DEGISTIRILMELI")
-        return "Degistirilmeli";
-    return "Iyi";
+        return "Değiştirilmeli";
+    return "İyi";
 }
 function normalizeGallery(rawInput, fallbackImage) {
     let values = [];
@@ -636,6 +669,8 @@ function formatStatus(status) {
     const value = String(status || "").toUpperCase();
     if (value === "ACTIVE")
         return "Yayında";
+    if (value === "PASSIVE")
+        return "Pasif";
     if (value === "ENDED")
         return "Sonlandırıldı";
     return value || "-";

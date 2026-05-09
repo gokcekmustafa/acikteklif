@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AcikTeklif | Yonetim Paneli</title>
-  <meta name="description" content="AcikTeklif yonetim paneli">
+  <title>AçıkTeklif | Yönetim Paneli</title>
+  <meta name="description" content="AçıkTeklif yönetim paneli">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -19,8 +19,8 @@
       <div class="brand">
         <span class="brandMark"><i class="fas fa-shield-halved"></i></span>
         <div>
-          <div class="brandTitle">Yonetim Paneli</div>
-          <div class="brandSub">Kullanici, Katalog ve Ihale Yonetimi</div>
+          <div class="brandTitle">Yönetim Paneli</div>
+          <div class="brandSub">Kullanıcı, Katalog ve İhale Yönetimi</div>
         </div>
       </div>
       <div class="topActions">
@@ -31,32 +31,32 @@
 
     <section class="workspace">
       <aside class="sideNav">
-        <div class="sideTitle">Yonetim Basliklari</div>
+        <div class="sideTitle">Yönetim Başlıkları</div>
         <nav class="tabs vertical" id="tabs">
-          <button class="tabBtn active" data-tab="users"><i class="fas fa-users"></i> Kullanici Yonetimi</button>
-          <button class="tabBtn" data-tab="catalog"><i class="fas fa-layer-group"></i> Urun Kategori</button>
-          <button class="tabBtn" data-tab="auctions"><i class="fas fa-gavel"></i> Ihale Yonetimi</button>
+          <button class="tabBtn active" data-tab="users"><i class="fas fa-users"></i> Kullanıcı Yönetimi</button>
+          <button class="tabBtn" data-tab="catalog"><i class="fas fa-layer-group"></i> Ürün Kategori</button>
+          <button class="tabBtn" data-tab="auctions"><i class="fas fa-gavel"></i> İhale Yönetimi</button>
           <button class="tabBtn" data-tab="reports"><i class="fas fa-chart-column"></i> Raporlar</button>
-          <button class="tabBtn" data-tab="settings"><i class="fas fa-sliders"></i> Sistem Ayarlari</button>
-          <button class="tabBtn" data-tab="logs"><i class="fas fa-clipboard-list"></i> Denetim Kayitlari</button>
+          <button class="tabBtn" data-tab="settings"><i class="fas fa-sliders"></i> Sistem Ayarları</button>
+          <button class="tabBtn" data-tab="logs"><i class="fas fa-clipboard-list"></i> Denetim Kayıtları</button>
         </nav>
-        <div class="sessionBox" id="sessionBox">Yukleniyor...</div>
+        <div class="sessionBox" id="sessionBox">Yükleniyor...</div>
       </aside>
 
       <div class="mainArea">
         <section class="summary">
-          <div class="card"><div class="label">Toplam Kullanici</div><div class="value" id="statTotalUsers">0</div></div>
-          <div class="card"><div class="label">Admin / Yonetici</div><div class="value" id="statManagers">0</div></div>
-          <div class="card"><div class="label">Pasif Kullanici</div><div class="value" id="statDisabledUsers">0</div></div>
-          <div class="card"><div class="label">Urun Grubu</div><div class="value" id="statGroups">0</div></div>
+          <div class="card"><div class="label">Toplam Kullanıcı</div><div class="value" id="statTotalUsers">0</div></div>
+          <div class="card"><div class="label">Admin / Yönetici</div><div class="value" id="statManagers">0</div></div>
+          <div class="card"><div class="label">Pasif Kullanıcı</div><div class="value" id="statDisabledUsers">0</div></div>
+          <div class="card"><div class="label">Ürün Grubu</div><div class="value" id="statGroups">0</div></div>
           <div class="card"><div class="label">Kategori</div><div class="value" id="statCategories">0</div></div>
-          <div class="card"><div class="label">Ihale</div><div class="value" id="statAuctions">0</div></div>
+          <div class="card"><div class="label">İhale</div><div class="value" id="statAuctions">0</div></div>
         </section>
 
         <section class="toolbar">
           <div class="inputWrap">
             <i class="fas fa-magnifying-glass"></i>
-            <input type="search" id="searchInput" placeholder="Kullanici ara (e-posta / ad)">
+            <input type="search" id="searchInput" placeholder="Kullanıcı ara (e-posta / ad)">
           </div>
         </section>
 
@@ -65,7 +65,7 @@
         <section class="panel" id="panelUsers">
           <div class="usersLayout">
             <aside class="usersMaster">
-              <div class="usersMasterTitle">Kullanicilar</div>
+              <div class="usersMasterTitle">Kullanıcılar</div>
               <div class="userList" id="userList"></div>
             </aside>
             <article class="usersDetail" id="userDetail"></article>
@@ -76,20 +76,20 @@
           <div class="panelTools">
             <div class="inputWrap compact">
               <i class="fas fa-filter"></i>
-              <input type="search" id="catalogSearchInput" placeholder="Urun grubu veya kategori ara">
+              <input type="search" id="catalogSearchInput" placeholder="Ürün grubu veya kategori ara">
             </div>
           </div>
 
           <div class="grid2">
             <article class="panelCard">
-              <h3>Urun Grubu</h3>
+              <h3>Ürün Grubu</h3>
               <form id="groupForm" class="stackForm quickForm">
                 <input id="groupNameInput" type="text" placeholder="Yeni urun grubu adi" required>
-                <button class="miniBtn success" type="submit">Urun Grubu Ekle</button>
+                <button class="miniBtn success" type="submit">Ürün Grubu Ekle</button>
               </form>
               <div class="tableWrap">
                 <table>
-                  <thead><tr><th>Ad</th><th>Durum</th><th>Islem</th></tr></thead>
+                  <thead><tr><th>Ad</th><th>Durum</th><th>İşlem</th></tr></thead>
                   <tbody id="groupRows"></tbody>
                 </table>
               </div>
@@ -104,7 +104,7 @@
               </form>
               <div class="tableWrap">
                 <table>
-                  <thead><tr><th>Kategori</th><th>Grup</th><th>Durum</th><th>Islem</th></tr></thead>
+                  <thead><tr><th>Kategori</th><th>Grup</th><th>Durum</th><th>İşlem</th></tr></thead>
                   <tbody id="categoryRows"></tbody>
                 </table>
               </div>
@@ -117,26 +117,26 @@
             <div class="auctionModalBackdrop" data-action="close-auction-modal"></div>
             <article class="panelCard auctionModalCard" id="auctionFormCard">
             <div class="panelHead">
-              <h3 id="auctionFormTitle">Ihale Ekle</h3>
+              <h3 id="auctionFormTitle">İhale Ekle</h3>
               <button class="miniBtn" type="button" id="auctionFormCloseBtn">Pencereyi Kapat</button>
             </div>
             <form id="auctionForm" class="stackForm">
               <input type="hidden" id="auctionIdInput">
               <div class="formSection">
-                <h4>Temel Ihale Bilgileri</h4>
+                <h4>Temel İhale Bilgileri</h4>
                 <div class="row2">
                   <label class="fieldWrap">
-                    <span>Ihale No</span>
+                    <span>İhale No</span>
                     <input id="auctionLotNoInput" type="text" placeholder="Ornek: 34AT999" required>
                   </label>
                   <label class="fieldWrap">
-                    <span>Ihale Basligi</span>
+                    <span>İhale Başlığı</span>
                     <input id="auctionTitleInput" type="text" placeholder="Ornek: Skoda Superb Prestige 2023" required>
                   </label>
                 </div>
                 <div class="row2">
                   <label class="fieldWrap">
-                    <span>Urun Grubu</span>
+                    <span>Ürün Grubu</span>
                     <select id="auctionGroupSelect" required></select>
                   </label>
                   <label class="fieldWrap">
@@ -146,17 +146,17 @@
                 </div>
                 <div class="row2">
                   <label class="fieldWrap">
-                    <span>Baslangic Tarihi</span>
+                    <span>Başlangıç Tarihi</span>
                     <input id="auctionStartsAtInput" type="datetime-local" required>
                   </label>
                   <label class="fieldWrap">
-                    <span>Bitis Tarihi</span>
+                    <span>Bitiş Tarihi</span>
                     <input id="auctionEndsAtInput" type="datetime-local" required>
                   </label>
                 </div>
                 <div class="row3">
                   <label class="fieldWrap">
-                    <span>Baslangic Bedeli</span>
+                    <span>Başlangıç Bedeli</span>
                     <input id="auctionStartPriceInput" type="number" min="0" step="0.01" placeholder="0" required>
                   </label>
                   <label class="fieldWrap">
@@ -164,10 +164,11 @@
                     <input id="auctionMinIncrementInput" type="number" min="0" step="0.01" placeholder="0" required>
                   </label>
                   <label class="fieldWrap">
-                    <span>Ihale Durumu</span>
+                    <span>İhale Durumu</span>
                     <select id="auctionStatusInput">
-                      <option value="ACTIVE">Yayinda</option>
-                      <option value="ENDED">Sonlandirildi</option>
+                      <option value="ACTIVE">Yayında</option>
+                      <option value="PASSIVE">Pasif</option>
+                      <option value="ENDED">Sonlandırıldı</option>
                     </select>
                   </label>
                 </div>
@@ -179,13 +180,13 @@
                   <label class="fieldWrap">
                     <span>Il</span>
                     <select id="auctionCityInput">
-                      <option value="">Il seciniz</option>
+                      <option value="">Il seçiniz</option>
                     </select>
                   </label>
                   <label class="fieldWrap hide" aria-hidden="true">
                     <span>Ilce</span>
                     <select id="auctionDistrictInput">
-                      <option value="">Ilce seciniz</option>
+                      <option value="">Ilce seçiniz</option>
                     </select>
                   </label>
                   <label class="fieldWrap hide" aria-hidden="true">
@@ -196,18 +197,18 @@
               </div>
 
               <div class="formSection" id="auctionVehicleSection">
-                <h4>Arac Bilgileri (Vasita Icin)</h4>
+                <h4>Araç Bilgileri (Vasıta Icin)</h4>
                 <div class="row3">
                   <label class="fieldWrap">
                     <span>Marka</span>
                     <select id="auctionVehicleBrandInput">
-                      <option value="">Marka seciniz</option>
+                      <option value="">Marka seçiniz</option>
                     </select>
                   </label>
                   <label class="fieldWrap">
                     <span>Model</span>
                     <select id="auctionVehicleModelInput">
-                      <option value="">Model seciniz</option>
+                      <option value="">Model seçiniz</option>
                     </select>
                   </label>
                   <label class="fieldWrap">
@@ -239,7 +240,7 @@
                   <label class="fieldWrap">
                     <span>Yakit Tipi</span>
                     <select id="auctionVehicleFuelTypeInput">
-                      <option value="">Seciniz</option>
+                      <option value="">Seçiniz</option>
                       <option value="Benzinli">Benzinli</option>
                       <option value="Dizel">Dizel</option>
                       <option value="LPG">LPG</option>
@@ -248,9 +249,9 @@
                     </select>
                   </label>
                   <label class="fieldWrap">
-                    <span>Sanziman</span>
+                    <span>Şanzıman</span>
                     <select id="auctionVehicleTransmissionInput">
-                      <option value="">Seciniz</option>
+                      <option value="">Seçiniz</option>
                       <option value="Manuel">Manuel</option>
                       <option value="Otomatik">Otomatik</option>
                       <option value="Yari Otomatik">Yari Otomatik</option>
@@ -259,7 +260,7 @@
                   <label class="fieldWrap">
                     <span>Kasa Tipi</span>
                     <select id="auctionVehicleBodyTypeInput">
-                      <option value="">Seciniz</option>
+                      <option value="">Seçiniz</option>
                       <option value="Sedan">Sedan</option>
                       <option value="Hatchback">Hatchback</option>
                       <option value="SUV">SUV</option>
@@ -281,85 +282,118 @@
                   <label class="fieldWrap">
                     <span>Cekis Turu</span>
                     <select id="auctionVehicleDriveTypeInput">
-                      <option value="">Seciniz</option>
+                      <option value="">Seçiniz</option>
                       <option value="Onden Cekis">Onden Cekis</option>
                       <option value="Arkadan Itis">Arkadan Itis</option>
                       <option value="4x4">4x4</option>
                     </select>
                   </label>
                 </div>
+                <div class="expertiseEditorLayout">
                 <div class="conditionEditor" id="auctionVehicleConditionEditor">
                   <div class="conditionHead">
                     <strong>Kaporta Durum Haritasi</strong>
-                    <span class="uploadHint">Parcalari orijinal, boyali veya degisen olarak isaretleyin.</span>
+                    <span class="uploadHint">Parçaları orijinal, boyalı veya değişen olarak işaretleyin.</span>
                   </div>
                   <div class="conditionToolbar" id="auctionVehicleConditionToolbar">
                     <button class="conditionStateBtn active" type="button" data-condition-status="ORIGINAL">Orijinal</button>
-                    <button class="conditionStateBtn" type="button" data-condition-status="LOCAL_PAINTED">Lokal Boyali</button>
-                    <button class="conditionStateBtn" type="button" data-condition-status="PAINTED">Boyali</button>
-                    <button class="conditionStateBtn" type="button" data-condition-status="CHANGED">Degisen</button>
-                    <button class="miniBtn" type="button" id="auctionVehicleConditionResetBtn">Tumunu Orijinal Yap</button>
+                    <button class="conditionStateBtn" type="button" data-condition-status="LOCAL_PAINTED">Lokal Boyalı</button>
+                    <button class="conditionStateBtn" type="button" data-condition-status="PAINTED">Boyalı</button>
+                    <button class="conditionStateBtn" type="button" data-condition-status="CHANGED">Değişen</button>
+                    <button class="miniBtn" type="button" id="auctionVehicleConditionResetBtn">Tümünü Orijinal Yap</button>
                   </div>
-                  <div class="conditionMap" id="auctionVehicleConditionMap" aria-label="Arac parca durum haritasi"></div>
+                  <div class="conditionMap" id="auctionVehicleConditionMap" aria-label="Araç parça durum haritası"></div>
                 </div>
                 <div class="expertiseDetailGrid">
                   <article class="expertiseDetailCard">
-                    <h5>Sase ve Govde Kontrolleri</h5>
+                    <h5>Şase ve Gövde Kontrolleri</h5>
                     <div class="expertiseFieldList">
                       <label class="expertiseField">
-                        <span>Sag Sol Podye</span>
-                        <select id="expertiseStructureSagSolPodyeInput">
+                        <span>Sağ Podye</span>
+                        <select id="expertiseStructureSagPodyeInput">
                           <option value="ORIGINAL">Orijinal</option>
-                          <option value="ISLEMLI">Islemli</option>
-                          <option value="DEGISMIS">Degismis</option>
+                          <option value="ISLEMLI">İşlemli</option>
+                          <option value="DEGISMIS">Değişmiş</option>
                         </select>
                       </label>
                       <label class="expertiseField">
-                        <span>Sag Sol Kilic Saci</span>
-                        <select id="expertiseStructureSagSolKilicSaciInput">
+                        <span>Sol Podye</span>
+                        <select id="expertiseStructureSolPodyeInput">
                           <option value="ORIGINAL">Orijinal</option>
-                          <option value="ISLEMLI">Islemli</option>
-                          <option value="DEGISMIS">Degismis</option>
+                          <option value="ISLEMLI">İşlemli</option>
+                          <option value="DEGISMIS">Değişmiş</option>
                         </select>
                       </label>
                       <label class="expertiseField">
-                        <span>On Ic Direkler</span>
+                        <span>Sağ Kılıç Sacı</span>
+                        <select id="expertiseStructureSagKilicSaciInput">
+                          <option value="ORIGINAL">Orijinal</option>
+                          <option value="ISLEMLI">İşlemli</option>
+                          <option value="DEGISMIS">Değişmiş</option>
+                        </select>
+                      </label>
+                      <label class="expertiseField">
+                        <span>Sol Kılıç Sacı</span>
+                        <select id="expertiseStructureSolKilicSaciInput">
+                          <option value="ORIGINAL">Orijinal</option>
+                          <option value="ISLEMLI">İşlemli</option>
+                          <option value="DEGISMIS">Değişmiş</option>
+                        </select>
+                      </label>
+                      <label class="expertiseField">
+                        <span>Ön İç Direkler</span>
                         <select id="expertiseStructureOnIcDireklerInput">
                           <option value="ORIGINAL">Orijinal</option>
-                          <option value="ISLEMLI">Islemli</option>
-                          <option value="DEGISMIS">Degismis</option>
+                          <option value="ISLEMLI">İşlemli</option>
+                          <option value="DEGISMIS">Değişmiş</option>
                         </select>
                       </label>
                       <label class="expertiseField">
-                        <span>Orta Ic Direkler ve Arka Kilit Karsiliklari</span>
+                        <span>Orta İç Direkler ve Arka Kilit Karşılıkları</span>
                         <select id="expertiseStructureOrtaIcDireklerInput">
                           <option value="ORIGINAL">Orijinal</option>
-                          <option value="ISLEMLI">Islemli</option>
-                          <option value="DEGISMIS">Degismis</option>
+                          <option value="ISLEMLI">İşlemli</option>
+                          <option value="DEGISMIS">Değişmiş</option>
                         </select>
                       </label>
                       <label class="expertiseField">
-                        <span>On Panel - Arka Panel</span>
+                        <span>Ön Panel - Arka Panel</span>
                         <select id="expertiseStructureOnArkaPanelInput">
                           <option value="ORIGINAL">Orijinal</option>
-                          <option value="ISLEMLI">Islemli</option>
-                          <option value="DEGISMIS">Degismis</option>
+                          <option value="ISLEMLI">İşlemli</option>
+                          <option value="DEGISMIS">Değişmiş</option>
                         </select>
                       </label>
                       <label class="expertiseField">
-                        <span>Sag Sol Marsbiyel</span>
-                        <select id="expertiseStructureSagSolMarsbiyelInput">
+                        <span>Sağ Marşbiyel</span>
+                        <select id="expertiseStructureSagMarsbiyelInput">
                           <option value="ORIGINAL">Orijinal</option>
-                          <option value="ISLEMLI">Islemli</option>
-                          <option value="DEGISMIS">Degismis</option>
+                          <option value="ISLEMLI">İşlemli</option>
+                          <option value="DEGISMIS">Değişmiş</option>
                         </select>
                       </label>
                       <label class="expertiseField">
-                        <span>Sag Sol Ust Direkler (Frangart)</span>
-                        <select id="expertiseStructureSagSolUstDireklerInput">
+                        <span>Sol Marşbiyel</span>
+                        <select id="expertiseStructureSolMarsbiyelInput">
                           <option value="ORIGINAL">Orijinal</option>
-                          <option value="ISLEMLI">Islemli</option>
-                          <option value="DEGISMIS">Degismis</option>
+                          <option value="ISLEMLI">İşlemli</option>
+                          <option value="DEGISMIS">Değişmiş</option>
+                        </select>
+                      </label>
+                      <label class="expertiseField">
+                        <span>Sağ Üst Direkler (Frangart)</span>
+                        <select id="expertiseStructureSagUstDireklerInput">
+                          <option value="ORIGINAL">Orijinal</option>
+                          <option value="ISLEMLI">İşlemli</option>
+                          <option value="DEGISMIS">Değişmiş</option>
+                        </select>
+                      </label>
+                      <label class="expertiseField">
+                        <span>Sol Üst Direkler (Frangart)</span>
+                        <select id="expertiseStructureSolUstDireklerInput">
+                          <option value="ORIGINAL">Orijinal</option>
+                          <option value="ISLEMLI">İşlemli</option>
+                          <option value="DEGISMIS">Değişmiş</option>
                         </select>
                       </label>
                     </div>
@@ -368,51 +402,51 @@
                     <h5>Mekanik</h5>
                     <div class="expertiseFieldList">
                       <label class="expertiseField">
-                        <span>Motor Alt/Ust Yag Kacagi</span>
+                        <span>Motor Alt/Üst Yağ Kaçağı</span>
                         <select id="expertiseMechanicalYagKacagiInput">
                           <option value="NORMAL">Sorunsuz</option>
-                          <option value="BAKIM_GEREKLI">Bakim Gerekli</option>
-                          <option value="ONARIM_GEREKLI">Onarim Gerekli</option>
+                          <option value="BAKIM_GEREKLI">Bakım Gerekli</option>
+                          <option value="ONARIM_GEREKLI">Onarım Gerekli</option>
                         </select>
                       </label>
                       <label class="expertiseField">
-                        <span>Sanziman</span>
-                        <select id="expertiseMechanicalSanzimanInput">
+                        <span>Şanzıman</span>
+                        <select id="expertiseMechanicalŞanzımanInput">
                           <option value="NORMAL">Sorunsuz</option>
-                          <option value="BAKIM_GEREKLI">Bakim Gerekli</option>
-                          <option value="ONARIM_GEREKLI">Onarim Gerekli</option>
+                          <option value="BAKIM_GEREKLI">Bakım Gerekli</option>
+                          <option value="ONARIM_GEREKLI">Onarım Gerekli</option>
                         </select>
                       </label>
                       <label class="expertiseField">
                         <span>Turbo</span>
                         <select id="expertiseMechanicalTurboInput">
                           <option value="NORMAL">Sorunsuz</option>
-                          <option value="BAKIM_GEREKLI">Bakim Gerekli</option>
-                          <option value="ONARIM_GEREKLI">Onarim Gerekli</option>
+                          <option value="BAKIM_GEREKLI">Bakım Gerekli</option>
+                          <option value="ONARIM_GEREKLI">Onarım Gerekli</option>
                         </select>
                       </label>
                       <label class="expertiseField">
-                        <span>Radyator</span>
-                        <select id="expertiseMechanicalRadyatorInput">
+                        <span>Radyatör</span>
+                        <select id="expertiseMechanicalRadyatörInput">
                           <option value="NORMAL">Sorunsuz</option>
-                          <option value="BAKIM_GEREKLI">Bakim Gerekli</option>
-                          <option value="ONARIM_GEREKLI">Onarim Gerekli</option>
+                          <option value="BAKIM_GEREKLI">Bakım Gerekli</option>
+                          <option value="ONARIM_GEREKLI">Onarım Gerekli</option>
                         </select>
                       </label>
                       <label class="expertiseField">
-                        <span>Interkol</span>
-                        <select id="expertiseMechanicalInterkolInput">
+                        <span>Intercooler</span>
+                        <select id="expertiseMechanicalIntercoolerInput">
                           <option value="NORMAL">Sorunsuz</option>
-                          <option value="BAKIM_GEREKLI">Bakim Gerekli</option>
-                          <option value="ONARIM_GEREKLI">Onarim Gerekli</option>
+                          <option value="BAKIM_GEREKLI">Bakım Gerekli</option>
+                          <option value="ONARIM_GEREKLI">Onarım Gerekli</option>
                         </select>
                       </label>
                       <label class="expertiseField">
-                        <span>On ve Arka Takim</span>
+                        <span>Ön ve Arka Takım</span>
                         <select id="expertiseMechanicalOnArkaTakimInput">
                           <option value="NORMAL">Sorunsuz</option>
-                          <option value="BAKIM_GEREKLI">Bakim Gerekli</option>
-                          <option value="ONARIM_GEREKLI">Onarim Gerekli</option>
+                          <option value="BAKIM_GEREKLI">Bakım Gerekli</option>
+                          <option value="ONARIM_GEREKLI">Onarım Gerekli</option>
                         </select>
                       </label>
                     </div>
@@ -423,38 +457,39 @@
                       <label class="expertiseField">
                         <span>Genel Durum</span>
                         <select id="expertiseTireGeneralInput">
-                          <option value="IYI">Iyi</option>
+                          <option value="IYI">İyi</option>
                           <option value="ORTA">Orta</option>
-                          <option value="ZAYIF">Zayif</option>
-                          <option value="DEGISTIRILMELI">Degistirilmeli</option>
+                          <option value="ZAYIF">Zayıf</option>
+                          <option value="DEGISTIRILMELI">Değiştirilmeli</option>
                         </select>
                       </label>
                     </div>
                   </article>
                 </div>
+                </div>
                 <label class="fieldWrap">
-                  <span>Aciklama</span>
-                  <textarea id="auctionDescriptionInput" rows="4" placeholder="Arac durumunu, hasar kaydini, ekspertiz notlarini ve onemli detaylari yazin."></textarea>
+                  <span>Açıklama</span>
+                  <textarea id="auctionDescriptionInput" rows="4" placeholder="Araç durumunu, hasar kaydını, ekspertiz notlarını ve önemli detayları yazın."></textarea>
                 </label>
               </div>
 
               <div class="uploadBlock">
                 <div class="uploadHead">
-                  <strong>Arac Gorselleri Yukle</strong>
-                  <span class="uploadHint">Coklu secim veya surukle birak (JPG, PNG, WEBP)</span>
+                  <strong>Araç Görselleri Yukle</strong>
+                  <span class="uploadHint">Çoklu secim veya surukle birak (JPG, PNG, WEBP)</span>
                 </div>
-                <div class="uploadDropzone" id="auctionImageDropzone" tabindex="0" role="button" aria-label="Gorsel yukleme alani">
+                <div class="uploadDropzone" id="auctionImageDropzone" tabindex="0" role="button" aria-label="Görsel yukleme alani">
                   <div class="uploadDropzoneText">
                     <i class="fas fa-cloud-arrow-up"></i>
-                    <span>Gorselleri buraya surukleyip birak veya dosya sec</span>
+                    <span>Görselleri buraya sürükleyip bırak veya dosya sec</span>
                   </div>
                   <input id="auctionImageFileInput" type="file" accept="image/*" multiple class="visuallyHidden">
                 </div>
                 <div class="row2">
-                  <button class="miniBtn" type="button" id="auctionImagePickBtn">Dosyadan Coklu Sec</button>
-                  <button class="miniBtn danger" type="button" id="auctionImageClearBtn">Tumunu Temizle</button>
+                  <button class="miniBtn" type="button" id="auctionImagePickBtn">Dosyadan Çoklu Sec</button>
+                  <button class="miniBtn danger" type="button" id="auctionImageClearBtn">Tümünü Temizle</button>
                 </div>
-                <div class="uploadMeta" id="auctionImageMeta">Henuz dosya secilmedi.</div>
+                <div class="uploadMeta" id="auctionImageMeta">Henüz dosya secilmedi.</div>
                 <div class="uploadGallery" id="auctionImageGallery"></div>
               </div>
 
@@ -468,41 +503,41 @@
 
               <div class="uploadBlock">
                 <div class="uploadHead">
-                  <strong>Ekspertiz Dosyalari</strong>
+                  <strong>Ekspertiz Dosyaları</strong>
                   <span class="uploadHint">PDF veya gorsel yukleyin (coklu secim desteklenir)</span>
                 </div>
                 <div class="uploadDropzone" id="auctionExpertiseDropzone" tabindex="0" role="button" aria-label="Ekspertiz dosya yukleme alani">
                   <div class="uploadDropzoneText">
                     <i class="fas fa-file-circle-check"></i>
-                    <span>Ekspertiz dosyalarini surukleyip birak veya dosya sec</span>
+                    <span>Ekspertiz dosyalarini sürükleyip bırak veya dosya sec</span>
                   </div>
                   <input id="auctionExpertiseFileInput" type="file" accept="application/pdf,image/*" multiple class="visuallyHidden">
                 </div>
                 <div class="row2">
-                  <button class="miniBtn" type="button" id="auctionExpertisePickBtn">Dosyadan Coklu Sec</button>
-                  <button class="miniBtn danger" type="button" id="auctionExpertiseClearBtn">Tumunu Temizle</button>
+                  <button class="miniBtn" type="button" id="auctionExpertisePickBtn">Dosyadan Çoklu Sec</button>
+                  <button class="miniBtn danger" type="button" id="auctionExpertiseClearBtn">Tümünü Temizle</button>
                 </div>
-                <div class="uploadMeta" id="auctionExpertiseMeta">Henuz dosya secilmedi.</div>
+                <div class="uploadMeta" id="auctionExpertiseMeta">Henüz dosya secilmedi.</div>
                 <div class="fileList" id="auctionExpertiseList"></div>
               </div>
 
               <div class="uploadBlock">
                 <div class="uploadHead">
-                  <strong>Dokumanlar</strong>
+                  <strong>Dokümanlar</strong>
                   <span class="uploadHint">PDF veya gorsel yukleyin (coklu secim desteklenir)</span>
                 </div>
-                <div class="uploadDropzone" id="auctionDocumentDropzone" tabindex="0" role="button" aria-label="Dokuman dosya yukleme alani">
+                <div class="uploadDropzone" id="auctionDocumentDropzone" tabindex="0" role="button" aria-label="Doküman dosya yukleme alani">
                   <div class="uploadDropzoneText">
                     <i class="fas fa-folder-open"></i>
-                    <span>Dokumanlari surukleyip birak veya dosya sec</span>
+                    <span>Dokümanlari sürükleyip bırak veya dosya sec</span>
                   </div>
                   <input id="auctionDocumentFileInput" type="file" accept="application/pdf,image/*" multiple class="visuallyHidden">
                 </div>
                 <div class="row2">
-                  <button class="miniBtn" type="button" id="auctionDocumentPickBtn">Dosyadan Coklu Sec</button>
-                  <button class="miniBtn danger" type="button" id="auctionDocumentClearBtn">Tumunu Temizle</button>
+                  <button class="miniBtn" type="button" id="auctionDocumentPickBtn">Dosyadan Çoklu Sec</button>
+                  <button class="miniBtn danger" type="button" id="auctionDocumentClearBtn">Tümünü Temizle</button>
                 </div>
-                <div class="uploadMeta" id="auctionDocumentMeta">Henuz dosya secilmedi.</div>
+                <div class="uploadMeta" id="auctionDocumentMeta">Henüz dosya secilmedi.</div>
                 <div class="fileList" id="auctionDocumentList"></div>
               </div>
               <div class="row2">
@@ -515,19 +550,19 @@
 
           <article class="panelCard" id="auctionListCard">
             <div class="panelHead">
-              <h3>Ihale Listesi</h3>
-              <button class="miniBtn success" type="button" id="openAuctionFormBtn">Yeni Ihale Ekle</button>
+              <h3>İhale Listesi</h3>
+              <button class="miniBtn success" type="button" id="openAuctionFormBtn">Yeni İhale Ekle</button>
             </div>
             <div class="tableTools">
               <div class="inputWrap compact">
                 <i class="fas fa-magnifying-glass"></i>
-                <input type="search" id="auctionSearchInput" placeholder="Ihale no, baslik, grup, kategori ara">
+                <input type="search" id="auctionSearchInput" placeholder="İhale no, baslik, grup, kategori ara">
               </div>
             </div>
             <div class="tableWrap">
               <table>
                 <thead>
-                  <tr><th>No</th><th>Baslik</th><th>Grup/Kategori</th><th>Fiyat</th><th>Baslangic</th><th>Bitis</th><th>Durum</th><th>Islem</th></tr>
+                  <tr><th>No</th><th>Başlık</th><th>Grup/Kategori</th><th>Fiyat</th><th>Başlangıç</th><th>Bitiş</th><th>Durum</th><th>İşlem</th></tr>
                 </thead>
                 <tbody id="auctionRows"></tbody>
               </table>
@@ -538,15 +573,15 @@
         <section class="panel hide" id="panelReports">
           <article class="panelCard">
             <h3>Raporlar</h3>
-            <div class="emptyState">Bu bolum yakinda detaylandirilacak. Kisa ozet metrikler ustteki kartlarda canli olarak gorulebilir.</div>
+            <div class="emptyState">Bu bölüm yakında detaylandirilacak. Kısa özet metrikler üstteki kartlarda canlı olarak görülebilir.</div>
           </article>
         </section>
 
         <section class="panel hide" id="panelSettings">
           <article class="panelCard">
-            <h3>Filtre Siralama Ayarlari</h3>
-            <p class="uploadHint">Asagidaki alanlara her satira bir deger yazin. Siralama ustten alta uygulanir.</p>
-            <p class="uploadHint">Urun grubu ve kategori sirasi artik <strong>Urun Kategori</strong> ekraninda yukari/asagi butonlariyla yonetilir.</p>
+            <h3>Filtre Sıralama Ayarları</h3>
+            <p class="uploadHint">Aşağıdaki alanlara her satira bir deger yazin. Siralama ustten alta uygulanir.</p>
+            <p class="uploadHint">Ürün grubu ve kategori sirasi artik <strong>Ürün Kategori</strong> ekraninda yukari/asagi butonlariyla yönetilir.</p>
             <form id="filterOrderForm" class="stackForm">
               <textarea id="filterOrderGroups" class="visuallyHidden" aria-hidden="true"></textarea>
               <textarea id="filterOrderCategories" class="visuallyHidden" aria-hidden="true"></textarea>
@@ -574,8 +609,8 @@
 
         <section class="panel hide" id="panelLogs">
           <article class="panelCard">
-            <h3>Denetim Kayitlari</h3>
-            <div class="emptyState">Yonetici islem kayitlari burada listelenecek.</div>
+            <h3>Denetim Kayıtları</h3>
+            <div class="emptyState">Yönetici işlem kayıtları burada listelenecek.</div>
           </article>
         </section>
       </div>
@@ -583,3 +618,5 @@
   </div>
 </body>
 </html>
+
+

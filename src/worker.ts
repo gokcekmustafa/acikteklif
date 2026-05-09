@@ -74,22 +74,36 @@ const VEHICLE_CONDITION_PART_KEYS = [
   "sag_ayna",
 ] as const;
 const VEHICLE_EXPERTISE_STRUCTURE_KEYS = [
-  "sag_sol_podye",
-  "sag_sol_kilic_saci",
+  "sag_podye",
+  "sol_podye",
+  "sag_kilic_saci",
+  "sol_kilic_saci",
   "on_ic_direkler",
   "orta_ic_direkler_arka_kilit_karsiliklari",
   "on_panel_arka_panel",
-  "sag_sol_marsbiyel",
-  "sag_sol_ust_direkler_frangart",
+  "sag_marsbiyel",
+  "sol_marsbiyel",
+  "sag_ust_direkler_frangart",
+  "sol_ust_direkler_frangart",
 ] as const;
 const VEHICLE_EXPERTISE_MECHANICAL_KEYS = [
   "motor_alt_ust_yag_kacagi",
   "sanziman",
   "turbo",
   "radyator",
-  "interkol",
+  "intercooler",
   "on_arka_takim",
 ] as const;
+const VEHICLE_EXPERTISE_STRUCTURE_LEGACY_KEYS: Record<string, string[]> = {
+  sag_podye: ["sag_sol_podye"],
+  sol_podye: ["sag_sol_podye"],
+  sag_kilic_saci: ["sag_sol_kilic_saci"],
+  sol_kilic_saci: ["sag_sol_kilic_saci"],
+  sag_marsbiyel: ["sag_sol_marsbiyel"],
+  sol_marsbiyel: ["sag_sol_marsbiyel"],
+  sag_ust_direkler_frangart: ["sag_sol_ust_direkler_frangart"],
+  sol_ust_direkler_frangart: ["sag_sol_ust_direkler_frangart"],
+};
 
 type RuntimeSchemaState = {
   adminReadyAt: number;
@@ -2010,6 +2024,7 @@ async function getPublicAuctionsList(env) {
      FROM auctions a
      LEFT JOIN product_groups pg ON pg.id = a.product_group_id
      LEFT JOIN categories c ON c.id = a.category_id
+     WHERE UPPER(COALESCE(a.status, 'ACTIVE')) != 'PASSIVE'
      ORDER BY a.created_at DESC`
   ).all();
   return data.results || [];
@@ -2030,6 +2045,7 @@ async function getPublicAuctionDetailByLotNo(env, lotNo: string) {
      LEFT JOIN product_groups pg ON pg.id = a.product_group_id
      LEFT JOIN categories c ON c.id = a.category_id
      WHERE a.lot_no = ?
+       AND UPPER(COALESCE(a.status, 'ACTIVE')) != 'PASSIVE'
      LIMIT 1`
   )
     .bind(String(lotNo || "").trim().toUpperCase())
@@ -2712,7 +2728,7 @@ async function validateAuctionPayload(env, body) {
   const startsAt = String(body.startsAt || "").trim();
   const endsAt = String(body.endsAt || "").trim();
   const statusRaw = String(body.status || "ACTIVE").trim().toUpperCase();
-  const allowedStatus = ["ACTIVE", "ENDED"];
+  const allowedStatus = ["ACTIVE", "PASSIVE", "ENDED"];
   const status = allowedStatus.includes(statusRaw) ? statusRaw : "ACTIVE";
   const groupIdRaw = String(body.groupId || "").trim();
   const categoryIdRaw = String(body.categoryId || "").trim();
@@ -3072,7 +3088,21 @@ function normalizeVehicleExpertiseMetaInput(rawInput: any) {
 
   const structure: Record<string, "ORIGINAL" | "ISLEMLI" | "DEGISMIS"> = {};
   for (const key of VEHICLE_EXPERTISE_STRUCTURE_KEYS) {
-    const rawValue = structureSource[key] ?? source[key];
+    const aliases = VEHICLE_EXPERTISE_STRUCTURE_LEGACY_KEYS[key] || [];
+    const candidates = [key, ...aliases];
+    let rawValue: any = undefined;
+    for (const candidateKey of candidates) {
+      const valueFromStructure = structureSource[candidateKey];
+      const valueFromRoot = source[candidateKey];
+      if (valueFromStructure !== undefined && valueFromStructure !== null && String(valueFromStructure).trim() !== "") {
+        rawValue = valueFromStructure;
+        break;
+      }
+      if (valueFromRoot !== undefined && valueFromRoot !== null && String(valueFromRoot).trim() !== "") {
+        rawValue = valueFromRoot;
+        break;
+      }
+    }
     const normalized = normalizeVehicleExpertiseStructureStatusValue(rawValue);
     if (!normalized || normalized === "ORIGINAL") continue;
     structure[key] = normalized;
@@ -3080,7 +3110,21 @@ function normalizeVehicleExpertiseMetaInput(rawInput: any) {
 
   const mechanical: Record<string, "NORMAL" | "BAKIM_GEREKLI" | "ONARIM_GEREKLI"> = {};
   for (const key of VEHICLE_EXPERTISE_MECHANICAL_KEYS) {
-    const rawValue = mechanicalSource[key] ?? source[key];
+    const aliases = key === "intercooler" ? ["interkol"] : [];
+    const candidates = [key, ...aliases];
+    let rawValue: any = undefined;
+    for (const candidateKey of candidates) {
+      const valueFromMechanical = mechanicalSource[candidateKey];
+      const valueFromRoot = source[candidateKey];
+      if (valueFromMechanical !== undefined && valueFromMechanical !== null && String(valueFromMechanical).trim() !== "") {
+        rawValue = valueFromMechanical;
+        break;
+      }
+      if (valueFromRoot !== undefined && valueFromRoot !== null && String(valueFromRoot).trim() !== "") {
+        rawValue = valueFromRoot;
+        break;
+      }
+    }
     const normalized = normalizeVehicleExpertiseMechanicalStatusValue(rawValue);
     if (!normalized || normalized === "NORMAL") continue;
     mechanical[key] = normalized;

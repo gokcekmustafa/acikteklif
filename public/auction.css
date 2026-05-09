@@ -245,7 +245,6 @@ body {
   border-radius: 11px;
   background: #f6f2e8;
   padding: 14px;
-  margin-bottom: 10px;
   display: grid;
   gap: 12px;
 }
@@ -355,9 +354,17 @@ body {
   fill: #ff5a36;
 }
 
+.expertiseOverview {
+  display: grid;
+  grid-template-columns: minmax(320px, 540px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 12px;
+}
+
 .expertiseLists {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
 }
 
@@ -414,25 +421,26 @@ body {
 .expertiseStatusValue.original,
 .expertiseStatusValue.normal,
 .expertiseStatusValue.iyi {
-  background: #eef4fb;
-  border-color: #ccd8e8;
+  background: #e9f8f0;
+  border-color: #b8e5cd;
+  color: #13683d;
 }
 
 .expertiseStatusValue.islemli,
 .expertiseStatusValue.bakim_gerekli,
 .expertiseStatusValue.orta {
-  background: #fff4dd;
-  border-color: #e4c079;
-  color: #7f4d15;
+  background: #fff7e1;
+  border-color: #efcf85;
+  color: #83540f;
 }
 
 .expertiseStatusValue.degismis,
 .expertiseStatusValue.onarim_gerekli,
 .expertiseStatusValue.zayif,
 .expertiseStatusValue.degistirilmeli {
-  background: #ffe7e2;
-  border-color: #e6a09b;
-  color: #8f2d22;
+  background: #ffe9e5;
+  border-color: #ecaca4;
+  color: #972d1f;
 }
 
 .fileGrid {
@@ -508,6 +516,7 @@ body {
     justify-content: center;
   }
 
+  .expertiseOverview,
   .expertiseLists {
     grid-template-columns: 1fr;
   }

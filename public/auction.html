@@ -4,34 +4,34 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AcikTeklif | Ihale Detayi</title>
-  <meta name="description" content="AcikTeklif ihale detay sayfasi">
+  <title>AçıkTeklif | İhale Detayı</title>
+  <meta name="description" content="AçıkTeklif ihale detay sayfası">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-  <link rel="stylesheet" href="./auction.css?v=20260509-4">
-  <script src="./auction.js?v=20260509-4" defer></script>
+  <link rel="stylesheet" href="./auction.css?v=20260509-5">
+  <script src="./auction.js?v=20260509-5" defer></script>
 </head>
 <body>
   <div class="detailPage">
     <header class="topBar">
-      <a href="/" class="backBtn"><i class="fas fa-arrow-left"></i> Ihale Listesine Don</a>
-      <div class="brand">AcikTeklif</div>
+      <a href="/" class="backBtn"><i class="fas fa-arrow-left"></i> İhale Listesine Dön</a>
+      <div class="brand">AçıkTeklif</div>
     </header>
 
     <main class="contentWrap">
       <section class="heroCard">
         <div class="heroHead">
-          <h1 id="auctionTitle">Ihale Detayi</h1>
-          <p id="auctionMeta">Yukleniyor...</p>
+          <h1 id="auctionTitle">İhale Detayı</h1>
+          <p id="auctionMeta">Yükleniyor...</p>
         </div>
 
         <div class="galleryWrap">
           <div class="galleryMain">
-            <button class="navArrow left" id="galleryPrevBtn" type="button" aria-label="Onceki gorsel"><i class="fas fa-chevron-left"></i></button>
-            <img id="galleryMainImage" src="" alt="Arac gorseli">
-            <button class="navArrow right" id="galleryNextBtn" type="button" aria-label="Sonraki gorsel"><i class="fas fa-chevron-right"></i></button>
+            <button class="navArrow left" id="galleryPrevBtn" type="button" aria-label="Önceki görsel"><i class="fas fa-chevron-left"></i></button>
+            <img id="galleryMainImage" src="" alt="Araç görseli">
+            <button class="navArrow right" id="galleryNextBtn" type="button" aria-label="Sonraki görsel"><i class="fas fa-chevron-right"></i></button>
           </div>
           <div class="thumbRow" id="galleryThumbs"></div>
         </div>
@@ -40,60 +40,62 @@
       <section class="tabCard">
         <nav class="tabNav" id="tabNav">
           <button class="tabBtn active" type="button" data-tab="basic"><i class="fas fa-car"></i> Temel Bilgiler</button>
-          <button class="tabBtn" type="button" data-tab="auction"><i class="fas fa-gavel"></i> Ihale Bilgileri</button>
-          <button class="tabBtn" type="button" data-tab="description"><i class="fas fa-circle-info"></i> Aciklama</button>
+          <button class="tabBtn" type="button" data-tab="auction"><i class="fas fa-gavel"></i> İhale Bilgileri</button>
+          <button class="tabBtn" type="button" data-tab="description"><i class="fas fa-circle-info"></i> Açıklama</button>
           <button class="tabBtn" type="button" data-tab="expertise"><i class="fas fa-clipboard-check"></i> Ekspertiz</button>
-          <button class="tabBtn" type="button" data-tab="documents"><i class="fas fa-file-lines"></i> Dokumanlar</button>
+          <button class="tabBtn" type="button" data-tab="documents"><i class="fas fa-file-lines"></i> Dokümanlar</button>
         </nav>
 
         <article class="tabPanel" data-panel="basic">
-          <h2>Arac Bilgileri</h2>
+          <h2>Araç Bilgileri</h2>
           <div class="infoGrid" id="basicInfoGrid"></div>
         </article>
 
         <article class="tabPanel hide" data-panel="auction">
-          <h2>Ihale Ozeti</h2>
+          <h2>İhale Özeti</h2>
           <div class="infoGrid" id="auctionInfoGrid"></div>
         </article>
 
         <article class="tabPanel hide" data-panel="description">
-          <h2>Aciklama</h2>
+          <h2>Açıklama</h2>
           <div class="textBox" id="descriptionBox"></div>
         </article>
 
         <article class="tabPanel hide" data-panel="expertise">
-          <h2>Ekspertiz Raporlari</h2>
-          <div class="vehicleConditionBlock">
-            <h3>Kaporta Durumu</h3>
-            <div class="conditionLegend">
-              <span class="legendItem"><i class="legendDot original"></i> Orijinal</span>
-              <span class="legendItem"><i class="legendDot local_painted"></i> Lokal Boyali</span>
-              <span class="legendItem"><i class="legendDot painted"></i> Boyali</span>
-              <span class="legendItem"><i class="legendDot changed"></i> Degisen</span>
+          <h2>Ekspertiz Raporları</h2>
+          <div class="expertiseOverview">
+            <div class="vehicleConditionBlock">
+              <h3>Kaporta Durumu</h3>
+              <div class="conditionLegend">
+                <span class="legendItem"><i class="legendDot original"></i> Orijinal</span>
+                <span class="legendItem"><i class="legendDot local_painted"></i> Lokal Boyalı</span>
+                <span class="legendItem"><i class="legendDot painted"></i> Boyalı</span>
+                <span class="legendItem"><i class="legendDot changed"></i> Değişen</span>
+              </div>
+              <div class="conditionMap conditionReadonly" id="expertiseConditionMap"></div>
             </div>
-            <div class="conditionMap conditionReadonly" id="expertiseConditionMap"></div>
-          </div>
 
-          <div class="expertiseLists">
-            <article class="conditionListCard">
-              <h4>Sase ve Govde Kontrolleri</h4>
-              <ul class="expertiseStatusList" id="expertiseStructureList"></ul>
-            </article>
-            <article class="conditionListCard">
-              <h4>Mekanik</h4>
-              <ul class="expertiseStatusList" id="expertiseMechanicalList"></ul>
-            </article>
-            <article class="conditionListCard">
-              <h4>Lastikler</h4>
-              <ul class="expertiseStatusList" id="expertiseTireList"></ul>
-            </article>
+            <div class="expertiseLists">
+              <article class="conditionListCard">
+                <h4>Şase ve Gövde Kontrolleri</h4>
+                <ul class="expertiseStatusList" id="expertiseStructureList"></ul>
+              </article>
+              <article class="conditionListCard">
+                <h4>Mekanik</h4>
+                <ul class="expertiseStatusList" id="expertiseMechanicalList"></ul>
+              </article>
+              <article class="conditionListCard">
+                <h4>Lastikler</h4>
+                <ul class="expertiseStatusList" id="expertiseTireList"></ul>
+              </article>
+            </div>
           </div>
 
           <div class="fileGrid" id="expertiseFiles"></div>
         </article>
 
         <article class="tabPanel hide" data-panel="documents">
-          <h2>Dokumanlar</h2>
+          <h2>Dokümanlar</h2>
           <div class="fileGrid" id="documentFiles"></div>
         </article>
       </section>
@@ -101,3 +103,4 @@
   </div>
 </body>
 </html>
+
