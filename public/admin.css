@@ -558,16 +558,13 @@ body.modalOpen {
   font-family: "Segoe UI", "Tahoma", sans-serif;
   letter-spacing: 0;
   pointer-events: none;
-  paint-order: stroke fill;
-  stroke: rgba(14, 35, 66, 0.85);
-  stroke-width: 2.6px;
-  stroke-linejoin: round;
+  stroke: none;
   text-rendering: geometricPrecision;
+  filter: none;
 }
 
 .conditionSvgPart text.is-long {
   font-size: 18px;
-  stroke-width: 2.3px;
 }
 
 .conditionSvgPart.original path {
