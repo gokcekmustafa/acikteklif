@@ -166,6 +166,8 @@ const state: any = {
   auctionVehicleConditionLayout: createDefaultVehicleConditionLayout(),
   auctionVehicleConditionSelectedPart: VEHICLE_CONDITION_PARTS[0]?.key || "",
   auctionVehicleConditionStep: 2,
+  auctionVehicleConditionLayoutSaveTimer: null as any,
+  auctionVehicleConditionLayoutSaving: false,
   permissionDefs: defaultPermissionDefs,
   filterOrdering: {
     order: {
@@ -1049,6 +1051,7 @@ function bindAuctionEvents() {
       shiftVehicleConditionPartOffset(partKey, dx * step, dy * step);
       renderAuctionVehicleConditionMap();
       syncVehicleConditionLayoutControls();
+      queueVehicleConditionLayoutAutosave();
     };
 
     elements.auctionVehicleConditionMoveUpBtn.addEventListener("click", () => moveSelectedPart(0, -1));
@@ -1062,6 +1065,7 @@ function bindAuctionEvents() {
       setVehicleConditionPartOffset(partKey, 0, 0);
       renderAuctionVehicleConditionMap();
       syncVehicleConditionLayoutControls();
+      queueVehicleConditionLayoutAutosave();
       setStatus("Secili parcanin konumu sifirlandi.", "ok");
     });
 
@@ -1069,19 +1073,17 @@ function bindAuctionEvents() {
       state.auctionVehicleConditionLayout = createDefaultVehicleConditionLayout();
       renderAuctionVehicleConditionMap();
       syncVehicleConditionLayoutControls();
-      setStatus("Tum parca konumlari gecici olarak sifirlandi. Kalici olmasi icin kaydet.", "warn");
+      queueVehicleConditionLayoutAutosave();
+      setStatus("Tum parca konumlari sifirlandi.", "ok");
     });
 
     elements.auctionVehicleConditionSaveLayoutBtn.addEventListener("click", async () => {
       await safeAction(elements.auctionVehicleConditionSaveLayoutBtn, async () => {
-        const data = await apiFetch("/api/admin/vehicle-condition-layout", {
-          method: "POST",
-          body: { layout: serializeVehicleConditionLayout(state.auctionVehicleConditionLayout) },
-        });
-        state.auctionVehicleConditionLayout = normalizeVehicleConditionLayout(data.layout || {});
-        renderAuctionVehicleConditionMap();
-        syncVehicleConditionLayoutControls();
-        setStatus("Kaporta sema konumlari kaydedildi.", "ok");
+        if (state.auctionVehicleConditionLayoutSaveTimer) {
+          window.clearTimeout(state.auctionVehicleConditionLayoutSaveTimer);
+          state.auctionVehicleConditionLayoutSaveTimer = null;
+        }
+        await persistVehicleConditionLayout(false);
       });
     });
   }
@@ -2816,6 +2818,40 @@ function syncVehicleConditionLayoutControls() {
   if (elements.auctionVehicleConditionOffsetYInput) {
     elements.auctionVehicleConditionOffsetYInput.value = String(normalizeVehicleConditionLayoutOffset(row.y));
   }
+}
+
+async function persistVehicleConditionLayout(silent = false) {
+  if (state.auctionVehicleConditionLayoutSaving) return;
+  state.auctionVehicleConditionLayoutSaving = true;
+  try {
+    const data = await apiFetch("/api/admin/vehicle-condition-layout", {
+      method: "POST",
+      body: { layout: serializeVehicleConditionLayout(state.auctionVehicleConditionLayout) },
+    });
+    state.auctionVehicleConditionLayout = normalizeVehicleConditionLayout(data.layout || {});
+    renderAuctionVehicleConditionMap();
+    syncVehicleConditionLayoutControls();
+    if (!silent) {
+      setStatus("Kaporta sema konumlari kaydedildi.", "ok");
+    }
+  } catch (error: any) {
+    console.error(error);
+    if (!silent) {
+      setStatus(error?.message || "Kaporta sema konumlari kaydedilemedi.", "error");
+    }
+  } finally {
+    state.auctionVehicleConditionLayoutSaving = false;
+  }
+}
+
+function queueVehicleConditionLayoutAutosave() {
+  if (state.auctionVehicleConditionLayoutSaveTimer) {
+    window.clearTimeout(state.auctionVehicleConditionLayoutSaveTimer);
+  }
+  state.auctionVehicleConditionLayoutSaveTimer = window.setTimeout(async () => {
+    state.auctionVehicleConditionLayoutSaveTimer = null;
+    await persistVehicleConditionLayout(true);
+  }, 450);
 }
 
 function setVehicleConditionPartStatus(partKey: VehicleConditionPartKey, status: VehicleConditionStatusKey) {

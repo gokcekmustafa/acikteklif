@@ -148,7 +148,7 @@ export default {
         const listingUrl = new URL("/auction.html", url);
         if (lotNo) listingUrl.searchParams.set("lotNo", lotNo);
         const listingResponse = await env.ASSETS.fetch(new Request(listingUrl.toString(), request));
-        return listingResponse;
+        return withNoStoreHeaders(listingResponse);
       }
 
       const assetResponse = await env.ASSETS.fetch(request);
@@ -3495,7 +3495,14 @@ async function readJson(request) {
 
 function isAdminAssetPath(pathname: string) {
   const path = String(pathname || "").toLowerCase();
-  return path === "/admin.html" || path === "/admin.js" || path === "/admin.css";
+  return (
+    path === "/admin.html" ||
+    path === "/admin.js" ||
+    path === "/admin.css" ||
+    path === "/auction.html" ||
+    path === "/auction.js" ||
+    path === "/auction.css"
+  );
 }
 
 function withNoStoreHeaders(response: Response) {
