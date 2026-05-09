@@ -65,6 +65,8 @@ const VEHICLE_CONDITION_TEXT_POSITIONS = {
     sag_arka_kapi: [356, 353],
     sag_arka_camurluk: [371, 448],
 };
+const VEHICLE_CONDITION_LAYOUT_MAX_OFFSET = 200;
+const VEHICLE_CONDITION_LAYOUT_MAX_STEP = 20;
 const VEHICLE_EXPERTISE_STRUCTURE_FIELDS = [
     { key: "sag_podye", label: "Sağ Podye", legacyKeys: ["sag_sol_podye"] },
     { key: "sol_podye", label: "Sol Podye", legacyKeys: ["sag_sol_podye"] },
@@ -159,6 +161,9 @@ const state = {
     auctionDocumentFiles: [],
     auctionVehicleConditionMap: {},
     auctionVehicleConditionSelectedStatus: VEHICLE_CONDITION_DEFAULT_STATUS,
+    auctionVehicleConditionLayout: createDefaultVehicleConditionLayout(),
+    auctionVehicleConditionSelectedPart: VEHICLE_CONDITION_PARTS[0]?.key || "",
+    auctionVehicleConditionStep: 2,
     permissionDefs: defaultPermissionDefs,
     filterOrdering: {
         order: {
@@ -276,6 +281,17 @@ const elements = {
     auctionVehicleConditionToolbar: byId("auctionVehicleConditionToolbar"),
     auctionVehicleConditionResetBtn: byId("auctionVehicleConditionResetBtn"),
     auctionVehicleConditionMap: byId("auctionVehicleConditionMap"),
+    auctionVehicleConditionPartSelect: byId("auctionVehicleConditionPartSelect"),
+    auctionVehicleConditionStepInput: byId("auctionVehicleConditionStepInput"),
+    auctionVehicleConditionOffsetXInput: byId("auctionVehicleConditionOffsetXInput"),
+    auctionVehicleConditionOffsetYInput: byId("auctionVehicleConditionOffsetYInput"),
+    auctionVehicleConditionMoveUpBtn: byId("auctionVehicleConditionMoveUpBtn"),
+    auctionVehicleConditionMoveLeftBtn: byId("auctionVehicleConditionMoveLeftBtn"),
+    auctionVehicleConditionMoveRightBtn: byId("auctionVehicleConditionMoveRightBtn"),
+    auctionVehicleConditionMoveDownBtn: byId("auctionVehicleConditionMoveDownBtn"),
+    auctionVehicleConditionResetPartBtn: byId("auctionVehicleConditionResetPartBtn"),
+    auctionVehicleConditionResetLayoutBtn: byId("auctionVehicleConditionResetLayoutBtn"),
+    auctionVehicleConditionSaveLayoutBtn: byId("auctionVehicleConditionSaveLayoutBtn"),
     expertiseStructureSagPodyeInput: byId("expertiseStructureSagPodyeInput"),
     expertiseStructureSolPodyeInput: byId("expertiseStructureSolPodyeInput"),
     expertiseStructureSagKilicSaciInput: byId("expertiseStructureSagKilicSaciInput"),
@@ -353,11 +369,65 @@ function getAuctionFieldBinding(fieldKey) {
 function getAllAuctionFieldBindings() {
     return AUCTION_REQUIRED_FIELD_KEYS.map((key) => getAuctionFieldBinding(key)).filter((item) => item !== null);
 }
+function ensureVehicleConditionLayoutEditorMarkup() {
+    const mapRoot = elements.auctionVehicleConditionMap;
+    if (!mapRoot)
+        return;
+    const editor = mapRoot.closest(".conditionEditor");
+    if (!editor)
+        return;
+    const exists = editor.querySelector("#auctionVehicleConditionPartSelect");
+    if (!exists) {
+        mapRoot.insertAdjacentHTML("beforebegin", `
+      <div class="conditionLayoutTools">
+        <label class="conditionMiniField">
+          <span>Parca</span>
+          <select id="auctionVehicleConditionPartSelect"></select>
+        </label>
+        <label class="conditionMiniField conditionStepField">
+          <span>Adim (px)</span>
+          <input id="auctionVehicleConditionStepInput" type="number" min="1" max="20" step="1" value="2">
+        </label>
+        <label class="conditionMiniField conditionOffsetField">
+          <span>X</span>
+          <input id="auctionVehicleConditionOffsetXInput" type="number" readonly value="0">
+        </label>
+        <label class="conditionMiniField conditionOffsetField">
+          <span>Y</span>
+          <input id="auctionVehicleConditionOffsetYInput" type="number" readonly value="0">
+        </label>
+        <div class="conditionMovePad" role="group" aria-label="Parca konumlandirma">
+          <button class="miniBtn iconBtn" type="button" id="auctionVehicleConditionMoveUpBtn" title="Yukari"><i class="fas fa-arrow-up"></i></button>
+          <button class="miniBtn iconBtn" type="button" id="auctionVehicleConditionMoveLeftBtn" title="Sola"><i class="fas fa-arrow-left"></i></button>
+          <button class="miniBtn iconBtn" type="button" id="auctionVehicleConditionMoveRightBtn" title="Saga"><i class="fas fa-arrow-right"></i></button>
+          <button class="miniBtn iconBtn" type="button" id="auctionVehicleConditionMoveDownBtn" title="Asagi"><i class="fas fa-arrow-down"></i></button>
+        </div>
+        <div class="conditionLayoutActions">
+          <button class="miniBtn" type="button" id="auctionVehicleConditionResetPartBtn">Parcayi Sifirla</button>
+          <button class="miniBtn" type="button" id="auctionVehicleConditionResetLayoutBtn">Tum Konumlari Sifirla</button>
+          <button class="miniBtn success" type="button" id="auctionVehicleConditionSaveLayoutBtn">Konumlari Kaydet</button>
+        </div>
+      </div>
+      `);
+    }
+    elements.auctionVehicleConditionPartSelect = byId("auctionVehicleConditionPartSelect");
+    elements.auctionVehicleConditionStepInput = byId("auctionVehicleConditionStepInput");
+    elements.auctionVehicleConditionOffsetXInput = byId("auctionVehicleConditionOffsetXInput");
+    elements.auctionVehicleConditionOffsetYInput = byId("auctionVehicleConditionOffsetYInput");
+    elements.auctionVehicleConditionMoveUpBtn = byId("auctionVehicleConditionMoveUpBtn");
+    elements.auctionVehicleConditionMoveLeftBtn = byId("auctionVehicleConditionMoveLeftBtn");
+    elements.auctionVehicleConditionMoveRightBtn = byId("auctionVehicleConditionMoveRightBtn");
+    elements.auctionVehicleConditionMoveDownBtn = byId("auctionVehicleConditionMoveDownBtn");
+    elements.auctionVehicleConditionResetPartBtn = byId("auctionVehicleConditionResetPartBtn");
+    elements.auctionVehicleConditionResetLayoutBtn = byId("auctionVehicleConditionResetLayoutBtn");
+    elements.auctionVehicleConditionSaveLayoutBtn = byId("auctionVehicleConditionSaveLayoutBtn");
+}
 init().catch((error) => {
     console.error(error);
     setStatus(error.message || "Yonetim paneli yuklenemedi.", "error");
 });
 async function init() {
+    ensureVehicleConditionLayoutEditorMarkup();
     const expertiseUploadBlock = elements.auctionExpertiseDropzone?.closest(".uploadBlock");
     if (expertiseUploadBlock)
         expertiseUploadBlock.classList.add("hide");
@@ -391,6 +461,10 @@ function applyBootstrapPayload(data) {
     state.categories = Array.isArray(data.categories) ? data.categories : [];
     state.auctions = Array.isArray(data.auctions) ? data.auctions : [];
     state.filterOrdering = normalizeFilterOrderingPayload(data.filterOrdering);
+    state.auctionVehicleConditionLayout = normalizeVehicleConditionLayout(data.vehicleConditionLayout || {});
+    if (!isVehicleConditionPartKey(String(state.auctionVehicleConditionSelectedPart || ""))) {
+        state.auctionVehicleConditionSelectedPart = VEHICLE_CONDITION_PARTS[0]?.key || "";
+    }
     const hasSelectedUser = state.users.some((user) => String(user.id || "") === String(state.selectedUserId || ""));
     if (!hasSelectedUser) {
         state.selectedUserId = state.users[0] ? String(state.users[0].id || "") : "";
@@ -840,6 +914,7 @@ function bindAuctionEvents() {
         const partKey = String(partNode.dataset?.partKey || "").trim();
         if (!isVehicleConditionPartKey(partKey))
             return;
+        state.auctionVehicleConditionSelectedPart = partKey;
         const selectedStatus = normalizeVehicleConditionStatusKey(state.auctionVehicleConditionSelectedStatus) || VEHICLE_CONDITION_DEFAULT_STATUS;
         setVehicleConditionPartStatus(partKey, selectedStatus);
         renderAuctionVehicleConditionMap();
@@ -849,6 +924,69 @@ function bindAuctionEvents() {
         renderAuctionVehicleConditionMap();
         setStatus("Kaporta haritasi orijinal duruma cekildi.", "ok");
     });
+    if (elements.auctionVehicleConditionPartSelect &&
+        elements.auctionVehicleConditionStepInput &&
+        elements.auctionVehicleConditionMoveUpBtn &&
+        elements.auctionVehicleConditionMoveDownBtn &&
+        elements.auctionVehicleConditionMoveLeftBtn &&
+        elements.auctionVehicleConditionMoveRightBtn &&
+        elements.auctionVehicleConditionResetPartBtn &&
+        elements.auctionVehicleConditionResetLayoutBtn &&
+        elements.auctionVehicleConditionSaveLayoutBtn) {
+        elements.auctionVehicleConditionPartSelect.addEventListener("change", () => {
+            const nextPart = String(elements.auctionVehicleConditionPartSelect.value || "");
+            if (!isVehicleConditionPartKey(nextPart))
+                return;
+            state.auctionVehicleConditionSelectedPart = nextPart;
+            syncVehicleConditionLayoutControls();
+            renderAuctionVehicleConditionMap();
+        });
+        elements.auctionVehicleConditionStepInput.addEventListener("change", () => {
+            state.auctionVehicleConditionStep = normalizeVehicleConditionLayoutStep(elements.auctionVehicleConditionStepInput.value);
+            syncVehicleConditionLayoutControls();
+        });
+        const moveSelectedPart = (dx, dy) => {
+            const partKey = String(state.auctionVehicleConditionSelectedPart || "");
+            if (!isVehicleConditionPartKey(partKey))
+                return;
+            const step = normalizeVehicleConditionLayoutStep(state.auctionVehicleConditionStep);
+            state.auctionVehicleConditionStep = step;
+            shiftVehicleConditionPartOffset(partKey, dx * step, dy * step);
+            renderAuctionVehicleConditionMap();
+            syncVehicleConditionLayoutControls();
+        };
+        elements.auctionVehicleConditionMoveUpBtn.addEventListener("click", () => moveSelectedPart(0, -1));
+        elements.auctionVehicleConditionMoveDownBtn.addEventListener("click", () => moveSelectedPart(0, 1));
+        elements.auctionVehicleConditionMoveLeftBtn.addEventListener("click", () => moveSelectedPart(-1, 0));
+        elements.auctionVehicleConditionMoveRightBtn.addEventListener("click", () => moveSelectedPart(1, 0));
+        elements.auctionVehicleConditionResetPartBtn.addEventListener("click", () => {
+            const partKey = String(state.auctionVehicleConditionSelectedPart || "");
+            if (!isVehicleConditionPartKey(partKey))
+                return;
+            setVehicleConditionPartOffset(partKey, 0, 0);
+            renderAuctionVehicleConditionMap();
+            syncVehicleConditionLayoutControls();
+            setStatus("Secili parcanin konumu sifirlandi.", "ok");
+        });
+        elements.auctionVehicleConditionResetLayoutBtn.addEventListener("click", () => {
+            state.auctionVehicleConditionLayout = createDefaultVehicleConditionLayout();
+            renderAuctionVehicleConditionMap();
+            syncVehicleConditionLayoutControls();
+            setStatus("Tum parca konumlari gecici olarak sifirlandi. Kalici olmasi icin kaydet.", "warn");
+        });
+        elements.auctionVehicleConditionSaveLayoutBtn.addEventListener("click", async () => {
+            await safeAction(elements.auctionVehicleConditionSaveLayoutBtn, async () => {
+                const data = await apiFetch("/api/admin/vehicle-condition-layout", {
+                    method: "POST",
+                    body: { layout: serializeVehicleConditionLayout(state.auctionVehicleConditionLayout) },
+                });
+                state.auctionVehicleConditionLayout = normalizeVehicleConditionLayout(data.layout || {});
+                renderAuctionVehicleConditionMap();
+                syncVehicleConditionLayoutControls();
+                setStatus("Kaporta sema konumlari kaydedildi.", "ok");
+            });
+        });
+    }
     elements.auctionImagePickBtn.addEventListener("click", () => {
         elements.auctionImageFileInput.click();
     });
@@ -1033,6 +1171,7 @@ function renderAll() {
     renderCatalog();
     renderAuctions();
     renderSettings();
+    syncVehicleConditionLayoutControls();
     refreshAuctionLocationSelects(String(elements.auctionCityInput.value || "").trim());
     refreshAuctionVehicleSelects(String(elements.auctionVehicleBrandInput.value || "").trim(), String(elements.auctionVehicleModelInput.value || "").trim());
     if (!String(elements.auctionIdInput.value || "").trim()) {
@@ -1687,6 +1826,7 @@ function fillAuctionForm(auction) {
     state.auctionVehicleConditionMap = normalizeVehicleConditionMap(auction.vehicle_condition_map_json || auction.vehicle_condition_map || auction.vehicleConditionMap || {});
     state.auctionVehicleConditionSelectedStatus = VEHICLE_CONDITION_DEFAULT_STATUS;
     renderAuctionVehicleConditionMap();
+    syncVehicleConditionLayoutControls();
     fillVehicleExpertiseMetaForm(normalizeVehicleExpertiseMeta(auction.vehicle_expertise_meta_json || auction.vehicle_expertise_meta || auction.vehicleExpertiseMeta || {}));
     updateFormHeadings();
 }
@@ -2033,7 +2173,12 @@ function resetAuctionForm() {
     elements.auctionVehicleDriveTypeInput.value = "";
     state.auctionVehicleConditionMap = {};
     state.auctionVehicleConditionSelectedStatus = VEHICLE_CONDITION_DEFAULT_STATUS;
+    if (!isVehicleConditionPartKey(String(state.auctionVehicleConditionSelectedPart || ""))) {
+        state.auctionVehicleConditionSelectedPart = VEHICLE_CONDITION_PARTS[0]?.key || "";
+    }
+    state.auctionVehicleConditionStep = normalizeVehicleConditionLayoutStep(state.auctionVehicleConditionStep);
     renderAuctionVehicleConditionMap();
+    syncVehicleConditionLayoutControls();
     resetVehicleExpertiseMetaForm();
     updateFormHeadings();
 }
@@ -2261,6 +2406,11 @@ function renderAuctionVehicleConditionMap() {
     state.auctionVehicleConditionSelectedStatus = selectedStatus;
     const map = normalizeVehicleConditionMap(state.auctionVehicleConditionMap || {});
     state.auctionVehicleConditionMap = map;
+    const layout = normalizeVehicleConditionLayout(state.auctionVehicleConditionLayout || {});
+    state.auctionVehicleConditionLayout = layout;
+    if (!isVehicleConditionPartKey(String(state.auctionVehicleConditionSelectedPart || ""))) {
+        state.auctionVehicleConditionSelectedPart = VEHICLE_CONDITION_PARTS[0]?.key || "";
+    }
     const statusButtons = Array.from(elements.auctionVehicleConditionToolbar.querySelectorAll("button[data-condition-status]"));
     for (const button of statusButtons) {
         const key = normalizeVehicleConditionStatusKey(button.dataset.conditionStatus);
@@ -2273,8 +2423,11 @@ function renderAuctionVehicleConditionMap() {
         const code = shouldShowCode ? getVehicleConditionStatusCode(status) : "";
         const pos = VEHICLE_CONDITION_TEXT_POSITIONS[part.key] || [200, 250];
         const path = VEHICLE_CONDITION_PART_PATHS[part.key] || "";
+        const offset = layout[part.key] || { x: 0, y: 0 };
+        const transform = offset.x !== 0 || offset.y !== 0 ? ` transform="translate(${offset.x} ${offset.y})"` : "";
+        const selectedClass = part.key === state.auctionVehicleConditionSelectedPart ? "is-layout-selected" : "";
         return `
-      <g class="conditionSvgPart ${statusClass}" data-part-key="${part.key}" role="button" aria-label="${escapeHtml(part.label)} ${escapeHtml(getVehicleConditionStatusLabel(status))}">
+      <g class="conditionSvgPart ${statusClass} ${selectedClass}" data-part-key="${part.key}" role="button" aria-label="${escapeHtml(part.label)} ${escapeHtml(getVehicleConditionStatusLabel(status))}"${transform}>
         <path d="${path}" fill-rule="evenodd" clip-rule="evenodd"></path>
         ${shouldShowCode
             ? `<text class="conditionCode ${code.length > 1 ? "is-long" : "is-short"}" x="${Number(pos[0])}" y="${Number(pos[1])}" text-anchor="middle" dominant-baseline="middle" text-rendering="geometricPrecision">${escapeHtml(code)}</text>`
@@ -2288,6 +2441,7 @@ function renderAuctionVehicleConditionMap() {
       ${partsMarkup}
     </svg>
   `;
+    syncVehicleConditionLayoutControls();
 }
 function getVehicleConditionStatusLabel(status) {
     if (status === "LOCAL_PAINTED")
@@ -2326,6 +2480,111 @@ function normalizeVehicleConditionMap(input) {
         out[part.key] = normalizedStatus;
     }
     return out;
+}
+function createDefaultVehicleConditionLayout() {
+    const out = {};
+    for (const part of VEHICLE_CONDITION_PARTS) {
+        out[part.key] = { x: 0, y: 0 };
+    }
+    return out;
+}
+function normalizeVehicleConditionLayoutOffset(input) {
+    const value = Number(input);
+    if (!Number.isFinite(value))
+        return 0;
+    const rounded = Math.round(value);
+    if (rounded > VEHICLE_CONDITION_LAYOUT_MAX_OFFSET)
+        return VEHICLE_CONDITION_LAYOUT_MAX_OFFSET;
+    if (rounded < -VEHICLE_CONDITION_LAYOUT_MAX_OFFSET)
+        return -VEHICLE_CONDITION_LAYOUT_MAX_OFFSET;
+    return rounded;
+}
+function normalizeVehicleConditionLayout(input) {
+    const source = parseJsonObjectMaybe(input);
+    const partsSource = parseJsonObjectMaybe(source.parts || source.layout || source.offsets || source);
+    const out = createDefaultVehicleConditionLayout();
+    for (const part of VEHICLE_CONDITION_PARTS) {
+        const rawPart = partsSource[part.key];
+        let x = 0;
+        let y = 0;
+        if (Array.isArray(rawPart)) {
+            x = normalizeVehicleConditionLayoutOffset(rawPart[0]);
+            y = normalizeVehicleConditionLayoutOffset(rawPart[1]);
+        }
+        else {
+            const partSource = parseJsonObjectMaybe(rawPart);
+            x = normalizeVehicleConditionLayoutOffset(partSource.x ?? partSource.dx ?? 0);
+            y = normalizeVehicleConditionLayoutOffset(partSource.y ?? partSource.dy ?? 0);
+        }
+        out[part.key] = { x, y };
+    }
+    return out;
+}
+function serializeVehicleConditionLayout(input) {
+    const layout = normalizeVehicleConditionLayout(input);
+    const out = {};
+    for (const part of VEHICLE_CONDITION_PARTS) {
+        const row = layout[part.key] || { x: 0, y: 0 };
+        out[part.key] = {
+            x: normalizeVehicleConditionLayoutOffset(row.x),
+            y: normalizeVehicleConditionLayoutOffset(row.y),
+        };
+    }
+    return out;
+}
+function normalizeVehicleConditionLayoutStep(input) {
+    const value = Number(input);
+    if (!Number.isFinite(value))
+        return 1;
+    const rounded = Math.round(value);
+    if (rounded < 1)
+        return 1;
+    if (rounded > VEHICLE_CONDITION_LAYOUT_MAX_STEP)
+        return VEHICLE_CONDITION_LAYOUT_MAX_STEP;
+    return rounded;
+}
+function setVehicleConditionPartOffset(partKey, x, y) {
+    const nextLayout = normalizeVehicleConditionLayout(state.auctionVehicleConditionLayout || {});
+    nextLayout[partKey] = {
+        x: normalizeVehicleConditionLayoutOffset(x),
+        y: normalizeVehicleConditionLayoutOffset(y),
+    };
+    state.auctionVehicleConditionLayout = nextLayout;
+}
+function shiftVehicleConditionPartOffset(partKey, deltaX, deltaY) {
+    const layout = normalizeVehicleConditionLayout(state.auctionVehicleConditionLayout || {});
+    const current = layout[partKey] || { x: 0, y: 0 };
+    setVehicleConditionPartOffset(partKey, current.x + Number(deltaX || 0), current.y + Number(deltaY || 0));
+}
+function syncVehicleConditionLayoutControls() {
+    const select = elements.auctionVehicleConditionPartSelect;
+    if (!select)
+        return;
+    if (select.options.length !== VEHICLE_CONDITION_PARTS.length) {
+        select.innerHTML = VEHICLE_CONDITION_PARTS.map((part) => `<option value="${escapeHtml(part.key)}">${escapeHtml(part.label)}</option>`).join("");
+    }
+    let selectedPart = String(state.auctionVehicleConditionSelectedPart || "");
+    if (!isVehicleConditionPartKey(selectedPart)) {
+        selectedPart = VEHICLE_CONDITION_PARTS[0]?.key || "";
+        state.auctionVehicleConditionSelectedPart = selectedPart;
+    }
+    if (select.value !== selectedPart) {
+        select.value = selectedPart;
+    }
+    const step = normalizeVehicleConditionLayoutStep(state.auctionVehicleConditionStep);
+    state.auctionVehicleConditionStep = step;
+    if (elements.auctionVehicleConditionStepInput) {
+        elements.auctionVehicleConditionStepInput.value = String(step);
+    }
+    const layout = normalizeVehicleConditionLayout(state.auctionVehicleConditionLayout || {});
+    state.auctionVehicleConditionLayout = layout;
+    const row = isVehicleConditionPartKey(selectedPart) ? layout[selectedPart] || { x: 0, y: 0 } : { x: 0, y: 0 };
+    if (elements.auctionVehicleConditionOffsetXInput) {
+        elements.auctionVehicleConditionOffsetXInput.value = String(normalizeVehicleConditionLayoutOffset(row.x));
+    }
+    if (elements.auctionVehicleConditionOffsetYInput) {
+        elements.auctionVehicleConditionOffsetYInput.value = String(normalizeVehicleConditionLayoutOffset(row.y));
+    }
 }
 function setVehicleConditionPartStatus(partKey, status) {
     const nextMap = normalizeVehicleConditionMap(state.auctionVehicleConditionMap || {});

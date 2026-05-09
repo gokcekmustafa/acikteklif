@@ -48,6 +48,7 @@ const VEHICLE_CONDITION_TEXT_POSITIONS = {
     sag_arka_kapi: [356, 353],
     sag_arka_camurluk: [371, 448],
 };
+const VEHICLE_CONDITION_LAYOUT_MAX_OFFSET = 200;
 const VEHICLE_EXPERTISE_STRUCTURE_FIELDS = [
     { key: "sag_podye", label: "Sağ Podye", legacyKeys: ["sag_sol_podye"] },
     { key: "sol_podye", label: "Sol Podye", legacyKeys: ["sag_sol_podye"] },
@@ -75,6 +76,7 @@ const state = {
     gallery: [],
     activeImageIndex: 0,
     activeTab: "basic",
+    vehicleConditionLayout: createDefaultVehicleConditionLayout(),
 };
 const elements = {
     auctionTitle: document.getElementById("auctionTitle"),
@@ -147,6 +149,7 @@ async function loadAuctionDetail() {
         vehicle_expertise_meta: vehicleExpertiseMeta,
         equipment,
     };
+    state.vehicleConditionLayout = normalizeVehicleConditionLayout(data.vehicleConditionLayout || item.vehicle_condition_layout || {});
     state.gallery = gallery;
     state.activeImageIndex = 0;
 }
@@ -243,14 +246,18 @@ function renderVehicleConditionMap() {
     if (!elements.expertiseConditionMap)
         return;
     const map = normalizeVehicleConditionMap(state.item?.vehicle_condition_map || {});
+    const layout = normalizeVehicleConditionLayout(state.vehicleConditionLayout || {});
+    state.vehicleConditionLayout = layout;
     const partsMarkup = VEHICLE_CONDITION_PARTS.map((part) => {
         const status = map[part.key] || VEHICLE_CONDITION_DEFAULT_STATUS;
         const statusClass = getVehicleConditionStatusClass(status);
         const shouldShowCode = status !== VEHICLE_CONDITION_DEFAULT_STATUS;
         const pos = VEHICLE_CONDITION_TEXT_POSITIONS[part.key] || [200, 250];
         const path = VEHICLE_CONDITION_PART_PATHS[part.key] || "";
+        const offset = layout[part.key] || { x: 0, y: 0 };
+        const transform = offset.x !== 0 || offset.y !== 0 ? ` transform="translate(${offset.x} ${offset.y})"` : "";
         return `
-      <g class="conditionSvgPart ${statusClass}" data-part-key="${part.key}">
+      <g class="conditionSvgPart ${statusClass}" data-part-key="${part.key}"${transform}>
         <path d="${path}" fill-rule="evenodd" clip-rule="evenodd"></path>
         ${shouldShowCode
             ? `<text class="conditionCode ${getVehicleConditionStatusCode(status).length > 1 ? "is-long" : "is-short"}" x="${Number(pos[0])}" y="${Number(pos[1])}" text-anchor="middle" dominant-baseline="middle" text-rendering="geometricPrecision">${escapeHtml(getVehicleConditionStatusCode(status))}</text>`
@@ -329,6 +336,45 @@ function normalizeVehicleConditionMap(input) {
         if (!normalizedStatus || normalizedStatus === VEHICLE_CONDITION_DEFAULT_STATUS)
             continue;
         out[part.key] = normalizedStatus;
+    }
+    return out;
+}
+function createDefaultVehicleConditionLayout() {
+    const out = {};
+    for (const part of VEHICLE_CONDITION_PARTS) {
+        out[part.key] = { x: 0, y: 0 };
+    }
+    return out;
+}
+function normalizeVehicleConditionLayoutOffset(input) {
+    const value = Number(input);
+    if (!Number.isFinite(value))
+        return 0;
+    const rounded = Math.round(value);
+    if (rounded > VEHICLE_CONDITION_LAYOUT_MAX_OFFSET)
+        return VEHICLE_CONDITION_LAYOUT_MAX_OFFSET;
+    if (rounded < -VEHICLE_CONDITION_LAYOUT_MAX_OFFSET)
+        return -VEHICLE_CONDITION_LAYOUT_MAX_OFFSET;
+    return rounded;
+}
+function normalizeVehicleConditionLayout(input) {
+    const source = parseJsonObject(input);
+    const partsSource = parseJsonObject(source.parts || source.layout || source.offsets || source);
+    const out = createDefaultVehicleConditionLayout();
+    for (const part of VEHICLE_CONDITION_PARTS) {
+        const rawPart = partsSource[part.key];
+        let x = 0;
+        let y = 0;
+        if (Array.isArray(rawPart)) {
+            x = normalizeVehicleConditionLayoutOffset(rawPart[0]);
+            y = normalizeVehicleConditionLayoutOffset(rawPart[1]);
+        }
+        else {
+            const partSource = parseJsonObject(rawPart);
+            x = normalizeVehicleConditionLayoutOffset(partSource.x ?? partSource.dx ?? 0);
+            y = normalizeVehicleConditionLayoutOffset(partSource.y ?? partSource.dy ?? 0);
+        }
+        out[part.key] = { x, y };
     }
     return out;
 }

@@ -473,6 +473,60 @@ body.modalOpen {
   flex-wrap: nowrap;
 }
 
+.conditionLayoutTools {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.1fr) minmax(90px, 0.7fr) minmax(60px, 0.45fr) minmax(60px, 0.45fr) auto;
+  gap: 6px;
+  align-items: end;
+}
+
+.conditionMiniField {
+  display: grid;
+  gap: 3px;
+}
+
+.conditionMiniField span {
+  font-size: 0.68rem;
+  color: #3b5d87;
+  font-weight: 700;
+}
+
+.conditionMiniField select,
+.conditionMiniField input {
+  min-height: 30px;
+  border: 1px solid #c7d5ea;
+  border-radius: 8px;
+  padding: 0 8px;
+  font-size: 0.76rem;
+  background: #fff;
+  color: #223d62;
+  font-family: inherit;
+}
+
+.conditionMiniField input[readonly] {
+  background: #f3f7ff;
+  font-weight: 700;
+}
+
+.conditionMovePad {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, auto));
+  gap: 4px;
+  align-items: end;
+}
+
+.conditionMovePad .miniBtn {
+  min-width: 30px;
+  padding: 5px 0;
+}
+
+.conditionLayoutActions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .conditionStateBtn {
   border: 1px solid #c8d6ec;
   background: #fff;
@@ -559,6 +613,12 @@ body.modalOpen {
   pointer-events: all;
   vector-effect: non-scaling-stroke;
   shape-rendering: auto;
+}
+
+.conditionSvgPart.is-layout-selected path {
+  stroke: #122f5d;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 4px rgba(10, 47, 98, 0.35));
 }
 
 .conditionSvgPart:hover path {
@@ -1336,6 +1396,14 @@ th {
   .row2,
   .row3 {
     grid-template-columns: 1fr;
+  }
+
+  .conditionLayoutTools {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .conditionMovePad {
+    grid-column: 1 / -1;
   }
 
   .conditionMap {

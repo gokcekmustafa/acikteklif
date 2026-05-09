@@ -55,6 +55,8 @@ const MAX_ATTACHMENT_TOTAL_DATA_URL_LENGTH = 3_200_000;
 const MAX_VEHICLE_CONDITION_JSON_LENGTH = 5000;
 const MAX_VEHICLE_EXPERTISE_META_JSON_LENGTH = 12000;
 const FILTER_ORDER_SETTING_KEY = "filter_option_order";
+const VEHICLE_CONDITION_LAYOUT_SETTING_KEY = "vehicle_condition_layout_v1";
+const VEHICLE_CONDITION_LAYOUT_MAX_OFFSET = 200;
 const DEFAULT_TURKEY_CITIES = TURKEY_CITIES as readonly string[];
 const VEHICLE_CONDITION_PART_KEYS = [
   "on_tampon",
@@ -593,7 +595,11 @@ async function handleApi(request, env, url) {
     if (!lotNo) return json({ ok: false, error: "Ihale no zorunludur." }, 400);
     const detail = await getPublicAuctionDetailByLotNoSafe(env, lotNo);
     if (!detail) return json({ ok: false, error: "Ihale bulunamadi." }, 404);
-    return json({ ok: true, item: detail });
+    return json({
+      ok: true,
+      item: detail,
+      vehicleConditionLayout: await getVehicleConditionLayoutSafe(env),
+    });
   }
 
   if (method === "POST" && path === "/api/bids") {
@@ -713,6 +719,7 @@ async function handleApi(request, env, url) {
       const filterOrdering = actorAccess.permissions[PERMISSIONS.SETTINGS_MANAGE]
         ? await getPublicFilterOptionsSafe(env)
         : { order: emptyFilterOrderOption(), options: emptyFilterOrderOption() };
+      const vehicleConditionLayout = await getVehicleConditionLayoutSafe(env);
 
       return json({
         ok: true,
@@ -732,6 +739,7 @@ async function handleApi(request, env, url) {
         categories: catalog.categories,
         auctions,
         filterOrdering,
+        vehicleConditionLayout,
       });
     }
 
@@ -763,6 +771,30 @@ async function handleApi(request, env, url) {
         ok: true,
         message: "Filtre siralamasi guncellendi.",
         ...(await getPublicFilterOptionsSafe(env)),
+      });
+    }
+
+    if (method === "GET" && path === "/api/admin/vehicle-condition-layout") {
+      return json({
+        ok: true,
+        layout: await getVehicleConditionLayoutSafe(env),
+      });
+    }
+
+    if (method === "POST" && path === "/api/admin/vehicle-condition-layout") {
+      if (!actorAccess.permissions[PERMISSIONS.SETTINGS_MANAGE]) {
+        return json({ ok: false, error: "Sema ayari guncelleme yetkiniz yok." }, 403);
+      }
+      const body = await readJson(request);
+      const layout = normalizeVehicleConditionLayoutInput(body?.layout ?? body ?? {});
+      await setAppSettingJsonSafe(env, VEHICLE_CONDITION_LAYOUT_SETTING_KEY, layout, session.user.id);
+      await writeAdminAuditLog(env, session.user.id, null, "vehicle_condition_layout.update", {
+        partCount: Object.keys(layout || {}).length,
+      });
+      return json({
+        ok: true,
+        message: "Kaporta sema konumlari guncellendi.",
+        layout,
       });
     }
 
@@ -2219,6 +2251,53 @@ async function getPublicFilterOptions(env) {
       districtsByCity,
     },
   };
+}
+
+function emptyVehicleConditionLayout() {
+  const out: Record<string, { x: number; y: number }> = {};
+  for (const partKey of VEHICLE_CONDITION_PART_KEYS) {
+    out[partKey] = { x: 0, y: 0 };
+  }
+  return out;
+}
+
+function normalizeVehicleConditionLayoutOffset(rawInput: any) {
+  const value = Number(rawInput);
+  if (!Number.isFinite(value)) return 0;
+  const rounded = Math.round(value);
+  if (rounded > VEHICLE_CONDITION_LAYOUT_MAX_OFFSET) return VEHICLE_CONDITION_LAYOUT_MAX_OFFSET;
+  if (rounded < -VEHICLE_CONDITION_LAYOUT_MAX_OFFSET) return -VEHICLE_CONDITION_LAYOUT_MAX_OFFSET;
+  return rounded;
+}
+
+function normalizeVehicleConditionLayoutInput(rawInput: any) {
+  const source = parseJsonObjectFromUnknown(rawInput);
+  const partsSource = parseJsonObjectFromUnknown(source.parts || source.layout || source.offsets || source);
+  const out = emptyVehicleConditionLayout();
+
+  for (const partKey of VEHICLE_CONDITION_PART_KEYS) {
+    const rawPart = partsSource[partKey];
+    let x = 0;
+    let y = 0;
+
+    if (Array.isArray(rawPart)) {
+      x = normalizeVehicleConditionLayoutOffset(rawPart[0]);
+      y = normalizeVehicleConditionLayoutOffset(rawPart[1]);
+    } else {
+      const partObject = parseJsonObjectFromUnknown(rawPart);
+      x = normalizeVehicleConditionLayoutOffset(partObject.x ?? partObject.dx ?? 0);
+      y = normalizeVehicleConditionLayoutOffset(partObject.y ?? partObject.dy ?? 0);
+    }
+
+    out[partKey] = { x, y };
+  }
+
+  return out;
+}
+
+async function getVehicleConditionLayoutSafe(env) {
+  const rawValue = await getAppSettingJsonSafe(env, VEHICLE_CONDITION_LAYOUT_SETTING_KEY, emptyVehicleConditionLayout());
+  return normalizeVehicleConditionLayoutInput(rawValue);
 }
 
 function buildDistrictOptionsByCity(cityValues: string[], auctions: any[], districtOrder: string[]) {
