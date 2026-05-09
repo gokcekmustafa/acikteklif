@@ -1206,7 +1206,7 @@ function renderCatalog() {
           <td>${escapeHtml(group.name || "-")}<div class="metaLine">Sira: ${Number(group.sort_order || 0)}</div></td>
           <td><span class="pill ${active ? "ok" : "danger"}">${active ? "Aktif" : "Pasif"}</span></td>
           <td>
-            <div class="rowActions">
+            <div class="rowActions auctionRowActions">
               <button class="miniBtn iconBtn" data-action="move-group-up" data-id="${escapeHtml(group.id)}" title="Yukari tasi" ${isFirst ? "disabled" : ""}><i class="fas fa-arrow-up"></i></button>
               <button class="miniBtn iconBtn" data-action="move-group-down" data-id="${escapeHtml(group.id)}" title="Asagi tasi" ${isLast ? "disabled" : ""}><i class="fas fa-arrow-down"></i></button>
               <button class="miniBtn" data-action="rename-group" data-id="${escapeHtml(group.id)}">Adi Duzenle</button>

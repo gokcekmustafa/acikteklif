@@ -513,7 +513,7 @@ body.modalOpen {
   width: 100%;
   height: auto;
   display: block;
-  shape-rendering: geometricPrecision;
+  shape-rendering: auto;
 }
 
 .conditionBaseImage {
@@ -539,12 +539,14 @@ body.modalOpen {
 }
 
 .conditionSvgPart path {
-  stroke: #e6e6e6;
-  stroke-width: 2;
+  stroke: #e3e6ec;
+  stroke-width: 2.4;
   stroke-linejoin: round;
   stroke-linecap: round;
   transition: filter 120ms ease;
   pointer-events: all;
+  vector-effect: non-scaling-stroke;
+  shape-rendering: auto;
 }
 
 .conditionSvgPart:hover path {
@@ -709,6 +711,16 @@ th {
   gap: 6px;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.auctionRowActions {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.auctionRowActions .miniBtn {
+  padding: 5px 6px;
+  font-size: 0.72rem;
 }
 
 .rowActions .miniBtn {
