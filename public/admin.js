@@ -192,6 +192,7 @@ const state = {
     query: "",
     catalogQuery: "",
     auctionQuery: "",
+    auctionBidHistory: null,
 };
 const AUCTION_REQUIRED_FIELD_KEYS = [
     "lotNo",
@@ -219,6 +220,11 @@ const elements = {
     auctionSearchInput: byId("auctionSearchInput"),
     auctionFormCard: byId("auctionFormCard"),
     auctionModal: byId("auctionModal"),
+    auctionBidsModal: byId("auctionBidsModal"),
+    auctionBidsCloseBtn: byId("auctionBidsCloseBtn"),
+    auctionBidsTitle: byId("auctionBidsTitle"),
+    auctionBidsSummary: byId("auctionBidsSummary"),
+    auctionBidsRows: byId("auctionBidsRows"),
     auctionListCard: byId("auctionListCard"),
     auctionFormCloseBtn: byId("auctionFormCloseBtn"),
     openAuctionFormBtn: byId("openAuctionFormBtn"),
@@ -878,6 +884,9 @@ function bindAuctionEvents() {
         hideAuctionForm();
         setStatus("Ihale penceresi kapatildi.", "ok");
     });
+    elements.auctionBidsCloseBtn?.addEventListener("click", () => {
+        hideAuctionBidsModal();
+    });
     elements.auctionModal.addEventListener("click", (event) => {
         const target = event.target;
         const closeAction = target.closest("[data-action='close-auction-modal']");
@@ -885,9 +894,20 @@ function bindAuctionEvents() {
             return;
         hideAuctionForm();
     });
+    elements.auctionBidsModal?.addEventListener("click", (event) => {
+        const target = event.target;
+        const closeAction = target.closest("[data-action='close-auction-bids-modal']");
+        if (!closeAction)
+            return;
+        hideAuctionBidsModal();
+    });
     document.addEventListener("keydown", (event) => {
         if (event.key !== "Escape")
             return;
+        if (elements.auctionBidsModal && !elements.auctionBidsModal.classList.contains("hide")) {
+            hideAuctionBidsModal();
+            return;
+        }
         if (elements.auctionModal.classList.contains("hide"))
             return;
         hideAuctionForm();
@@ -1174,6 +1194,16 @@ function bindAuctionEvents() {
             renderTabs();
             updateFormHeadings();
             setStatus("Ihale duzenleme penceresi acildi.", "ok");
+            return;
+        }
+        if (action === "view-auction-bids") {
+            await safeAction(btn, async () => {
+                const data = await apiFetch(`/api/admin/auctions/${encodeURIComponent(auctionId)}/bids`);
+                state.auctionBidHistory = data;
+                renderAuctionBidHistoryModal();
+                showAuctionBidsModal();
+                setStatus("Ihale teklif listesi acildi.", "ok");
+            });
             return;
         }
         if (action === "toggle-auction-status") {
@@ -1625,6 +1655,7 @@ function renderAuctions() {
         elements.auctionRows.innerHTML = '<tr><td colspan="8"><div class="emptyState">Kayitli ihale bulunamadi.</div></td></tr>';
         return;
     }
+    const canViewAuctionBids = normalizeRole(state.currentUser?.role || "") === ROLE_ADMIN;
     elements.auctionRows.innerHTML = auctions
         .map((auction) => {
         const statusKey = String(auction.status || "").toUpperCase();
@@ -1643,6 +1674,9 @@ function renderAuctions() {
           <td><span class="pill ${statusClass}">${escapeHtml(formatAuctionStatus(auction.status))}</span></td>
           <td>
             <div class="rowActions auctionRowActions">
+              ${canViewAuctionBids
+            ? `<button class="miniBtn" data-action="view-auction-bids" data-id="${escapeHtml(auction.id)}">Teklifler</button>`
+            : ""}
               ${canToggleActivePassive
             ? `<button class="miniBtn ${statusKey === "PASSIVE" ? "success" : ""}" data-action="toggle-auction-status" data-id="${escapeHtml(auction.id)}" data-next-status="${escapeHtml(nextStatus)}">${nextStatusLabel}</button>`
             : ""}
@@ -2257,7 +2291,76 @@ function showAuctionForm() {
 }
 function hideAuctionForm() {
     elements.auctionModal.classList.add("hide");
-    document.body.classList.remove("modalOpen");
+    if (elements.auctionBidsModal?.classList.contains("hide")) {
+        document.body.classList.remove("modalOpen");
+    }
+}
+function showAuctionBidsModal() {
+    if (!elements.auctionBidsModal)
+        return;
+    elements.auctionBidsModal.classList.remove("hide");
+    document.body.classList.add("modalOpen");
+}
+function hideAuctionBidsModal() {
+    if (!elements.auctionBidsModal)
+        return;
+    elements.auctionBidsModal.classList.add("hide");
+    if (elements.auctionModal.classList.contains("hide")) {
+        document.body.classList.remove("modalOpen");
+    }
+}
+function renderAuctionBidHistoryModal() {
+    const payload = state.auctionBidHistory || {};
+    const auction = payload.auction || {};
+    const bids = Array.isArray(payload.bids) ? payload.bids : [];
+    const participants = Array.isArray(payload.participants) ? payload.participants : [];
+    const winner = payload.winner || null;
+    const lotNo = String(auction.lotNo || "-");
+    const title = String(auction.title || "-");
+    elements.auctionBidsTitle.textContent = `Ihale Teklifleri: ${lotNo} - ${title}`;
+    const currentBidValue = auction.currentBid === null || auction.currentBid === undefined ? "-" : `${formatMoney(auction.currentBid)} TL`;
+    const winnerLabel = auction.isEnded ? "Ihale Kazanan Teklif" : "Guncel Lider Teklif";
+    const winnerHtml = winner
+        ? `<div class="bidWinnerRow">${escapeHtml(winnerLabel)}: ${escapeHtml(winner.bidderName || "-")} (${escapeHtml(winner.bidderEmail || "-")}) - ${formatMoney(winner.amount)} TL - ${escapeHtml(formatDate(winner.createdAt || ""))}</div>`
+        : `<div class="bidWinnerRow">Bu ihalede henuz teklif bulunmuyor.</div>`;
+    elements.auctionBidsSummary.innerHTML = `
+    ${winnerHtml}
+    <div class="bidSummaryItem">
+      <div class="bidSummaryLabel">Durum</div>
+      <div class="bidSummaryValue">${escapeHtml(formatAuctionStatus(String(auction.status || "")))}</div>
+    </div>
+    <div class="bidSummaryItem">
+      <div class="bidSummaryLabel">Bitis Zamani</div>
+      <div class="bidSummaryValue">${escapeHtml(formatDate(auction.endsAt || ""))}</div>
+    </div>
+    <div class="bidSummaryItem">
+      <div class="bidSummaryLabel">Toplam Teklif</div>
+      <div class="bidSummaryValue">${escapeHtml(String(payload.totalBidCount ?? bids.length))}</div>
+    </div>
+    <div class="bidSummaryItem">
+      <div class="bidSummaryLabel">Teklif Veren Kullanici</div>
+      <div class="bidSummaryValue">${escapeHtml(String(participants.length))}</div>
+    </div>
+    <div class="bidSummaryItem">
+      <div class="bidSummaryLabel">Guncel Teklif</div>
+      <div class="bidSummaryValue">${escapeHtml(String(currentBidValue))}</div>
+    </div>
+  `;
+    if (bids.length < 1) {
+        elements.auctionBidsRows.innerHTML = '<tr><td colspan="5"><div class="emptyState">Bu ihalede teklif kaydi yok.</div></td></tr>';
+        return;
+    }
+    elements.auctionBidsRows.innerHTML = bids
+        .map((row, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${escapeHtml(row.bidderName || "-")}</td>
+        <td>${escapeHtml(row.bidderEmail || "-")}</td>
+        <td>${formatMoney(row.amount)} TL</td>
+        <td>${escapeHtml(formatDate(row.createdAt || ""))}</td>
+      </tr>
+    `)
+        .join("");
 }
 function bindDropzoneUpload(dropzone, input, onFiles) {
     dropzone.addEventListener("click", () => input.click());

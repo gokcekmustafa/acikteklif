@@ -548,6 +548,25 @@
             </article>
           </div>
 
+                    <div class="auctionModal hide" id="auctionBidsModal" role="dialog" aria-modal="true" aria-labelledby="auctionBidsTitle">
+            <div class="auctionModalBackdrop" data-action="close-auction-bids-modal"></div>
+            <article class="panelCard auctionModalCard auctionBidsModalCard">
+              <div class="panelHead">
+                <h3 id="auctionBidsTitle">Ihale Teklifleri</h3>
+                <button class="miniBtn" type="button" id="auctionBidsCloseBtn">Pencereyi Kapat</button>
+              </div>
+              <div class="bidSummaryGrid" id="auctionBidsSummary"></div>
+              <div class="tableWrap">
+                <table>
+                  <thead>
+                    <tr><th>#</th><th>Kullanici</th><th>E-Posta</th><th>Teklif</th><th>Zaman</th></tr>
+                  </thead>
+                  <tbody id="auctionBidsRows"></tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+
           <article class="panelCard" id="auctionListCard">
             <div class="panelHead">
               <h3>İhale Listesi</h3>

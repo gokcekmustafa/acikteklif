@@ -1165,6 +1165,21 @@ async function handleApi(request, env, url) {
 
     const auctionMatch = path.match(/^\/api\/admin\/auctions\/([^/]+)$/);
     const auctionStatusMatch = path.match(/^\/api\/admin\/auctions\/([^/]+)\/status$/);
+    const auctionBidsMatch = path.match(/^\/api\/admin\/auctions\/([^/]+)\/bids$/);
+    if (auctionBidsMatch && method === "GET") {
+      if (actorAccess.role !== USER_ROLES.ADMIN) {
+        return json({ ok: false, error: "Bu alani sadece superadmin goruntuleyebilir." }, 403);
+      }
+      if (!canManageCatalog) {
+        return json({ ok: false, error: "Ihale tekliflerini goruntuleme yetkiniz yok." }, 403);
+      }
+
+      const auctionId = decodeURIComponent(String(auctionBidsMatch[1] || ""));
+      const bidHistory = await getAdminAuctionBidHistory(env, auctionId);
+      if (!bidHistory) return json({ ok: false, error: "Ihale bulunamadi." }, 404);
+      return json({ ok: true, ...bidHistory });
+    }
+
     if (auctionStatusMatch && method === "POST") {
       if (!actorAccess.permissions[PERMISSIONS.AUCTIONS_EDIT] && !actorAccess.permissions[PERMISSIONS.AUCTIONS_CLOSE]) {
         return json({ ok: false, error: "İhale durumunu değiştirme yetkiniz yok." }, 403);
@@ -2095,6 +2110,114 @@ async function getAdminAuctionsList(env) {
      ORDER BY a.created_at DESC`
   ).all();
   return data.results || [];
+}
+
+async function getAdminAuctionBidHistory(env, auctionId: string) {
+  const auction = await env.DB.prepare(
+    `SELECT
+      a.id, a.lot_no, a.title, a.start_price, a.current_bid, a.current_bid_user_id, a.bid_count, a.ends_at, a.status,
+      u.name AS current_bid_user_name, u.email AS current_bid_user_email
+     FROM auctions a
+     LEFT JOIN users u ON u.id = a.current_bid_user_id
+     WHERE a.id = ?
+     LIMIT 1`
+  )
+    .bind(auctionId)
+    .first();
+  if (!auction?.id) return null;
+
+  const bidRowsResult = await env.DB.prepare(
+    `SELECT
+      b.id, b.auction_id, b.user_id, b.amount, b.created_at,
+      u.name AS bidder_name, u.email AS bidder_email
+     FROM bids b
+     LEFT JOIN users u ON u.id = b.user_id
+     WHERE b.auction_id = ?
+     ORDER BY b.amount DESC, b.created_at ASC`
+  )
+    .bind(auctionId)
+    .all();
+  const bidRows = bidRowsResult.results || [];
+
+  const bids = bidRows.map((row: any) => ({
+    id: String(row.id || ""),
+    userId: String(row.user_id || ""),
+    bidderName: String(row.bidder_name || "").trim() || "Isimsiz",
+    bidderEmail: String(row.bidder_email || "").trim() || "-",
+    amount: Number(row.amount || 0),
+    createdAt: row.created_at || null,
+  }));
+
+  const participantsMap = new Map<
+    string,
+    { userId: string; bidderName: string; bidderEmail: string; bidCount: number; maxBid: number; lastBidAt: string | null }
+  >();
+  for (const row of bids) {
+    const key = String(row.userId || "");
+    const prev = participantsMap.get(key);
+    if (!prev) {
+      participantsMap.set(key, {
+        userId: key,
+        bidderName: row.bidderName,
+        bidderEmail: row.bidderEmail,
+        bidCount: 1,
+        maxBid: Number(row.amount || 0),
+        lastBidAt: row.createdAt || null,
+      });
+      continue;
+    }
+    prev.bidCount += 1;
+    if (Number(row.amount || 0) > prev.maxBid) prev.maxBid = Number(row.amount || 0);
+    const prevMs = Date.parse(String(prev.lastBidAt || ""));
+    const nextMs = Date.parse(String(row.createdAt || ""));
+    if (Number.isFinite(nextMs) && (!Number.isFinite(prevMs) || nextMs > prevMs)) {
+      prev.lastBidAt = row.createdAt || null;
+    }
+  }
+  const participants = Array.from(participantsMap.values()).sort((a, b) => {
+    if (b.maxBid !== a.maxBid) return b.maxBid - a.maxBid;
+    if (b.bidCount !== a.bidCount) return b.bidCount - a.bidCount;
+    const aMs = Date.parse(String(a.lastBidAt || ""));
+    const bMs = Date.parse(String(b.lastBidAt || ""));
+    if (Number.isFinite(aMs) && Number.isFinite(bMs)) return bMs - aMs;
+    return 0;
+  });
+
+  const winnerRow = bids[0] || null;
+  const winner = winnerRow
+    ? {
+        userId: winnerRow.userId,
+        bidderName: winnerRow.bidderName,
+        bidderEmail: winnerRow.bidderEmail,
+        amount: Number(winnerRow.amount || 0),
+        createdAt: winnerRow.createdAt || null,
+      }
+    : null;
+
+  const endsAtMs = Date.parse(String(auction.ends_at || ""));
+  const isEnded =
+    String(auction.status || "").toUpperCase() === "ENDED" || (Number.isFinite(endsAtMs) && endsAtMs <= Date.now());
+
+  return {
+    auction: {
+      id: String(auction.id || ""),
+      lotNo: String(auction.lot_no || ""),
+      title: String(auction.title || ""),
+      startPrice: Number(auction.start_price || 0),
+      currentBid: auction.current_bid === null || auction.current_bid === undefined ? null : Number(auction.current_bid),
+      currentBidUserId: auction.current_bid_user_id ? String(auction.current_bid_user_id) : "",
+      currentBidUserName: String(auction.current_bid_user_name || "").trim() || null,
+      currentBidUserEmail: String(auction.current_bid_user_email || "").trim() || null,
+      bidCount: Number(auction.bid_count || 0),
+      endsAt: auction.ends_at || null,
+      status: String(auction.status || ""),
+      isEnded,
+    },
+    winner,
+    participants,
+    bids,
+    totalBidCount: bids.length,
+  };
 }
 
 async function getPublicAuctionsList(env) {

@@ -333,6 +333,49 @@ body.modalOpen {
   box-shadow: 0 24px 60px rgba(10, 24, 45, 0.3);
 }
 
+.auctionBidsModalCard {
+  width: min(980px, 100%);
+}
+
+.bidSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.bidSummaryItem {
+  border: 1px solid #d7e2f2;
+  border-radius: 10px;
+  background: #f8fbff;
+  padding: 8px 10px;
+  display: grid;
+  gap: 3px;
+}
+
+.bidSummaryLabel {
+  font-size: 0.72rem;
+  color: #4a6285;
+  font-weight: 700;
+}
+
+.bidSummaryValue {
+  font-size: 0.88rem;
+  color: #18365a;
+  font-weight: 800;
+}
+
+.bidWinnerRow {
+  margin-bottom: 8px;
+  border: 1px solid #cde3d5;
+  border-radius: 10px;
+  background: #eefaf2;
+  padding: 9px 10px;
+  font-size: 0.83rem;
+  color: #1d4c33;
+  font-weight: 700;
+}
+
 .panelHead {
   display: flex;
   align-items: center;
@@ -1472,6 +1515,10 @@ th {
 
   .auctionModalCard {
     max-height: calc(100vh - 20px);
+  }
+
+  .bidSummaryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
 }
