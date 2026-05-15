@@ -1049,7 +1049,6 @@ button {
 }
 
 .containerAll .sContent.listingResults .imgWrap .iContent:hover {
-  transform: translateY(-3px);
   box-shadow: var(--shadow-md);
 }
 
@@ -1317,7 +1316,7 @@ button {
   position: fixed;
   inset: 0;
   display: none;
-  z-index: 2500;
+  z-index: 6000;
   align-items: center;
   justify-content: center;
   text-align: left;
