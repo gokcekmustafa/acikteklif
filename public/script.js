@@ -1991,7 +1991,7 @@ function renderCard(item) {
                 <div class="bidComposerMin">Minimum teklif: ${formatMoneyWithoutCents(minimumBid)} TL</div>
                 <div class="bidComposerRow">
                   <label for="bidAmount_${escapeHtml(item.lotNo)}">Teklif Tutarınız</label>
-                  <input id="bidAmount_${escapeHtml(item.lotNo)}" class="bidComposerAmount" type="number" min="${Math.ceil(minimumBid)}" step="1" value="${escapeHtml(composerAmount)}" required>
+                  <input id="bidAmount_${escapeHtml(item.lotNo)}" class="bidComposerAmount" type="number" min="${Math.ceil(minimumBid)}" step="1" value="${escapeHtml(composerAmount)}">
                 </div>
                 <label class="bidComposerAutoLine">
                   <input type="checkbox" class="bidComposerAutoToggle" ${composerAutoEnabled ? "checked" : ""}>
@@ -2079,12 +2079,21 @@ async function handleBidComposerSubmit(form) {
     const autoToggleInput = form.querySelector(".bidComposerAutoToggle");
     const autoMaxInput = form.querySelector(".bidComposerAutoMax");
     const amountText = String(amountInput?.value || "").trim();
+    const hasAmount = amountText.length > 0;
     const autoEnabled = autoToggleInput?.checked === true;
     const autoMaxText = String(autoMaxInput?.value || "").trim();
-    const amount = Number(amountText.replace(/\./g, "").replace(",", "."));
-    if (!Number.isFinite(amount) || amount <= 0) {
-        alert("Geçerli bir teklif tutarı girin.");
+    if (!hasAmount && !autoEnabled) {
+        alert("Teklif tutarı girin veya otomatik teklif ver seçeneğini açın.");
         return;
+    }
+    let amount = null;
+    if (hasAmount) {
+        const parsedAmount = Number(amountText.replace(/\./g, "").replace(",", "."));
+        if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+            alert("Geçerli bir teklif tutarı girin.");
+            return;
+        }
+        amount = parsedAmount;
     }
     let autoMaxAmount = null;
     if (autoEnabled) {
@@ -2093,13 +2102,14 @@ async function handleBidComposerSubmit(form) {
             alert("Otomatik teklif için geçerli bir üst limit girin.");
             return;
         }
-        if (autoMaxAmount < amount) {
+        if (amount !== null && autoMaxAmount < amount) {
             alert("Otomatik teklif üst limiti, teklif tutarınızdan düşük olamaz.");
             return;
         }
     }
+    const shouldPlaceBid = amount !== null;
     try {
-        await submitBidWithOptions(lotNo, amount, autoEnabled, autoMaxAmount);
+        await submitBidWithOptions(lotNo, amount, autoEnabled, autoMaxAmount, shouldPlaceBid);
         closeBidComposer();
         await openMyBidsModalIfOpen();
         render();
@@ -2108,13 +2118,17 @@ async function handleBidComposerSubmit(form) {
         alert(error.message || "Teklif işlemi tamamlanamadı.");
     }
 }
-async function submitBidWithOptions(lotNo, amount, autoEnabled, autoMaxAmount) {
-    const bidData = await apiFetch("/api/bids", {
-        method: "POST",
-        body: { lotNo, amount },
-    });
+async function submitBidWithOptions(lotNo, amount, autoEnabled, autoMaxAmount, shouldPlaceBid = true) {
+    let bidData = null;
+    if (shouldPlaceBid && amount !== null) {
+        bidData = await apiFetch("/api/bids", {
+            method: "POST",
+            body: { lotNo, amount },
+        });
+    }
+    let autoBidData = null;
     if (autoEnabled && autoMaxAmount !== null) {
-        await apiFetch("/api/auth/auto-bids", {
+        autoBidData = await apiFetch("/api/auth/auto-bids", {
             method: "POST",
             body: { lotNo, maxAmount: autoMaxAmount },
         });
@@ -2122,7 +2136,7 @@ async function submitBidWithOptions(lotNo, amount, autoEnabled, autoMaxAmount) {
     await loadListings();
     await syncFavoriteFlagsFromServer();
     render();
-    setHint(elements.loginFormHint, bidData.message || "Teklifiniz alındı.", "success");
+    setHint(elements.loginFormHint, autoBidData?.message || bidData?.message || "İşleminiz kaydedildi.", "success");
 }
 async function openMyBidsModalIfOpen() {
     if (!elements.myBidsModal.classList.contains("open"))
