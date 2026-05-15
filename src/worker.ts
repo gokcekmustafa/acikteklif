@@ -587,7 +587,21 @@ async function handleApi(request, env, url) {
   }
 
   if (method === "GET" && path === "/api/auctions") {
-    return json({ ok: true, items: await getPublicAuctionsListSafe(env) });
+    const items = await getPublicAuctionsListSafe(env);
+    const session = await getSessionSafe(request, env);
+    if (!session) {
+      return json({ ok: true, items });
+    }
+
+    const favoriteLotNos = await getUserFavoriteLotNoSetSafe(env, session.user.id);
+    const withFavorites = items.map((row: any) => {
+      const lotNo = String(row?.lot_no || "").trim().toUpperCase();
+      return {
+        ...row,
+        is_favorite: favoriteLotNos.has(lotNo) ? 1 : 0,
+      };
+    });
+    return json({ ok: true, items: withFavorites });
   }
   if (method === "GET" && path === "/api/filter-options") {
     return json({ ok: true, ...(await getPublicFilterOptionsSafe(env)) });
@@ -669,6 +683,108 @@ async function handleApi(request, env, url) {
       message: "Teklifiniz alındı.",
       lotNo,
       amount,
+    });
+  }
+
+  if (method === "GET" && path === "/api/auth/my-bids") {
+    const cfgError = requireSessionPepper(env);
+    if (cfgError) return cfgError;
+    await ensureMarketplaceSchemaWarm(env);
+
+    const session = await getSession(request, env);
+    if (!session) return json({ ok: false, error: "Tekliflerinizi gormek icin giris yapmalisiniz." }, 401);
+
+    return json({
+      ok: true,
+      items: await getUserBidSummaryListSafe(env, session.user.id),
+    });
+  }
+
+  if (method === "GET" && path === "/api/auth/favorites") {
+    const cfgError = requireSessionPepper(env);
+    if (cfgError) return cfgError;
+    await ensureMarketplaceSchemaWarm(env);
+
+    const session = await getSession(request, env);
+    if (!session) return json({ ok: false, error: "Favoriler icin giris yapmalisiniz." }, 401);
+
+    return json({
+      ok: true,
+      items: await getUserFavoritesListSafe(env, session.user.id),
+    });
+  }
+
+  if (method === "POST" && path === "/api/auth/favorites") {
+    const cfgError = requireSessionPepper(env);
+    if (cfgError) return cfgError;
+    await ensureMarketplaceSchemaWarm(env);
+
+    const session = await getSession(request, env);
+    if (!session) return json({ ok: false, error: "Favori eklemek icin giris yapmalisiniz." }, 401);
+
+    const body = await readJson(request);
+    const lotNo = String(body?.lotNo || "").trim().toUpperCase();
+    if (!lotNo) return json({ ok: false, error: "Ihale no zorunludur." }, 400);
+
+    const auction = await env.DB.prepare(
+      `SELECT id, lot_no, status
+       FROM auctions
+       WHERE UPPER(TRIM(lot_no)) = UPPER(TRIM(?))
+       LIMIT 1`
+    )
+      .bind(lotNo)
+      .first();
+
+    if (!auction?.id) return json({ ok: false, error: "Ihale bulunamadi." }, 404);
+    if (String(auction.status || "").toUpperCase() === "PASSIVE") {
+      return json({ ok: false, error: "Pasif ihaleler favorilere eklenemez." }, 409);
+    }
+
+    await env.DB.prepare(
+      `INSERT INTO auction_favorites (user_id, auction_id, created_at)
+       VALUES (?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(user_id, auction_id) DO NOTHING`
+    )
+      .bind(session.user.id, auction.id)
+      .run();
+
+    return json({
+      ok: true,
+      lotNo,
+      message: "Ihale favorilere eklendi.",
+    });
+  }
+
+  const favoriteDeleteMatch = path.match(/^\/api\/auth\/favorites\/([^/]+)$/);
+  if (favoriteDeleteMatch && method === "DELETE") {
+    const cfgError = requireSessionPepper(env);
+    if (cfgError) return cfgError;
+    await ensureMarketplaceSchemaWarm(env);
+
+    const session = await getSession(request, env);
+    if (!session) return json({ ok: false, error: "Favori silmek icin giris yapmalisiniz." }, 401);
+
+    const lotNo = decodeURIComponent(String(favoriteDeleteMatch[1] || ""))
+      .trim()
+      .toUpperCase();
+    if (!lotNo) return json({ ok: false, error: "Ihale no zorunludur." }, 400);
+
+    await env.DB.prepare(
+      `DELETE FROM auction_favorites
+       WHERE user_id = ?
+         AND auction_id IN (
+           SELECT id
+           FROM auctions
+           WHERE UPPER(TRIM(lot_no)) = UPPER(TRIM(?))
+         )`
+    )
+      .bind(session.user.id, lotNo)
+      .run();
+
+    return json({
+      ok: true,
+      lotNo,
+      message: "Ihale favorilerden kaldirildi.",
     });
   }
 
@@ -1519,6 +1635,16 @@ async function getSession(request, env) {
   };
 }
 
+async function getSessionSafe(request, env) {
+  try {
+    if (!env?.SESSION_PEPPER) return null;
+    return await getSession(request, env);
+  } catch (error) {
+    console.warn("Opsiyonel oturum sorgusu hatasi:", error);
+    return null;
+  }
+}
+
 async function ensureUserRole(env, userId, email, db = env.DB) {
   const bootstrapRole = getBootstrapRoleForEmail(env, email);
   try {
@@ -1996,6 +2122,14 @@ async function ensureMarketplaceSchema(env, options: { runLegacyRepair?: boolean
       updated_at TEXT NOT NULL,
       updated_by TEXT
     )`,
+    `CREATE TABLE IF NOT EXISTS auction_favorites (
+      user_id TEXT NOT NULL,
+      auction_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (user_id, auction_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (auction_id) REFERENCES auctions(id) ON DELETE CASCADE
+    )`,
     "CREATE INDEX IF NOT EXISTS idx_categories_group_id ON categories(group_id)",
   ];
 
@@ -2063,6 +2197,9 @@ async function ensureMarketplaceSchema(env, options: { runLegacyRepair?: boolean
     "CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name)",
     "CREATE INDEX IF NOT EXISTS idx_auctions_product_group_id ON auctions(product_group_id)",
     "CREATE INDEX IF NOT EXISTS idx_auctions_category_id ON auctions(category_id)",
+    "CREATE INDEX IF NOT EXISTS idx_auction_favorites_user_id ON auction_favorites(user_id)",
+    "CREATE INDEX IF NOT EXISTS idx_auction_favorites_auction_id ON auction_favorites(auction_id)",
+    "CREATE INDEX IF NOT EXISTS idx_auction_favorites_created_at ON auction_favorites(created_at)",
   ];
 
   for (const sql of indexStatements) {
@@ -2273,6 +2410,136 @@ async function getPublicAuctionDetailByLotNo(env, lotNo: string) {
   };
 }
 
+async function getUserFavoriteLotNoSet(env, userId: string) {
+  const result = await env.DB.prepare(
+    `SELECT UPPER(TRIM(a.lot_no)) AS lot_no
+     FROM auction_favorites f
+     JOIN auctions a ON a.id = f.auction_id
+     WHERE f.user_id = ?`
+  )
+    .bind(userId)
+    .all();
+
+  const out = new Set<string>();
+  for (const row of result.results || []) {
+    const lotNo = String((row as any)?.lot_no || "").trim().toUpperCase();
+    if (!lotNo) continue;
+    out.add(lotNo);
+  }
+  return out;
+}
+
+async function getUserFavoritesList(env, userId: string) {
+  const result = await env.DB.prepare(
+    `SELECT
+      f.created_at AS favorited_at,
+      a.id, a.lot_no, a.title, a.start_price, a.current_bid, a.min_increment, a.bid_count,
+      COALESCE(a.starts_at, a.created_at) AS starts_at, a.ends_at, a.status, a.created_at,
+      a.city, a.image_url, a.gallery_json,
+      pg.name AS product_group, c.name AS category
+     FROM auction_favorites f
+     JOIN auctions a ON a.id = f.auction_id
+     LEFT JOIN product_groups pg ON pg.id = a.product_group_id
+     LEFT JOIN categories c ON c.id = a.category_id
+     WHERE f.user_id = ?
+       AND UPPER(COALESCE(a.status, 'ACTIVE')) != 'PASSIVE'
+     ORDER BY f.created_at DESC`
+  )
+    .bind(userId)
+    .all();
+
+  const nowMs = Date.now();
+  return (result.results || []).map((row: any) => {
+    const gallery = normalizeGalleryList(row.gallery_json, row.image_url);
+    const endsAtMs = Date.parse(String(row.ends_at || ""));
+    const status = String(row.status || "").toUpperCase();
+    const isEnded = status === "ENDED" || (Number.isFinite(endsAtMs) && endsAtMs <= nowMs);
+
+    return {
+      auctionId: String(row.id || ""),
+      lotNo: String(row.lot_no || ""),
+      title: String(row.title || ""),
+      productGroup: String(row.product_group || ""),
+      category: String(row.category || ""),
+      city: String(row.city || ""),
+      startPrice: Number(row.start_price || 0),
+      currentBid: row.current_bid === null || row.current_bid === undefined ? null : Number(row.current_bid),
+      minIncrement: Number(row.min_increment || 0),
+      bidCount: Number(row.bid_count || 0),
+      startsAt: row.starts_at || null,
+      endsAt: row.ends_at || null,
+      createdAt: row.created_at || null,
+      status,
+      isEnded,
+      imageUrl: String(gallery[0] || row.image_url || "").trim(),
+      gallery,
+      favoritedAt: row.favorited_at || null,
+    };
+  });
+}
+
+async function getUserBidSummaryList(env, userId: string) {
+  const result = await env.DB.prepare(
+    `SELECT
+      a.id, a.lot_no, a.title, a.start_price, a.current_bid, a.current_bid_user_id, a.min_increment, a.bid_count,
+      COALESCE(a.starts_at, a.created_at) AS starts_at, a.ends_at, a.status, a.created_at,
+      a.city, a.image_url, a.gallery_json,
+      pg.name AS product_group, c.name AS category,
+      COUNT(b.id) AS my_bid_count,
+      MAX(b.amount) AS my_max_bid,
+      MAX(b.created_at) AS my_last_bid_at
+     FROM bids b
+     JOIN auctions a ON a.id = b.auction_id
+     LEFT JOIN product_groups pg ON pg.id = a.product_group_id
+     LEFT JOIN categories c ON c.id = a.category_id
+     WHERE b.user_id = ?
+       AND UPPER(COALESCE(a.status, 'ACTIVE')) != 'PASSIVE'
+     GROUP BY a.id
+     ORDER BY my_last_bid_at DESC`
+  )
+    .bind(userId)
+    .all();
+
+  const nowMs = Date.now();
+  return (result.results || []).map((row: any) => {
+    const gallery = normalizeGalleryList(row.gallery_json, row.image_url);
+    const endsAtMs = Date.parse(String(row.ends_at || ""));
+    const status = String(row.status || "").toUpperCase();
+    const isEnded = status === "ENDED" || (Number.isFinite(endsAtMs) && endsAtMs <= nowMs);
+    const currentBidUserId = String(row.current_bid_user_id || "").trim();
+    const currentBid = row.current_bid === null || row.current_bid === undefined ? null : Number(row.current_bid);
+    const myMaxBid = row.my_max_bid === null || row.my_max_bid === undefined ? null : Number(row.my_max_bid);
+    const isWinner = isEnded && currentBid !== null && currentBidUserId === userId;
+    const isLeading = !isEnded && currentBid !== null && currentBidUserId === userId;
+
+    return {
+      auctionId: String(row.id || ""),
+      lotNo: String(row.lot_no || ""),
+      title: String(row.title || ""),
+      productGroup: String(row.product_group || ""),
+      category: String(row.category || ""),
+      city: String(row.city || ""),
+      startPrice: Number(row.start_price || 0),
+      currentBid,
+      minIncrement: Number(row.min_increment || 0),
+      bidCount: Number(row.bid_count || 0),
+      startsAt: row.starts_at || null,
+      endsAt: row.ends_at || null,
+      createdAt: row.created_at || null,
+      status,
+      isEnded,
+      currentBidUserId,
+      imageUrl: String(gallery[0] || row.image_url || "").trim(),
+      gallery,
+      myBidCount: Number(row.my_bid_count || 0),
+      myMaxBid,
+      myLastBidAt: row.my_last_bid_at || null,
+      isWinner,
+      isLeading,
+    };
+  });
+}
+
 async function getAdminUsersList(env) {
   const usersResult = await env.DB.prepare(
     `SELECT
@@ -2340,6 +2607,36 @@ async function getPublicAuctionsListSafe(env) {
     console.warn("Genel ihale listesi sorgusu hata verdi, schema onarimi deneniyor:", error);
     await ensureMarketplaceSchemaWarm(env);
     return await getPublicAuctionsList(env);
+  }
+}
+
+async function getUserFavoriteLotNoSetSafe(env, userId: string) {
+  try {
+    return await getUserFavoriteLotNoSet(env, userId);
+  } catch (error) {
+    console.warn("Kullanici favori lot no sorgusu hata verdi, schema onarimi deneniyor:", error);
+    await ensureMarketplaceSchemaWarm(env);
+    return await getUserFavoriteLotNoSet(env, userId);
+  }
+}
+
+async function getUserFavoritesListSafe(env, userId: string) {
+  try {
+    return await getUserFavoritesList(env, userId);
+  } catch (error) {
+    console.warn("Kullanici favorileri sorgusu hata verdi, schema onarimi deneniyor:", error);
+    await ensureMarketplaceSchemaWarm(env);
+    return await getUserFavoritesList(env, userId);
+  }
+}
+
+async function getUserBidSummaryListSafe(env, userId: string) {
+  try {
+    return await getUserBidSummaryList(env, userId);
+  } catch (error) {
+    console.warn("Kullanici teklif ozeti sorgusu hata verdi, schema onarimi deneniyor:", error);
+    await ensureMarketplaceSchemaWarm(env);
+    return await getUserBidSummaryList(env, userId);
   }
 }
 

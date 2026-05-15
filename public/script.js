@@ -341,6 +341,9 @@ const state = {
         registerToken: "",
     },
     listingLoadError: "",
+    myBids: [],
+    favorites: [],
+    favoriteLotNoSet: new Set(),
 };
 const elements = {
     listingBoxes: document.getElementById("listingBoxes"),
@@ -366,14 +369,20 @@ const elements = {
     signInModal: document.getElementById("signInModal"),
     registerModal: document.getElementById("registerModal"),
     profileModal: document.getElementById("profileModal"),
+    myBidsModal: document.getElementById("myBidsModal"),
+    favoritesModal: document.getElementById("favoritesModal"),
     openSignInModal: document.getElementById("openSignInModal"),
     openRegisterModal: document.getElementById("openRegisterModal"),
     openRegisterModalFromLogin: document.getElementById("openRegisterModalFromLogin"),
     openSignInModalFromRegister: document.getElementById("openSignInModalFromRegister"),
     openProfileModal: document.getElementById("openProfileModal"),
+    openMyBidsModal: document.getElementById("openMyBidsModal"),
+    openFavoritesModal: document.getElementById("openFavoritesModal"),
     closeSignInModal: document.getElementById("closeSignInModal"),
     closeRegisterModal: document.getElementById("closeRegisterModal"),
     closeProfileModal: document.getElementById("closeProfileModal"),
+    closeMyBidsModal: document.getElementById("closeMyBidsModal"),
+    closeFavoritesModal: document.getElementById("closeFavoritesModal"),
     loginForm: document.getElementById("loginForm"),
     loginIdentity: document.getElementById("loginIdentity"),
     loginPassword: document.getElementById("loginPassword"),
@@ -392,6 +401,11 @@ const elements = {
     profileAddress: document.getElementById("profileAddress"),
     profileEmail: document.getElementById("profileEmail"),
     profileFormHint: document.getElementById("profileFormHint"),
+    myBidsRows: document.getElementById("myBidsRows"),
+    myBidsEmpty: document.getElementById("myBidsEmpty"),
+    myBidsSummary: document.getElementById("myBidsSummary"),
+    favoritesRows: document.getElementById("favoritesRows"),
+    favoritesEmpty: document.getElementById("favoritesEmpty"),
     loginTurnstile: document.getElementById("loginTurnstile"),
     registerTurnstile: document.getElementById("registerTurnstile"),
     registerFormHint: document.getElementById("registerFormHint"),
@@ -739,6 +753,9 @@ function normalizeText(value) {
         .replaceAll("ş", "s")
         .replaceAll("ü", "u");
 }
+function normalizeLotNoKey(value) {
+    return String(value || "").trim().toUpperCase();
+}
 function parseDateMs(value) {
     const raw = String(value || "").trim();
     if (!raw)
@@ -818,6 +835,7 @@ function toListingModel(item, index) {
     const detailUrl = buildAuctionDetailUrl(lotNo || fallback.lotNo || `LOT${String(index + 1).padStart(3, "0")}`);
     const isNewExplicit = readBooleanValue(item?.is_new, item?.isNew, item?.new);
     const isNewComputed = isWithinLastDays(createdAt, NEW_LISTING_WINDOW_DAYS);
+    const isFavorite = readBooleanValue(item?.is_favorite, item?.isFavorite) === true;
     return {
         id: item?.id || fallback.id || lotNo || String(index + 1),
         lotNo: lotNo || fallback.lotNo || `LOT${String(index + 1).padStart(3, "0")}`,
@@ -845,6 +863,7 @@ function toListingModel(item, index) {
         vehicleModelDetail,
         vehicleYear: Number.isFinite(vehicleYear) && vehicleYear > 0 ? vehicleYear : null,
         vehicleKm: Number.isFinite(vehicleKm) && vehicleKm >= 0 ? vehicleKm : null,
+        isFavorite,
     };
 }
 function buildAuctionDetailUrl(lotNo) {
@@ -979,6 +998,8 @@ function bindEvents() {
         openModal(elements.signInModal);
         closeModalElement(elements.registerModal);
         closeModalElement(elements.profileModal);
+        closeModalElement(elements.myBidsModal);
+        closeModalElement(elements.favoritesModal);
         elements.mainMenu.classList.remove("open");
     });
     elements.openRegisterModal.addEventListener("click", (event) => {
@@ -988,6 +1009,8 @@ function bindEvents() {
         openModal(elements.registerModal);
         closeModalElement(elements.signInModal);
         closeModalElement(elements.profileModal);
+        closeModalElement(elements.myBidsModal);
+        closeModalElement(elements.favoritesModal);
         elements.mainMenu.classList.remove("open");
     });
     elements.openRegisterModalFromLogin.addEventListener("click", (event) => {
@@ -1008,7 +1031,27 @@ function bindEvents() {
         event.preventDefault();
         if (!state.auth.user)
             return;
+        closeModalElement(elements.myBidsModal);
+        closeModalElement(elements.favoritesModal);
         await openProfileEditor();
+        elements.mainMenu.classList.remove("open");
+    });
+    elements.openMyBidsModal.addEventListener("click", async (event) => {
+        event.preventDefault();
+        if (!state.auth.user)
+            return;
+        closeModalElement(elements.profileModal);
+        closeModalElement(elements.favoritesModal);
+        await openMyBidsModal();
+        elements.mainMenu.classList.remove("open");
+    });
+    elements.openFavoritesModal.addEventListener("click", async (event) => {
+        event.preventDefault();
+        if (!state.auth.user)
+            return;
+        closeModalElement(elements.profileModal);
+        closeModalElement(elements.myBidsModal);
+        await openFavoritesModal();
         elements.mainMenu.classList.remove("open");
     });
     elements.closeSignInModal.addEventListener("click", (event) => {
@@ -1023,6 +1066,14 @@ function bindEvents() {
         event.preventDefault();
         closeModalElement(elements.profileModal);
     });
+    elements.closeMyBidsModal.addEventListener("click", (event) => {
+        event.preventDefault();
+        closeModalElement(elements.myBidsModal);
+    });
+    elements.closeFavoritesModal.addEventListener("click", (event) => {
+        event.preventDefault();
+        closeModalElement(elements.favoritesModal);
+    });
     elements.signInModal.addEventListener("click", (event) => {
         if (event.target === elements.signInModal) {
             closeModalElement(elements.signInModal);
@@ -1036,6 +1087,16 @@ function bindEvents() {
     elements.profileModal.addEventListener("click", (event) => {
         if (event.target === elements.profileModal) {
             closeModalElement(elements.profileModal);
+        }
+    });
+    elements.myBidsModal.addEventListener("click", (event) => {
+        if (event.target === elements.myBidsModal) {
+            closeModalElement(elements.myBidsModal);
+        }
+    });
+    elements.favoritesModal.addEventListener("click", (event) => {
+        if (event.target === elements.favoritesModal) {
+            closeModalElement(elements.favoritesModal);
         }
     });
     elements.loginForm.addEventListener("submit", async (event) => {
@@ -1057,6 +1118,20 @@ function bindEvents() {
     elements.logoutBtn.addEventListener("click", async (event) => {
         event.preventDefault();
         await handleLogout();
+    });
+    elements.favoritesRows.addEventListener("click", async (event) => {
+        const button = event.target.closest("button[data-action='remove-favorite']");
+        if (!button)
+            return;
+        const lotNo = String(button.dataset.lotNo || "").trim().toUpperCase();
+        if (!lotNo)
+            return;
+        try {
+            await removeFavorite(lotNo, true);
+        }
+        catch (error) {
+            alert(error.message || "Favori silinemedi.");
+        }
     });
     elements.menuOpenBtn.addEventListener("click", (event) => {
         event.preventDefault();
@@ -1087,6 +1162,13 @@ async function hydrateAuth() {
     catch {
         state.auth.user = null;
     }
+    if (state.auth.user) {
+        await syncFavoriteFlagsFromServer();
+    }
+    else {
+        state.favoriteLotNoSet = new Set();
+        state.favorites = [];
+    }
     updateAuthUi();
 }
 function updateAuthUi() {
@@ -1095,14 +1177,22 @@ function updateAuthUi() {
         elements.authStatus.textContent = "Misafir";
         elements.openSignInModal.classList.remove("hide");
         elements.openRegisterModal.classList.remove("hide");
+        elements.openMyBidsModal.classList.add("hide");
+        elements.openFavoritesModal.classList.add("hide");
         elements.openProfileModal.classList.add("hide");
         elements.adminPanelLink.classList.add("hide");
         elements.logoutBtn.classList.add("hide");
+        state.favoriteLotNoSet = new Set();
+        for (const item of state.listings) {
+            item.isFavorite = false;
+        }
         return;
     }
     elements.authStatus.textContent = user.name || user.email || "Uye";
     elements.openSignInModal.classList.add("hide");
     elements.openRegisterModal.classList.add("hide");
+    elements.openMyBidsModal.classList.remove("hide");
+    elements.openFavoritesModal.classList.remove("hide");
     elements.openProfileModal.classList.remove("hide");
     const canOpenAdmin = user.permissions?.[PERMISSION_ADMIN_PANEL_ACCESS] === true;
     elements.adminPanelLink.classList.toggle("hide", !canOpenAdmin);
@@ -1122,7 +1212,9 @@ async function handleLogin() {
             body: { email, password, turnstileToken },
         });
         state.auth.user = data.user;
+        await syncFavoriteFlagsFromServer();
         updateAuthUi();
+        render();
         setHint(elements.loginFormHint, data.message || "Giriş başarılı.", "success");
         elements.loginForm.reset();
         resetTurnstile("login");
@@ -1206,6 +1298,190 @@ async function handleProfileSave() {
         setHint(elements.profileFormHint, error.message, "error");
     }
 }
+async function openMyBidsModal() {
+    if (!state.auth.user)
+        return;
+    elements.myBidsSummary.textContent = "Teklifleriniz yukleniyor...";
+    elements.myBidsRows.innerHTML = "";
+    elements.myBidsEmpty.classList.add("hide");
+    openModal(elements.myBidsModal);
+    try {
+        const data = await apiFetch("/api/auth/my-bids");
+        state.myBids = Array.isArray(data.items) ? data.items : [];
+        renderMyBidsModal();
+    }
+    catch (error) {
+        elements.myBidsSummary.textContent = error.message || "Teklifleriniz yuklenemedi.";
+        state.myBids = [];
+        renderMyBidsModal();
+    }
+}
+function renderMyBidsModal() {
+    const rows = Array.isArray(state.myBids) ? state.myBids : [];
+    const total = rows.length;
+    const winCount = rows.filter((item) => item?.isWinner).length;
+    const leadingCount = rows.filter((item) => item?.isLeading).length;
+    elements.myBidsSummary.textContent = `Toplam ${formatOptionCount(total)} ihale. Kazanilan: ${formatOptionCount(winCount)}, Guncel lider olunan: ${formatOptionCount(leadingCount)}.`;
+    if (rows.length < 1) {
+        elements.myBidsRows.innerHTML = "";
+        elements.myBidsEmpty.classList.remove("hide");
+        return;
+    }
+    elements.myBidsEmpty.classList.add("hide");
+    elements.myBidsRows.innerHTML = rows
+        .map((row) => {
+        const status = resolveMyBidStatus(row);
+        const detailUrl = buildAuctionDetailUrl(row.lotNo);
+        const myMaxBid = row.myMaxBid === null || row.myMaxBid === undefined ? "-" : `${formatMoneyWithoutCents(row.myMaxBid)} TL`;
+        const currentBid = row.currentBid === null || row.currentBid === undefined ? "-" : `${formatMoneyWithoutCents(row.currentBid)} TL`;
+        return `
+        <tr>
+          <td>
+            <div class="userTableTitle">${escapeHtml(row.title || "-")}</div>
+            <div class="userTableSub">No: ${escapeHtml(row.lotNo || "-")} | ${escapeHtml(row.city || "-")}</div>
+          </td>
+          <td>${escapeHtml(myMaxBid)}</td>
+          <td>${escapeHtml(currentBid)}</td>
+          <td><span class="statusChip ${status.className}">${escapeHtml(status.label)}</span></td>
+          <td><a class="miniActionBtn" href="${escapeHtml(detailUrl)}">Ihaleye Git</a></td>
+        </tr>
+      `;
+    })
+        .join("");
+}
+function resolveMyBidStatus(row) {
+    if (row?.isWinner)
+        return { label: "Kazandiniz", className: "success" };
+    if (row?.isLeading)
+        return { label: "Guncel lider sizsiniz", className: "info" };
+    if (row?.isEnded)
+        return { label: "Kazanamadiniz", className: "danger" };
+    const currentBid = Number(row?.currentBid || 0);
+    const myMaxBid = Number(row?.myMaxBid || 0);
+    if (currentBid > 0 && myMaxBid > 0 && currentBid > myMaxBid) {
+        return { label: "Uzerinize cikildi", className: "warn" };
+    }
+    return { label: "Teklifiniz kayitli", className: "neutral" };
+}
+async function openFavoritesModal() {
+    if (!state.auth.user)
+        return;
+    elements.favoritesRows.innerHTML = '<div class="panelHint">Favoriler yukleniyor...</div>';
+    elements.favoritesEmpty.classList.add("hide");
+    openModal(elements.favoritesModal);
+    await refreshFavoritesList();
+    renderFavoritesModal();
+}
+async function refreshFavoritesList() {
+    if (!state.auth.user) {
+        state.favorites = [];
+        state.favoriteLotNoSet = new Set();
+        return;
+    }
+    const data = await apiFetch("/api/auth/favorites");
+    const items = Array.isArray(data.items) ? data.items : [];
+    state.favorites = items;
+    state.favoriteLotNoSet = new Set(items.map((item) => String(item?.lotNo || "").trim().toUpperCase()).filter((value) => !!value));
+    for (const listing of state.listings) {
+        const lotNoKey = normalizeLotNoKey(listing.lotNo);
+        listing.isFavorite = state.favoriteLotNoSet.has(lotNoKey);
+    }
+}
+async function syncFavoriteFlagsFromServer() {
+    try {
+        await refreshFavoritesList();
+    }
+    catch (error) {
+        console.warn("Favori listesi yuklenemedi.", error);
+        state.favorites = [];
+        state.favoriteLotNoSet = new Set();
+        for (const listing of state.listings) {
+            listing.isFavorite = false;
+        }
+    }
+}
+function renderFavoritesModal() {
+    const rows = Array.isArray(state.favorites) ? state.favorites : [];
+    if (rows.length < 1) {
+        elements.favoritesRows.innerHTML = "";
+        elements.favoritesEmpty.classList.remove("hide");
+        return;
+    }
+    elements.favoritesEmpty.classList.add("hide");
+    elements.favoritesRows.innerHTML = rows
+        .map((row) => {
+        const detailUrl = buildAuctionDetailUrl(row.lotNo);
+        const currentBid = row.currentBid === null || row.currentBid === undefined ? "-" : `${formatMoneyWithoutCents(row.currentBid)} TL`;
+        return `
+        <article class="favoriteItem">
+          <a href="${escapeHtml(detailUrl)}" class="favoriteThumb">
+            <img src="${escapeHtml(row.imageUrl || DEFAULT_LISTING_IMAGE)}" alt="${escapeHtml(row.title || "Ihale")}">
+          </a>
+          <div class="favoriteBody">
+            <a href="${escapeHtml(detailUrl)}" class="favoriteTitle">${escapeHtml(row.title || "-")}</a>
+            <div class="favoriteMeta">No: ${escapeHtml(row.lotNo || "-")} | ${escapeHtml(row.city || "-")}</div>
+            <div class="favoriteMeta">${escapeHtml(row.productGroup || "-")} / ${escapeHtml(row.category || "-")}</div>
+            <div class="favoritePriceLine">
+              <span>Baslangic: ${escapeHtml(formatMoneyWithoutCents(row.startPrice || 0))} TL</span>
+              <span>Guncel: ${escapeHtml(currentBid)}</span>
+            </div>
+          </div>
+          <button class="miniActionBtn danger" type="button" data-action="remove-favorite" data-lot-no="${escapeHtml(row.lotNo || "")}">
+            Favoriden Sil
+          </button>
+        </article>
+      `;
+    })
+        .join("");
+}
+async function handleFavoriteToggle(button) {
+    const lotNo = normalizeLotNoKey(button?.dataset?.lotNo || "");
+    if (!lotNo)
+        return;
+    if (!state.auth.user) {
+        setHint(elements.loginFormHint, "Favori eklemek icin giris yapmalisiniz.", "error");
+        openModal(elements.signInModal);
+        return;
+    }
+    const isActive = button.classList.contains("isActive");
+    try {
+        if (isActive) {
+            await removeFavorite(lotNo);
+            return;
+        }
+        await addFavorite(lotNo);
+    }
+    catch (error) {
+        alert(error.message || "Favori islemi tamamlanamadi.");
+    }
+}
+async function addFavorite(lotNo) {
+    const key = normalizeLotNoKey(lotNo);
+    if (!key)
+        return;
+    const data = await apiFetch("/api/auth/favorites", {
+        method: "POST",
+        body: { lotNo: key },
+    });
+    await refreshFavoritesList();
+    render();
+    if (elements.favoritesModal.classList.contains("open")) {
+        renderFavoritesModal();
+    }
+    setHint(elements.loginFormHint, data.message || "Favorilere eklendi.", "success");
+}
+async function removeFavorite(lotNo, keepModalOpen = false) {
+    const key = normalizeLotNoKey(lotNo);
+    if (!key)
+        return;
+    const data = await apiFetch(`/api/auth/favorites/${encodeURIComponent(key)}`, { method: "DELETE" });
+    await refreshFavoritesList();
+    render();
+    if (keepModalOpen || elements.favoritesModal.classList.contains("open")) {
+        renderFavoritesModal();
+    }
+    setHint(elements.loginFormHint, data.message || "Favorilerden kaldirildi.", "success");
+}
 async function handleForgotPassword() {
     const fallback = elements.loginIdentity.value.trim();
     const email = prompt("Şifre sıfırlama bağlantısı için e-posta adresinizi girin:", fallback);
@@ -1235,9 +1511,18 @@ async function handleLogout() {
         // noop
     }
     state.auth.user = null;
+    state.myBids = [];
+    state.favorites = [];
+    state.favoriteLotNoSet = new Set();
+    for (const item of state.listings) {
+        item.isFavorite = false;
+    }
     closeAuthModals();
     closeModalElement(elements.profileModal);
+    closeModalElement(elements.myBidsModal);
+    closeModalElement(elements.favoritesModal);
     updateAuthUi();
+    render();
     setHint(elements.loginFormHint, "Çıkış yaptınız.", "success");
 }
 async function handleUrlActions() {
@@ -1436,6 +1721,12 @@ function render() {
             await handleBid(button);
         });
     });
+    elements.listingBoxes.querySelectorAll(".favoriteToggle").forEach((button) => {
+        button.addEventListener("click", async (event) => {
+            event.preventDefault();
+            await handleFavoriteToggle(button);
+        });
+    });
 }
 function shouldUseLocalFallback() {
     if (typeof window === "undefined")
@@ -1524,11 +1815,18 @@ function renderCard(item) {
     const vehicleHtml = vehicleBits || vehicleDetailLine
         ? `<div class="location"><i class="fas fa-car-side"></i> <span>${escapeHtml([vehicleBits, vehicleDetailLine].filter(Boolean).join(" | "))}</span></div>`
         : "";
+    const favoriteActive = item.isFavorite === true;
+    const favoriteIconClass = favoriteActive ? "fas fa-heart" : "far fa-heart";
+    const favoriteButtonClass = favoriteActive ? "favoriteToggle isActive" : "favoriteToggle";
+    const favoriteAriaLabel = favoriteActive ? "Favorilerden kaldir" : "Favorilere ekle";
     return `
     <div class="box1 imgWrap">
       <div class="iContent">
         <div class="imgHead">
           <h3 class="reNo">No: <span>${escapeHtml(item.lotNo)}</span></h3>
+          <button class="${favoriteButtonClass}" type="button" data-lot-no="${escapeHtml(item.lotNo)}" aria-label="${favoriteAriaLabel}">
+            <i class="${favoriteIconClass}"></i>
+          </button>
           <a href="${escapeHtml(item.detailUrl || buildAuctionDetailUrl(item.lotNo))}" class="mainImg">
             <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}">
           </a>

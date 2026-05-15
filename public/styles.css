@@ -188,6 +188,190 @@ button {
   grid-template-columns: 1fr;
 }
 
+.userDataPanel {
+  border: 1px solid #dbe5ee;
+  border-radius: 14px;
+  padding: 14px;
+  background: #f9fcff;
+}
+
+.panelHint {
+  font-size: 13px;
+  color: #40566d;
+  margin-bottom: 10px;
+}
+
+.tableWrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.userDataTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #d8e2eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.userDataTable th,
+.userDataTable td {
+  padding: 10px 9px;
+  border-bottom: 1px solid #e7edf4;
+  text-align: left;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.userDataTable th {
+  background: #eff5fb;
+  color: #28415b;
+  font-weight: 700;
+}
+
+.userDataTable tr:last-child td {
+  border-bottom: 0;
+}
+
+.userTableTitle {
+  font-weight: 700;
+  color: #1d3248;
+  margin-bottom: 3px;
+}
+
+.userTableSub {
+  color: #5c7085;
+  font-size: 12px;
+}
+
+.statusChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border: 1px solid #d4dfec;
+  color: #334b64;
+  background: #f4f8fd;
+}
+
+.statusChip.success {
+  border-color: #b2ddc2;
+  color: #1f6939;
+  background: #ecf9f0;
+}
+
+.statusChip.info {
+  border-color: #b6d7f6;
+  color: #0f5187;
+  background: #edf6ff;
+}
+
+.statusChip.warn {
+  border-color: #f0ddb0;
+  color: #7e5b14;
+  background: #fff8e7;
+}
+
+.statusChip.danger {
+  border-color: #efc2c2;
+  color: #8a2525;
+  background: #fff0f0;
+}
+
+.miniActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  border-radius: 9px;
+  border: 1px solid #d0dce8;
+  background: #fff;
+  color: #274766;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.miniActionBtn:hover {
+  border-color: #9fc4e4;
+  color: #1d4f7b;
+  background: #f2f8ff;
+}
+
+.miniActionBtn.danger {
+  border-color: #efc5c5;
+  color: #8f2b2b;
+  background: #fff5f5;
+}
+
+.miniActionBtn.danger:hover {
+  border-color: #e79898;
+  background: #ffecec;
+}
+
+.favoriteList {
+  display: grid;
+  gap: 10px;
+}
+
+.favoriteItem {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #dbe5ef;
+  border-radius: 12px;
+  background: #fff;
+  padding: 8px;
+}
+
+.favoriteThumb {
+  width: 100px;
+  height: 70px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #dae4ee;
+  background: #18314a;
+}
+
+.favoriteThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.favoriteBody {
+  min-width: 0;
+}
+
+.favoriteTitle {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1b354f;
+  margin-bottom: 4px;
+}
+
+.favoriteMeta {
+  color: #566b81;
+  font-size: 12px;
+  margin-bottom: 3px;
+}
+
+.favoritePriceLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: #1c3a57;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .form-group {
   margin: 16px 0;
   position: relative;
@@ -900,6 +1084,34 @@ button {
   font-weight: 500;
 }
 
+.containerAll .sContent .imgWrap .iContent .imgHead .favoriteToggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(8, 20, 33, 0.72);
+  color: #eaf2f9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.containerAll .sContent .imgWrap .iContent .imgHead .favoriteToggle:hover {
+  background: rgba(10, 37, 61, 0.9);
+}
+
+.containerAll .sContent .imgWrap .iContent .imgHead .favoriteToggle.isActive {
+  color: #ff7a8f;
+  border-color: rgba(255, 122, 143, 0.7);
+  background: rgba(36, 13, 23, 0.78);
+}
+
 .containerAll .sContent .imgWrap .iContent .reInfo {
   width: calc(100% - 425px);
   min-height: 214px;
@@ -1360,5 +1572,28 @@ button {
 
   .containerAll .sContent .imgWrap .iContent .counterWrap .offerAlarm {
     margin-left: 0;
+  }
+
+  .userDataPanel {
+    padding: 10px;
+  }
+
+  .userDataTable th,
+  .userDataTable td {
+    font-size: 12px;
+    padding: 8px 7px;
+  }
+
+  .favoriteItem {
+    grid-template-columns: 1fr;
+  }
+
+  .favoriteThumb {
+    width: 100%;
+    height: 140px;
+  }
+
+  .favoriteItem .miniActionBtn {
+    width: 100%;
   }
 }

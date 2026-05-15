@@ -110,6 +110,51 @@
     </div>
   </div>
 
+  <div class="modalWrap bidsModal" id="myBidsModal" aria-hidden="true">
+    <div class="ifContent">
+      <a href="#" class="modalCloseBtn" id="closeMyBidsModal"><i class="far fa-times-circle"></i></a>
+      <div class="ifHead">
+        <div class="headLeft"><i class="fas fa-gavel"></i> Tekliflerim</div>
+      </div>
+      <div class="ifMiddleWrap singlePane">
+        <div class="userDataPanel">
+          <div class="panelHint" id="myBidsSummary">Teklif verdiginiz ihaleler listeleniyor.</div>
+          <div class="tableWrap">
+            <table class="userDataTable">
+              <thead>
+                <tr>
+                  <th>Ihale</th>
+                  <th>Benim En Yuksek Teklifim</th>
+                  <th>Guncel Teklif</th>
+                  <th>Durum</th>
+                  <th>Islem</th>
+                </tr>
+              </thead>
+              <tbody id="myBidsRows"></tbody>
+            </table>
+          </div>
+          <div class="emptyState hide" id="myBidsEmpty"><i class="fas fa-circle-info"></i> Henuz teklif vermediniz.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modalWrap favoritesModal" id="favoritesModal" aria-hidden="true">
+    <div class="ifContent">
+      <a href="#" class="modalCloseBtn" id="closeFavoritesModal"><i class="far fa-times-circle"></i></a>
+      <div class="ifHead">
+        <div class="headLeft"><i class="fas fa-heart"></i> Favorilerim</div>
+      </div>
+      <div class="ifMiddleWrap singlePane">
+        <div class="userDataPanel">
+          <div class="panelHint">Favori ihalelerinizi buradan takip edebilir ve silebilirsiniz.</div>
+          <div class="favoriteList" id="favoritesRows"></div>
+          <div class="emptyState hide" id="favoritesEmpty"><i class="fas fa-circle-info"></i> Favori ihale bulunmuyor.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="containerAll">
     <header>
       <div class="container header">
@@ -134,6 +179,8 @@
             <a href="/admin.html" class="hide" id="openAdminPanel"><i class="fas fa-user-shield"></i> Yonetim</a>
             <a href="#" class="signInModalBtn" id="openSignInModal"><i class="fas fa-sign-in-alt"></i> Giriş</a>
             <a href="#" class="signInModalBtn registerBtn" id="openRegisterModal"><i class="fas fa-user-plus"></i> Kayıt Ol</a>
+            <a href="#" class="profileBtn hide" id="openMyBidsModal"><i class="fas fa-gavel"></i> Tekliflerim</a>
+            <a href="#" class="profileBtn hide" id="openFavoritesModal"><i class="fas fa-heart"></i> Favorilerim</a>
             <a href="#" class="profileBtn hide" id="openProfileModal"><i class="fas fa-user-gear"></i> Profilim</a>
             <a href="/admin.html" class="adminPanelLink hide" id="adminPanelLink"><i class="fas fa-shield-halved"></i> Yönetim Paneli</a>
             <a href="#" class="signOutBtn hide" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Çıkış</a>
