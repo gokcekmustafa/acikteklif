@@ -674,7 +674,7 @@ async function loadListings() {
 
   if (state.listings.length < 1 && apiFailed) {
     state.listingLoadError =
-      `Ihale verisi sunucudan alinamadi. Dogru adresi acin: ${PRIMARY_APP_ORIGIN}`;
+      `İhale verisi sunucudan alınamadı. Doğru adresi açın: ${PRIMARY_APP_ORIGIN}`;
   }
 }
 
@@ -1272,7 +1272,7 @@ function bindEvents() {
         await openMyBidsModal();
       }
     } catch (error) {
-      alert(error.message || "Islem tamamlanamadi.");
+      alert(error.message || "İşlem tamamlanamadı.");
     }
   });
 
@@ -1387,7 +1387,7 @@ async function handleRegister() {
   if (!name || !tcIdentityNo || !phone || !address || !email || !password) {
     setHint(
       elements.registerFormHint,
-      "Isim Soyisim, TC kimlik no, telefon, adres, e-posta ve sifre zorunludur.",
+      "İsim Soyisim, TC kimlik no, telefon, adres, e-posta ve şifre zorunludur.",
       "error"
     );
     return;
@@ -1401,11 +1401,11 @@ async function handleRegister() {
     });
 
     await hydrateAuth();
-    setHint(elements.registerFormHint, data.message || "Kayit basarili.", "success");
+    setHint(elements.registerFormHint, data.message || "Kayıt başarılı.", "success");
     if (data.debugVerifyToken) {
       setHint(
         elements.registerFormHint,
-        `Kayit basarili. Dogrulama tokeni: ${data.debugVerifyToken}`,
+        `Kayıt başarılı. Doğrulama tokeni: ${data.debugVerifyToken}`,
         "success"
       );
     }
@@ -1419,7 +1419,7 @@ async function handleRegister() {
 }
 
 async function openProfileEditor() {
-  setHint(elements.profileFormHint, "Profil bilgileri yukleniyor...", "");
+  setHint(elements.profileFormHint, "Profil bilgileri yükleniyor...", "");
   openModal(elements.profileModal);
   try {
     const data = await apiFetch("/api/auth/profile");
@@ -1442,7 +1442,7 @@ async function handleProfileSave() {
   const address = elements.profileAddress.value.trim();
 
   if (!name || !tcIdentityNo || !phone || !address) {
-    setHint(elements.profileFormHint, "Isim Soyisim, TC kimlik no, telefon ve adres zorunludur.", "error");
+    setHint(elements.profileFormHint, "İsim Soyisim, TC kimlik no, telefon ve adres zorunludur.", "error");
     return;
   }
 
@@ -1455,7 +1455,7 @@ async function handleProfileSave() {
       state.auth.user.name = String(data.profile?.name || name);
     }
     updateAuthUi();
-    setHint(elements.profileFormHint, data.message || "Profiliniz guncellendi.", "success");
+    setHint(elements.profileFormHint, data.message || "Profiliniz güncellendi.", "success");
     closeModalElement(elements.profileModal);
   } catch (error) {
     setHint(elements.profileFormHint, error.message, "error");
@@ -1464,7 +1464,7 @@ async function handleProfileSave() {
 
 async function openMyBidsModal() {
   if (!state.auth.user) return;
-  elements.myBidsSummary.textContent = "Teklifleriniz yukleniyor...";
+  elements.myBidsSummary.textContent = "Teklifleriniz yükleniyor...";
   elements.myBidsRows.innerHTML = "";
   elements.myBidsEmpty.classList.add("hide");
   openModal(elements.myBidsModal);
@@ -1474,7 +1474,7 @@ async function openMyBidsModal() {
     state.myBids = Array.isArray(data.items) ? data.items : [];
     renderMyBidsModal();
   } catch (error) {
-    elements.myBidsSummary.textContent = error.message || "Teklifleriniz yuklenemedi.";
+    elements.myBidsSummary.textContent = error.message || "Teklifleriniz yüklenemedi.";
     state.myBids = [];
     renderMyBidsModal();
   }
@@ -1485,9 +1485,9 @@ function renderMyBidsModal() {
   const total = rows.length;
   const winCount = rows.filter((item) => item?.isWinner).length;
   const leadingCount = rows.filter((item) => item?.isLeading).length;
-  elements.myBidsSummary.textContent = `Toplam ${formatOptionCount(total)} ihale. Kazanilan: ${formatOptionCount(
+  elements.myBidsSummary.textContent = `Toplam ${formatOptionCount(total)} ihale. Kazanılan: ${formatOptionCount(
     winCount
-  )}, Guncel lider olunan: ${formatOptionCount(leadingCount)}.`;
+  )}, Güncel lider olunan: ${formatOptionCount(leadingCount)}.`;
 
   if (rows.length < 1) {
     elements.myBidsRows.innerHTML = "";
@@ -1506,7 +1506,7 @@ function renderMyBidsModal() {
       const autoText =
         row.autoBidEnabled && row.autoBidMax
           ? `Oto: ${formatMoneyWithoutCents(row.autoBidMax)} TL`
-          : "Oto: Kapali";
+          : "Oto: Kapalı";
       return `
         <tr>
           <td>
@@ -1516,14 +1516,14 @@ function renderMyBidsModal() {
           <td>${escapeHtml(myMaxBid)}</td>
           <td>${escapeHtml(currentBid)}</td>
           <td><span class="statusChip ${status.className}">${escapeHtml(status.label)}</span></td>
-          <td>
+          <td class="myBidsActionsCell">
             <div class="rowActionWrap">
               <button class="miniActionBtn" type="button" data-action="set-auto-bid" data-lot-no="${escapeHtml(
                 row.lotNo || ""
               )}" data-min-bid="${Number((row.currentBid ?? row.startPrice ?? 0) + Number(row.minIncrement || 0))}" data-auto-max="${Number(
                 row.autoBidMax || 0
               )}">
-                ${row.autoBidEnabled ? "Oto Teklif Guncelle" : "Oto Teklif Ac"}
+                ${row.autoBidEnabled ? "Oto Teklif Güncelle" : "Oto Teklif Aç"}
               </button>
               ${
                 row.autoBidEnabled
@@ -1536,10 +1536,10 @@ function renderMyBidsModal() {
                 row.canRetract
                   ? `<button class="miniActionBtn danger" type="button" data-action="retract-bid" data-lot-no="${escapeHtml(
                       row.lotNo || ""
-                    )}">Teklifi Geri Cek</button>`
+                    )}">Teklifi Geri Çek</button>`
                   : ""
               }
-              <a class="miniActionBtn" href="${escapeHtml(detailUrl)}">Ihaleye Git</a>
+              <a class="miniActionBtn" href="${escapeHtml(detailUrl)}">İhaleye Git</a>
             </div>
           </td>
         </tr>
@@ -1549,21 +1549,21 @@ function renderMyBidsModal() {
 }
 
 function resolveMyBidStatus(row) {
-  if (row?.isWinner) return { label: "Kazandiniz", className: "success" };
-  if (row?.isLeading) return { label: "Guncel lider sizsiniz", className: "info" };
-  if (row?.isEnded) return { label: "Kazanamadiniz", className: "danger" };
+  if (row?.isWinner) return { label: "Kazandınız", className: "success" };
+  if (row?.isLeading) return { label: "Güncel lider sizsiniz", className: "info" };
+  if (row?.isEnded) return { label: "Kazanamadınız", className: "danger" };
 
   const currentBid = Number(row?.currentBid || 0);
   const myMaxBid = Number(row?.myMaxBid || 0);
   if (currentBid > 0 && myMaxBid > 0 && currentBid > myMaxBid) {
-    return { label: "Uzerinize cikildi", className: "warn" };
+    return { label: "Teklifiniz geçildi", className: "warn" };
   }
-  return { label: "Teklifiniz kayitli", className: "neutral" };
+  return { label: "Teklifiniz kayıtlı", className: "neutral" };
 }
 
 async function openFavoritesModal() {
   if (!state.auth.user) return;
-  elements.favoritesRows.innerHTML = '<div class="panelHint">Favoriler yukleniyor...</div>';
+  elements.favoritesRows.innerHTML = '<div class="panelHint">Favoriler yükleniyor...</div>';
   elements.favoritesEmpty.classList.add("hide");
   openModal(elements.favoritesModal);
   await refreshFavoritesList();
@@ -1594,7 +1594,7 @@ async function syncFavoriteFlagsFromServer() {
   try {
     await refreshFavoritesList();
   } catch (error) {
-    console.warn("Favori listesi yuklenemedi.", error);
+    console.warn("Favori listesi yüklenemedi.", error);
     state.favorites = [];
     state.favoriteLotNoSet = new Set();
     for (const listing of state.listings) {
@@ -1620,15 +1620,15 @@ function renderFavoritesModal() {
       return `
         <article class="favoriteItem">
           <a href="${escapeHtml(detailUrl)}" class="favoriteThumb">
-            <img src="${escapeHtml(row.imageUrl || DEFAULT_LISTING_IMAGE)}" alt="${escapeHtml(row.title || "Ihale")}">
+            <img src="${escapeHtml(row.imageUrl || DEFAULT_LISTING_IMAGE)}" alt="${escapeHtml(row.title || "İhale")}">
           </a>
           <div class="favoriteBody">
             <a href="${escapeHtml(detailUrl)}" class="favoriteTitle">${escapeHtml(row.title || "-")}</a>
             <div class="favoriteMeta">No: ${escapeHtml(row.lotNo || "-")} | ${escapeHtml(row.city || "-")}</div>
             <div class="favoriteMeta">${escapeHtml(row.productGroup || "-")} / ${escapeHtml(row.category || "-")}</div>
             <div class="favoritePriceLine">
-              <span>Baslangic: ${escapeHtml(formatMoneyWithoutCents(row.startPrice || 0))} TL</span>
-              <span>Guncel: ${escapeHtml(currentBid)}</span>
+              <span>Başlangıç: ${escapeHtml(formatMoneyWithoutCents(row.startPrice || 0))} TL</span>
+              <span>Güncel: ${escapeHtml(currentBid)}</span>
             </div>
           </div>
           <button class="miniActionBtn danger" type="button" data-action="remove-favorite" data-lot-no="${escapeHtml(
@@ -1647,7 +1647,7 @@ async function handleFavoriteToggle(button) {
   if (!lotNo) return;
 
   if (!state.auth.user) {
-    setHint(elements.loginFormHint, "Favori eklemek icin giris yapmalisiniz.", "error");
+    setHint(elements.loginFormHint, "Favori eklemek için giriş yapmalısınız.", "error");
     openModal(elements.signInModal);
     return;
   }
@@ -1660,7 +1660,7 @@ async function handleFavoriteToggle(button) {
     }
     await addFavorite(lotNo);
   } catch (error) {
-    alert(error.message || "Favori islemi tamamlanamadi.");
+    alert(error.message || "Favori işlemi tamamlanamadı.");
   }
 }
 
@@ -2161,7 +2161,7 @@ function renderCard(item) {
                 </div>
                 <div class="bidComposerMin">Minimum teklif: ${formatMoneyWithoutCents(minimumBid)} TL</div>
                 <div class="bidComposerRow">
-                  <label for="bidAmount_${escapeHtml(item.lotNo)}">Teklif Tutariniz</label>
+                  <label for="bidAmount_${escapeHtml(item.lotNo)}">Teklif Tutarınız</label>
                   <input id="bidAmount_${escapeHtml(item.lotNo)}" class="bidComposerAmount" type="number" min="${Math.ceil(
                     minimumBid
                   )}" step="1" value="${escapeHtml(composerAmount)}" required>
@@ -2171,15 +2171,15 @@ function renderCard(item) {
                   <span>Otomatik teklif ver</span>
                 </label>
                 <div class="bidComposerRow ${composerAutoEnabled ? "show" : "hide"}">
-                  <label for="bidAutoMax_${escapeHtml(item.lotNo)}">Oto Teklif Ust Limitiniz</label>
+                  <label for="bidAutoMax_${escapeHtml(item.lotNo)}">Oto Teklif Üst Limitiniz</label>
                   <input id="bidAutoMax_${escapeHtml(item.lotNo)}" class="bidComposerAutoMax" type="number" min="${Math.ceil(
                     minimumBid
                   )}" step="1" value="${escapeHtml(composerAutoMax)}" ${composerAutoEnabled ? "required" : ""}>
                 </div>
                 <div class="bidComposerHint">${escapeHtml(autoHint)}</div>
                 <div class="bidComposerActions">
-                  <button type="button" class="bidComposerCancelBtn">Vazgec</button>
-                  <button type="submit" class="bidComposerSubmitBtn">Kaydet ve Gonder</button>
+                  <button type="button" class="bidComposerCancelBtn">Vazgeç</button>
+                  <button type="submit" class="bidComposerSubmitBtn">Kaydet ve Gönder</button>
                 </div>
               </form>
             </div>
@@ -2199,13 +2199,13 @@ async function toggleBidComposer(button) {
   const minBid = Number(button?.dataset?.minBid || 0);
 
   if (!state.auth.user) {
-    setHint(elements.loginFormHint, "Teklif verebilmek icin giris yapmalisiniz.", "error");
+    setHint(elements.loginFormHint, "Teklif verebilmek için giriş yapmalısınız.", "error");
     openModal(elements.signInModal);
     return;
   }
 
   if (state.auth.user.permissions?.[PERMISSION_BIDS_PLACE] === false) {
-    alert("Teklif verme yetkiniz pasif. Lutfen yoneticiyle iletisime gecin.");
+    alert("Teklif verme yetkiniz pasif. Lütfen yöneticiyle iletişime geçin.");
     return;
   }
 
@@ -2213,7 +2213,7 @@ async function toggleBidComposer(button) {
     try {
       const data = await apiFetch("/api/auth/verify/request", { method: "POST" });
       const message = data.debugVerifyToken
-        ? `${data.message}\n\nDogrulama tokeni:\n${data.debugVerifyToken}`
+        ? `${data.message}\n\nDoğrulama tokeni:\n${data.debugVerifyToken}`
         : data.message;
       alert(message);
     } catch (error) {
@@ -2265,7 +2265,7 @@ async function handleBidComposerSubmit(form) {
 
   const amount = Number(amountText.replace(/\./g, "").replace(",", "."));
   if (!Number.isFinite(amount) || amount <= 0) {
-    alert("Gecerli bir teklif tutari girin.");
+    alert("Geçerli bir teklif tutarı girin.");
     return;
   }
 
@@ -2273,11 +2273,11 @@ async function handleBidComposerSubmit(form) {
   if (autoEnabled) {
     autoMaxAmount = Number(autoMaxText.replace(/\./g, "").replace(",", "."));
     if (!Number.isFinite(autoMaxAmount) || autoMaxAmount <= 0) {
-      alert("Otomatik teklif icin gecerli bir ust limit girin.");
+      alert("Otomatik teklif için geçerli bir üst limit girin.");
       return;
     }
     if (autoMaxAmount < amount) {
-      alert("Otomatik teklif ust limiti, teklif tutarinizdan dusuk olamaz.");
+      alert("Otomatik teklif üst limiti, teklif tutarınızdan düşük olamaz.");
       return;
     }
   }
@@ -2288,7 +2288,7 @@ async function handleBidComposerSubmit(form) {
     await openMyBidsModalIfOpen();
     render();
   } catch (error) {
-    alert(error.message || "Teklif islemi tamamlanamadi.");
+    alert(error.message || "Teklif işlemi tamamlanamadı.");
   }
 }
 
@@ -2308,7 +2308,7 @@ async function submitBidWithOptions(lotNo, amount, autoEnabled, autoMaxAmount) {
   await loadListings();
   await syncFavoriteFlagsFromServer();
   render();
-  setHint(elements.loginFormHint, bidData.message || "Teklifiniz alindi.", "success");
+  setHint(elements.loginFormHint, bidData.message || "Teklifiniz alındı.", "success");
 }
 
 async function openMyBidsModalIfOpen() {
@@ -2321,7 +2321,7 @@ async function handleAutoBidConfig(button) {
   if (!lotNo) return;
 
   if (!state.auth.user) {
-    setHint(elements.loginFormHint, "Otomatik teklif icin giris yapmalisiniz.", "error");
+    setHint(elements.loginFormHint, "Otomatik teklif için giriş yapmalısınız.", "error");
     openModal(elements.signInModal);
     return;
   }
@@ -2330,14 +2330,14 @@ async function handleAutoBidConfig(button) {
   const existingMax = Number(button?.dataset?.autoMax || 0);
   const defaultValue = Number.isFinite(existingMax) && existingMax > 0 ? String(existingMax) : String(minBid || 0);
   const amountInput = prompt(
-    `${lotNo} icin otomatik teklif ust limitini girin (en az ${formatMoneyWithoutCents(minBid)} TL):`,
+    `${lotNo} için otomatik teklif üst limitini girin (en az ${formatMoneyWithoutCents(minBid)} TL):`,
     defaultValue
   );
   if (!amountInput) return;
 
   const maxAmount = Number(String(amountInput).replace(/\./g, "").replace(",", "."));
   if (!Number.isFinite(maxAmount) || maxAmount <= 0) {
-    alert("Gecerli bir ust limit girin.");
+    alert("Geçerli bir üst limit girin.");
     return;
   }
 
@@ -2359,13 +2359,13 @@ async function disableAutoBid(lotNo) {
   await loadListings();
   await syncFavoriteFlagsFromServer();
   render();
-  setHint(elements.loginFormHint, data.message || "Otomatik teklif kapatildi.", "success");
+  setHint(elements.loginFormHint, data.message || "Otomatik teklif kapatıldı.", "success");
 }
 
 async function retractBid(lotNo) {
   const key = normalizeLotNoKey(lotNo);
   if (!key) return;
-  const confirmed = confirm(`${key} ihalesindeki son aktif teklifinizi geri cekmek istiyor musunuz?`);
+  const confirmed = confirm(`${key} ihalesindeki son aktif teklifinizi geri çekmek istiyor musunuz?`);
   if (!confirmed) return;
 
   const data = await apiFetch("/api/bids/retract", {
@@ -2375,7 +2375,7 @@ async function retractBid(lotNo) {
   await loadListings();
   await syncFavoriteFlagsFromServer();
   render();
-  setHint(elements.loginFormHint, data.message || "Teklif geri cekildi.", "success");
+  setHint(elements.loginFormHint, data.message || "Teklif geri çekildi.", "success");
 }
 
 function updateCountdowns() {

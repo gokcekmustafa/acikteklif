@@ -286,15 +286,16 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 32px;
+  min-height: 30px;
   border-radius: 9px;
   border: 1px solid #d0dce8;
   background: #fff;
   color: #274766;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  padding: 6px 10px;
+  padding: 5px 8px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .miniActionBtn:hover {
@@ -325,11 +326,16 @@ button {
   background: #fff2d4;
 }
 
+.myBidsActionsCell {
+  width: 1%;
+  white-space: nowrap;
+}
+
 .rowActionWrap {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 4px;
+  flex-wrap: nowrap;
 }
 
 .favoriteList {
