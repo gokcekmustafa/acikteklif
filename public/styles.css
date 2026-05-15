@@ -314,6 +314,24 @@ button {
   background: #ffecec;
 }
 
+.miniActionBtn.warn {
+  border-color: #f0ddb0;
+  color: #7e5b14;
+  background: #fff8e7;
+}
+
+.miniActionBtn.warn:hover {
+  border-color: #e2c67d;
+  background: #fff2d4;
+}
+
+.rowActionWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .favoriteList {
   display: grid;
   gap: 10px;
@@ -1291,6 +1309,33 @@ button {
 
 .containerAll .sContent .addBid .adBottomLine .bidBtn:hover {
   filter: brightness(1.05);
+}
+
+.containerAll .sContent .addBid .adBottomLine .autoBidBtn {
+  width: 100%;
+  margin-top: 7px;
+  border: 1px solid #b8cde2;
+  text-align: center;
+  height: 34px;
+  padding: 0 8px;
+  background: #fff;
+  color: #214767;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.15px;
+  cursor: pointer;
+}
+
+.containerAll .sContent .addBid .adBottomLine .autoBidBtn:hover {
+  border-color: #88b1d6;
+  background: #f1f7fd;
+}
+
+.containerAll .sContent .addBid .adBottomLine .autoBidBtn.active {
+  border-color: #82b8e8;
+  background: #eaf5ff;
+  color: #0f4d80;
 }
 
 .containerAll .sContent .addBid .adBottomLine .bLine1 {

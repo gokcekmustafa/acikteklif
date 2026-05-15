@@ -836,6 +836,9 @@ function toListingModel(item, index) {
     const isNewExplicit = readBooleanValue(item?.is_new, item?.isNew, item?.new);
     const isNewComputed = isWithinLastDays(createdAt, NEW_LISTING_WINDOW_DAYS);
     const isFavorite = readBooleanValue(item?.is_favorite, item?.isFavorite) === true;
+    const isAutoBidEnabled = readBooleanValue(item?.user_auto_bid_enabled, item?.userAutoBidEnabled) === true;
+    const autoBidMaxRaw = item?.user_auto_bid_max ?? item?.userAutoBidMax ?? null;
+    const autoBidMax = autoBidMaxRaw === null || autoBidMaxRaw === undefined ? null : Number(autoBidMaxRaw);
     return {
         id: item?.id || fallback.id || lotNo || String(index + 1),
         lotNo: lotNo || fallback.lotNo || `LOT${String(index + 1).padStart(3, "0")}`,
@@ -864,6 +867,8 @@ function toListingModel(item, index) {
         vehicleYear: Number.isFinite(vehicleYear) && vehicleYear > 0 ? vehicleYear : null,
         vehicleKm: Number.isFinite(vehicleKm) && vehicleKm >= 0 ? vehicleKm : null,
         isFavorite,
+        isAutoBidEnabled,
+        autoBidMax: Number.isFinite(autoBidMax) ? autoBidMax : null,
     };
 }
 function buildAuctionDetailUrl(lotNo) {
@@ -1133,6 +1138,34 @@ function bindEvents() {
             alert(error.message || "Favori silinemedi.");
         }
     });
+    elements.myBidsRows.addEventListener("click", async (event) => {
+        const trigger = event.target.closest("button[data-action]");
+        if (!trigger)
+            return;
+        const action = String(trigger.dataset.action || "");
+        const lotNo = normalizeLotNoKey(trigger.dataset.lotNo || "");
+        if (!lotNo)
+            return;
+        try {
+            if (action === "set-auto-bid") {
+                await handleAutoBidConfig(trigger);
+                await openMyBidsModal();
+                return;
+            }
+            if (action === "disable-auto-bid") {
+                await disableAutoBid(lotNo);
+                await openMyBidsModal();
+                return;
+            }
+            if (action === "retract-bid") {
+                await retractBid(lotNo);
+                await openMyBidsModal();
+            }
+        }
+        catch (error) {
+            alert(error.message || "Islem tamamlanamadi.");
+        }
+    });
     elements.menuOpenBtn.addEventListener("click", (event) => {
         event.preventDefault();
         elements.mainMenu.classList.add("open");
@@ -1334,16 +1367,32 @@ function renderMyBidsModal() {
         const detailUrl = buildAuctionDetailUrl(row.lotNo);
         const myMaxBid = row.myMaxBid === null || row.myMaxBid === undefined ? "-" : `${formatMoneyWithoutCents(row.myMaxBid)} TL`;
         const currentBid = row.currentBid === null || row.currentBid === undefined ? "-" : `${formatMoneyWithoutCents(row.currentBid)} TL`;
+        const autoText = row.autoBidEnabled && row.autoBidMax
+            ? `Oto: ${formatMoneyWithoutCents(row.autoBidMax)} TL`
+            : "Oto: Kapali";
         return `
         <tr>
           <td>
             <div class="userTableTitle">${escapeHtml(row.title || "-")}</div>
-            <div class="userTableSub">No: ${escapeHtml(row.lotNo || "-")} | ${escapeHtml(row.city || "-")}</div>
+            <div class="userTableSub">No: ${escapeHtml(row.lotNo || "-")} | ${escapeHtml(row.city || "-")} | ${escapeHtml(autoText)}</div>
           </td>
           <td>${escapeHtml(myMaxBid)}</td>
           <td>${escapeHtml(currentBid)}</td>
           <td><span class="statusChip ${status.className}">${escapeHtml(status.label)}</span></td>
-          <td><a class="miniActionBtn" href="${escapeHtml(detailUrl)}">Ihaleye Git</a></td>
+          <td>
+            <div class="rowActionWrap">
+              <button class="miniActionBtn" type="button" data-action="set-auto-bid" data-lot-no="${escapeHtml(row.lotNo || "")}" data-min-bid="${Number((row.currentBid ?? row.startPrice ?? 0) + Number(row.minIncrement || 0))}" data-auto-max="${Number(row.autoBidMax || 0)}">
+                ${row.autoBidEnabled ? "Oto Teklif Guncelle" : "Oto Teklif Ac"}
+              </button>
+              ${row.autoBidEnabled
+            ? `<button class="miniActionBtn warn" type="button" data-action="disable-auto-bid" data-lot-no="${escapeHtml(row.lotNo || "")}">Oto Teklif Kapat</button>`
+            : ""}
+              ${row.canRetract
+            ? `<button class="miniActionBtn danger" type="button" data-action="retract-bid" data-lot-no="${escapeHtml(row.lotNo || "")}">Teklifi Geri Cek</button>`
+            : ""}
+              <a class="miniActionBtn" href="${escapeHtml(detailUrl)}">Ihaleye Git</a>
+            </div>
+          </td>
         </tr>
       `;
     })
@@ -1727,6 +1776,12 @@ function render() {
             await handleFavoriteToggle(button);
         });
     });
+    elements.listingBoxes.querySelectorAll(".autoBidBtn").forEach((button) => {
+        button.addEventListener("click", async (event) => {
+            event.preventDefault();
+            await handleAutoBidConfig(button);
+        });
+    });
 }
 function shouldUseLocalFallback() {
     if (typeof window === "undefined")
@@ -1819,6 +1874,10 @@ function renderCard(item) {
     const favoriteIconClass = favoriteActive ? "fas fa-heart" : "far fa-heart";
     const favoriteButtonClass = favoriteActive ? "favoriteToggle isActive" : "favoriteToggle";
     const favoriteAriaLabel = favoriteActive ? "Favorilerden kaldir" : "Favorilere ekle";
+    const autoBidText = item.isAutoBidEnabled
+        ? `OTO TEKLIF (${formatMoneyWithoutCents(item.autoBidMax || 0)} TL)`
+        : "OTO TEKLIF";
+    const autoBidDisabledAttrs = isEnded ? 'disabled aria-disabled="true"' : "";
     return `
     <div class="box1 imgWrap">
       <div class="iContent">
@@ -1851,6 +1910,7 @@ function renderCard(item) {
           </div>
           <div class="adBottomLine">
             <button class="bidBtn" data-lot-no="${escapeHtml(item.lotNo)}" data-min-bid="${minimumBid}" ${bidButtonAttrs}>${bidButtonText}</button>
+            <button class="autoBidBtn ${item.isAutoBidEnabled ? "active" : ""}" data-lot-no="${escapeHtml(item.lotNo)}" data-min-bid="${minimumBid}" data-auto-max="${Number(item.autoBidMax || 0)}" ${autoBidDisabledAttrs}>${autoBidText}</button>
             <div class="bLine1">${bidValue}</div>
             <div class="bLine2">${bidLabel}</div>
           </div>
@@ -1909,6 +1969,61 @@ async function handleBid(button) {
     catch (error) {
         alert(error.message);
     }
+}
+async function handleAutoBidConfig(button) {
+    const lotNo = normalizeLotNoKey(button?.dataset?.lotNo || "");
+    if (!lotNo)
+        return;
+    if (!state.auth.user) {
+        setHint(elements.loginFormHint, "Otomatik teklif icin giris yapmalisiniz.", "error");
+        openModal(elements.signInModal);
+        return;
+    }
+    const minBid = Number(button?.dataset?.minBid || 0);
+    const existingMax = Number(button?.dataset?.autoMax || 0);
+    const defaultValue = Number.isFinite(existingMax) && existingMax > 0 ? String(existingMax) : String(minBid || 0);
+    const amountInput = prompt(`${lotNo} icin otomatik teklif ust limitini girin (en az ${formatMoneyWithoutCents(minBid)} TL):`, defaultValue);
+    if (!amountInput)
+        return;
+    const maxAmount = Number(String(amountInput).replace(/\./g, "").replace(",", "."));
+    if (!Number.isFinite(maxAmount) || maxAmount <= 0) {
+        alert("Gecerli bir ust limit girin.");
+        return;
+    }
+    const data = await apiFetch("/api/auth/auto-bids", {
+        method: "POST",
+        body: { lotNo, maxAmount },
+    });
+    await loadListings();
+    await syncFavoriteFlagsFromServer();
+    render();
+    setHint(elements.loginFormHint, data.message || "Otomatik teklif kaydedildi.", "success");
+}
+async function disableAutoBid(lotNo) {
+    const key = normalizeLotNoKey(lotNo);
+    if (!key)
+        return;
+    const data = await apiFetch(`/api/auth/auto-bids/${encodeURIComponent(key)}`, { method: "DELETE" });
+    await loadListings();
+    await syncFavoriteFlagsFromServer();
+    render();
+    setHint(elements.loginFormHint, data.message || "Otomatik teklif kapatildi.", "success");
+}
+async function retractBid(lotNo) {
+    const key = normalizeLotNoKey(lotNo);
+    if (!key)
+        return;
+    const confirmed = confirm(`${key} ihalesindeki son aktif teklifinizi geri cekmek istiyor musunuz?`);
+    if (!confirmed)
+        return;
+    const data = await apiFetch("/api/bids/retract", {
+        method: "POST",
+        body: { lotNo: key },
+    });
+    await loadListings();
+    await syncFavoriteFlagsFromServer();
+    render();
+    setHint(elements.loginFormHint, data.message || "Teklif geri cekildi.", "success");
 }
 function updateCountdowns() {
     const timers = document.querySelectorAll(".remaningTime[data-end-at]");

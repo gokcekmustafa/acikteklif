@@ -594,11 +594,15 @@ async function handleApi(request, env, url) {
     }
 
     const favoriteLotNos = await getUserFavoriteLotNoSetSafe(env, session.user.id);
+    const autoBidMap = await getUserAutoBidMapSafe(env, session.user.id);
     const withFavorites = items.map((row: any) => {
       const lotNo = String(row?.lot_no || "").trim().toUpperCase();
+      const autoBid = autoBidMap.get(lotNo) || null;
       return {
         ...row,
         is_favorite: favoriteLotNos.has(lotNo) ? 1 : 0,
+        user_auto_bid_enabled: autoBid?.isActive ? 1 : 0,
+        user_auto_bid_max: autoBid?.maxAmount ?? null,
       };
     });
     return json({ ok: true, items: withFavorites });
@@ -623,6 +627,7 @@ async function handleApi(request, env, url) {
   if (method === "POST" && path === "/api/bids") {
     const cfgError = requireSessionPepper(env);
     if (cfgError) return cfgError;
+    await ensureMarketplaceSchemaWarm(env);
 
     const session = await getSession(request, env);
     if (!session) return json({ ok: false, error: "Teklif verebilmek için giriş yapmalısınız." }, 401);
@@ -659,6 +664,26 @@ async function handleApi(request, env, url) {
       return json({ ok: false, error: `Teklif en az ${formatMoney(minimumRequired)} olmalıdır.` }, 400);
     }
 
+    const latestActiveBid = await env.DB.prepare(
+      `SELECT user_id
+       FROM bids
+       WHERE auction_id = ?
+         AND COALESCE(is_retracted, 0) = 0
+       ORDER BY created_at DESC, rowid DESC
+       LIMIT 1`
+    )
+      .bind(auction.id)
+      .first();
+    if (String(latestActiveBid?.user_id || "") === session.user.id) {
+      return json(
+        {
+          ok: false,
+          error: "Ayni ihaleye baska bir teklif gelmeden tekrar teklif veremezsiniz.",
+        },
+        409
+      );
+    }
+
     const updateResult = await env.DB.prepare(
       `UPDATE auctions
        SET current_bid = ?, current_bid_user_id = ?, bid_count = bid_count + 1, updated_at = CURRENT_TIMESTAMP
@@ -673,16 +698,122 @@ async function handleApi(request, env, url) {
     }
 
     await env.DB.prepare(
-      "INSERT INTO bids (id, auction_id, user_id, amount, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)"
+      `INSERT INTO bids (
+         id, auction_id, user_id, amount, created_at, bid_source, is_retracted, retracted_at, retracted_reason
+       ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, 'MANUAL', 0, NULL, NULL)`
     )
       .bind(crypto.randomUUID(), auction.id, session.user.id, amount)
       .run();
+
+    await runAutoBidEngine(env, auction.id);
+    const refreshedAuction = await env.DB.prepare(
+      "SELECT current_bid, current_bid_user_id, bid_count FROM auctions WHERE id = ? LIMIT 1"
+    )
+      .bind(auction.id)
+      .first();
 
     return json({
       ok: true,
       message: "Teklifiniz alındı.",
       lotNo,
       amount,
+      currentBid:
+        refreshedAuction?.current_bid === null || refreshedAuction?.current_bid === undefined
+          ? null
+          : Number(refreshedAuction.current_bid),
+      currentBidUserId: String(refreshedAuction?.current_bid_user_id || ""),
+      bidCount: Number(refreshedAuction?.bid_count || 0),
+    });
+  }
+
+  if (method === "POST" && path === "/api/bids/retract") {
+    const cfgError = requireSessionPepper(env);
+    if (cfgError) return cfgError;
+    await ensureMarketplaceSchemaWarm(env);
+
+    const session = await getSession(request, env);
+    if (!session) return json({ ok: false, error: "Teklif geri cekmek icin giris yapmalisiniz." }, 401);
+
+    const body = await readJson(request);
+    const lotNo = String(body?.lotNo || "").trim().toUpperCase();
+    if (!lotNo) return json({ ok: false, error: "Ihale no zorunludur." }, 400);
+
+    const auction = await env.DB.prepare(
+      `SELECT id, lot_no, status, ends_at
+       FROM auctions
+       WHERE UPPER(TRIM(lot_no)) = UPPER(TRIM(?))
+       LIMIT 1`
+    )
+      .bind(lotNo)
+      .first();
+
+    if (!auction?.id) return json({ ok: false, error: "Ihale bulunamadi." }, 404);
+    if (String(auction.status || "").toUpperCase() !== "ACTIVE") {
+      return json({ ok: false, error: "Sadece aktif ihalelerde teklif geri cekebilirsiniz." }, 409);
+    }
+    const endsAtMs = Date.parse(String(auction.ends_at || ""));
+    if (Number.isFinite(endsAtMs) && endsAtMs <= Date.now()) {
+      return json({ ok: false, error: "Suresi biten ihalede teklif geri cekilemez." }, 409);
+    }
+
+    const latestMyBid = await env.DB.prepare(
+      `SELECT id, amount
+       FROM bids
+       WHERE auction_id = ?
+         AND user_id = ?
+         AND COALESCE(is_retracted, 0) = 0
+       ORDER BY created_at DESC, rowid DESC
+       LIMIT 1`
+    )
+      .bind(auction.id, session.user.id)
+      .first();
+    if (!latestMyBid?.id) {
+      return json({ ok: false, error: "Geri cekilecek aktif teklifiniz bulunamadi." }, 404);
+    }
+
+    const retractResult = await env.DB.prepare(
+      `UPDATE bids
+       SET is_retracted = 1,
+           retracted_at = CURRENT_TIMESTAMP,
+           retracted_reason = 'USER_REQUEST'
+       WHERE id = ?
+         AND user_id = ?
+         AND COALESCE(is_retracted, 0) = 0`
+    )
+      .bind(String(latestMyBid.id || ""), session.user.id)
+      .run();
+    if (Number(retractResult.meta?.changes || 0) < 1) {
+      return json({ ok: false, error: "Teklif geri cekilemedi. Lutfen tekrar deneyin." }, 409);
+    }
+
+    await env.DB.prepare(
+      `UPDATE auction_auto_bids
+       SET is_active = 0, updated_at = CURRENT_TIMESTAMP
+       WHERE auction_id = ? AND user_id = ?`
+    )
+      .bind(auction.id, session.user.id)
+      .run();
+
+    await recomputeAuctionBidSnapshot(env, auction.id);
+    await runAutoBidEngine(env, auction.id);
+
+    const refreshedAuction = await env.DB.prepare(
+      "SELECT current_bid, current_bid_user_id, bid_count FROM auctions WHERE id = ? LIMIT 1"
+    )
+      .bind(auction.id)
+      .first();
+
+    return json({
+      ok: true,
+      message: "Teklifiniz geri cekildi.",
+      lotNo: String(auction.lot_no || lotNo),
+      withdrawnAmount: Number(latestMyBid.amount || 0),
+      currentBid:
+        refreshedAuction?.current_bid === null || refreshedAuction?.current_bid === undefined
+          ? null
+          : Number(refreshedAuction.current_bid),
+      currentBidUserId: String(refreshedAuction?.current_bid_user_id || ""),
+      bidCount: Number(refreshedAuction?.bid_count || 0),
     });
   }
 
@@ -785,6 +916,118 @@ async function handleApi(request, env, url) {
       ok: true,
       lotNo,
       message: "Ihale favorilerden kaldirildi.",
+    });
+  }
+
+  if (method === "POST" && path === "/api/auth/auto-bids") {
+    const cfgError = requireSessionPepper(env);
+    if (cfgError) return cfgError;
+    await ensureMarketplaceSchemaWarm(env);
+
+    const session = await getSession(request, env);
+    if (!session) return json({ ok: false, error: "Otomatik teklif icin giris yapmalisiniz." }, 401);
+    const access = await getUserAccess(env, session.user.id, session.user.email);
+    if (!access.permissions[PERMISSIONS.BIDS_PLACE]) {
+      return json({ ok: false, error: "Otomatik teklif yetkiniz kapali." }, 403);
+    }
+
+    const body = await readJson(request);
+    const lotNo = String(body?.lotNo || "").trim().toUpperCase();
+    const maxAmount = Number(body?.maxAmount || 0);
+    if (!lotNo) return json({ ok: false, error: "Ihale no zorunludur." }, 400);
+    if (!Number.isFinite(maxAmount) || maxAmount <= 0) {
+      return json({ ok: false, error: "Gecerli bir ust limit girin." }, 400);
+    }
+
+    const auction = await env.DB.prepare(
+      `SELECT id, lot_no, status, ends_at, start_price, current_bid, min_increment
+       FROM auctions
+       WHERE UPPER(TRIM(lot_no)) = UPPER(TRIM(?))
+       LIMIT 1`
+    )
+      .bind(lotNo)
+      .first();
+    if (!auction?.id) return json({ ok: false, error: "Ihale bulunamadi." }, 404);
+    if (String(auction.status || "").toUpperCase() !== "ACTIVE") {
+      return json({ ok: false, error: "Sadece aktif ihalelerde otomatik teklif acilabilir." }, 409);
+    }
+    const endsAtMs = Date.parse(String(auction.ends_at || ""));
+    if (Number.isFinite(endsAtMs) && endsAtMs <= Date.now()) {
+      return json({ ok: false, error: "Suresi biten ihale icin otomatik teklif acilamaz." }, 409);
+    }
+
+    const floor = auction.current_bid ?? auction.start_price;
+    const minimumRequired = Number(floor || 0) + Number(auction.min_increment || 0);
+    if (maxAmount < minimumRequired) {
+      return json({ ok: false, error: `Ust limit en az ${formatMoney(minimumRequired)} olmalidir.` }, 400);
+    }
+
+    await env.DB.prepare(
+      `INSERT INTO auction_auto_bids (auction_id, user_id, max_amount, is_active, created_at, updated_at)
+       VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       ON CONFLICT(auction_id, user_id)
+       DO UPDATE SET
+         max_amount = excluded.max_amount,
+         is_active = 1,
+         updated_at = CURRENT_TIMESTAMP`
+    )
+      .bind(auction.id, session.user.id, maxAmount)
+      .run();
+
+    await runAutoBidEngine(env, auction.id);
+    const refreshedAuction = await env.DB.prepare(
+      "SELECT current_bid, current_bid_user_id, bid_count FROM auctions WHERE id = ? LIMIT 1"
+    )
+      .bind(auction.id)
+      .first();
+
+    return json({
+      ok: true,
+      lotNo: String(auction.lot_no || lotNo),
+      maxAmount,
+      message: "Otomatik teklif limiti kaydedildi.",
+      currentBid:
+        refreshedAuction?.current_bid === null || refreshedAuction?.current_bid === undefined
+          ? null
+          : Number(refreshedAuction.current_bid),
+      currentBidUserId: String(refreshedAuction?.current_bid_user_id || ""),
+      bidCount: Number(refreshedAuction?.bid_count || 0),
+    });
+  }
+
+  const autoBidDeleteMatch = path.match(/^\/api\/auth\/auto-bids\/([^/]+)$/);
+  if (autoBidDeleteMatch && method === "DELETE") {
+    const cfgError = requireSessionPepper(env);
+    if (cfgError) return cfgError;
+    await ensureMarketplaceSchemaWarm(env);
+
+    const session = await getSession(request, env);
+    if (!session) return json({ ok: false, error: "Otomatik teklif kapatmak icin giris yapmalisiniz." }, 401);
+
+    const lotNo = decodeURIComponent(String(autoBidDeleteMatch[1] || ""))
+      .trim()
+      .toUpperCase();
+    if (!lotNo) return json({ ok: false, error: "Ihale no zorunludur." }, 400);
+
+    const auction = await env.DB.prepare(
+      "SELECT id FROM auctions WHERE UPPER(TRIM(lot_no)) = UPPER(TRIM(?)) LIMIT 1"
+    )
+      .bind(lotNo)
+      .first();
+    if (!auction?.id) return json({ ok: false, error: "Ihale bulunamadi." }, 404);
+
+    await env.DB.prepare(
+      `UPDATE auction_auto_bids
+       SET is_active = 0, updated_at = CURRENT_TIMESTAMP
+       WHERE auction_id = ? AND user_id = ?`
+    )
+      .bind(auction.id, session.user.id)
+      .run();
+
+    return json({
+      ok: true,
+      lotNo,
+      message: "Otomatik teklif kapatildi.",
     });
   }
 
@@ -2130,6 +2373,17 @@ async function ensureMarketplaceSchema(env, options: { runLegacyRepair?: boolean
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (auction_id) REFERENCES auctions(id) ON DELETE CASCADE
     )`,
+    `CREATE TABLE IF NOT EXISTS auction_auto_bids (
+      auction_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      max_amount REAL NOT NULL,
+      is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (auction_id, user_id),
+      FOREIGN KEY (auction_id) REFERENCES auctions(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
     "CREATE INDEX IF NOT EXISTS idx_categories_group_id ON categories(group_id)",
   ];
 
@@ -2170,6 +2424,10 @@ async function ensureMarketplaceSchema(env, options: { runLegacyRepair?: boolean
     "ALTER TABLE auctions ADD COLUMN vehicle_drive_type TEXT",
     "ALTER TABLE auctions ADD COLUMN vehicle_condition_map_json TEXT",
     "ALTER TABLE auctions ADD COLUMN vehicle_expertise_meta_json TEXT",
+    "ALTER TABLE bids ADD COLUMN bid_source TEXT NOT NULL DEFAULT 'MANUAL'",
+    "ALTER TABLE bids ADD COLUMN is_retracted INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE bids ADD COLUMN retracted_at TEXT",
+    "ALTER TABLE bids ADD COLUMN retracted_reason TEXT",
   ];
 
   for (const sql of baseStatements) {
@@ -2200,6 +2458,9 @@ async function ensureMarketplaceSchema(env, options: { runLegacyRepair?: boolean
     "CREATE INDEX IF NOT EXISTS idx_auction_favorites_user_id ON auction_favorites(user_id)",
     "CREATE INDEX IF NOT EXISTS idx_auction_favorites_auction_id ON auction_favorites(auction_id)",
     "CREATE INDEX IF NOT EXISTS idx_auction_favorites_created_at ON auction_favorites(created_at)",
+    "CREATE INDEX IF NOT EXISTS idx_auction_auto_bids_user_id ON auction_auto_bids(user_id)",
+    "CREATE INDEX IF NOT EXISTS idx_auction_auto_bids_active ON auction_auto_bids(auction_id, is_active)",
+    "CREATE INDEX IF NOT EXISTS idx_bids_retracted ON bids(auction_id, is_retracted)",
   ];
 
   for (const sql of indexStatements) {
@@ -2429,6 +2690,31 @@ async function getUserFavoriteLotNoSet(env, userId: string) {
   return out;
 }
 
+async function getUserAutoBidMap(env, userId: string) {
+  const result = await env.DB.prepare(
+    `SELECT
+      UPPER(TRIM(a.lot_no)) AS lot_no,
+      ab.max_amount,
+      ab.is_active
+     FROM auction_auto_bids ab
+     JOIN auctions a ON a.id = ab.auction_id
+     WHERE ab.user_id = ?`
+  )
+    .bind(userId)
+    .all();
+
+  const out = new Map<string, { maxAmount: number; isActive: boolean }>();
+  for (const row of result.results || []) {
+    const lotNo = String((row as any)?.lot_no || "").trim().toUpperCase();
+    if (!lotNo) continue;
+    out.set(lotNo, {
+      maxAmount: Number((row as any)?.max_amount || 0),
+      isActive: Number((row as any)?.is_active || 0) === 1,
+    });
+  }
+  return out;
+}
+
 async function getUserFavoritesList(env, userId: string) {
   const result = await env.DB.prepare(
     `SELECT
@@ -2485,6 +2771,8 @@ async function getUserBidSummaryList(env, userId: string) {
       COALESCE(a.starts_at, a.created_at) AS starts_at, a.ends_at, a.status, a.created_at,
       a.city, a.image_url, a.gallery_json,
       pg.name AS product_group, c.name AS category,
+      ab.max_amount AS auto_max_amount,
+      ab.is_active AS auto_is_active,
       COUNT(b.id) AS my_bid_count,
       MAX(b.amount) AS my_max_bid,
       MAX(b.created_at) AS my_last_bid_at
@@ -2492,12 +2780,14 @@ async function getUserBidSummaryList(env, userId: string) {
      JOIN auctions a ON a.id = b.auction_id
      LEFT JOIN product_groups pg ON pg.id = a.product_group_id
      LEFT JOIN categories c ON c.id = a.category_id
+     LEFT JOIN auction_auto_bids ab ON ab.auction_id = a.id AND ab.user_id = ?
      WHERE b.user_id = ?
+       AND COALESCE(b.is_retracted, 0) = 0
        AND UPPER(COALESCE(a.status, 'ACTIVE')) != 'PASSIVE'
      GROUP BY a.id
      ORDER BY my_last_bid_at DESC`
   )
-    .bind(userId)
+    .bind(userId, userId)
     .all();
 
   const nowMs = Date.now();
@@ -2536,8 +2826,137 @@ async function getUserBidSummaryList(env, userId: string) {
       myLastBidAt: row.my_last_bid_at || null,
       isWinner,
       isLeading,
+      autoBidMax:
+        row.auto_max_amount === null || row.auto_max_amount === undefined ? null : Number(row.auto_max_amount),
+      autoBidEnabled: Number(row.auto_is_active || 0) === 1,
+      canRetract: Number(row.my_bid_count || 0) > 0 && !isEnded,
     };
   });
+}
+
+async function recomputeAuctionBidSnapshot(env, auctionId: string) {
+  const [topBid, countRow] = await Promise.all([
+    env.DB.prepare(
+      `SELECT user_id, amount
+       FROM bids
+       WHERE auction_id = ?
+         AND COALESCE(is_retracted, 0) = 0
+       ORDER BY amount DESC, created_at ASC, rowid ASC
+       LIMIT 1`
+    )
+      .bind(auctionId)
+      .first(),
+    env.DB.prepare(
+      `SELECT COUNT(1) AS total
+       FROM bids
+       WHERE auction_id = ?
+         AND COALESCE(is_retracted, 0) = 0`
+    )
+      .bind(auctionId)
+      .first(),
+  ]);
+
+  const bidCount = Number(countRow?.total || 0);
+  if (!topBid) {
+    await env.DB.prepare(
+      `UPDATE auctions
+       SET current_bid = NULL,
+           current_bid_user_id = NULL,
+           bid_count = ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`
+    )
+      .bind(bidCount, auctionId)
+      .run();
+    return;
+  }
+
+  await env.DB.prepare(
+    `UPDATE auctions
+     SET current_bid = ?,
+         current_bid_user_id = ?,
+         bid_count = ?,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`
+  )
+    .bind(Number(topBid.amount || 0), String(topBid.user_id || ""), bidCount, auctionId)
+    .run();
+}
+
+async function runAutoBidEngine(env, auctionId: string, maxSteps = 200) {
+  let steps = 0;
+
+  while (steps < maxSteps) {
+    const auction = await env.DB.prepare(
+      `SELECT id, status, ends_at, start_price, current_bid, current_bid_user_id, min_increment
+       FROM auctions
+       WHERE id = ?
+       LIMIT 1`
+    )
+      .bind(auctionId)
+      .first();
+
+    if (!auction?.id) break;
+    if (String(auction.status || "").toUpperCase() !== "ACTIVE") break;
+    const endsAtMs = Date.parse(String(auction.ends_at || ""));
+    if (Number.isFinite(endsAtMs) && endsAtMs <= Date.now()) break;
+
+    const minIncrement = Number(auction.min_increment || 0);
+    if (!Number.isFinite(minIncrement) || minIncrement <= 0) break;
+    const floor = auction.current_bid === null || auction.current_bid === undefined ? Number(auction.start_price || 0) : Number(auction.current_bid || 0);
+    const nextRequired = floor + minIncrement;
+
+    const autoResult = await env.DB.prepare(
+      `SELECT user_id, max_amount, created_at, updated_at
+       FROM auction_auto_bids
+       WHERE auction_id = ?
+         AND is_active = 1
+         AND max_amount >= ?
+       ORDER BY max_amount DESC, updated_at ASC, created_at ASC`
+    )
+      .bind(auctionId, nextRequired)
+      .all();
+    const autoRows = autoResult.results || [];
+    const currentLeaderId = String(auction.current_bid_user_id || "");
+    const candidate = autoRows.find((row: any) => String(row?.user_id || "") !== currentLeaderId);
+    if (!candidate) break;
+
+    const candidateUserId = String((candidate as any)?.user_id || "");
+    const candidateMax = Number((candidate as any)?.max_amount || 0);
+    if (!candidateUserId || !Number.isFinite(candidateMax) || candidateMax < nextRequired) break;
+
+    const autoAmount = Math.min(candidateMax, nextRequired);
+    const updateResult = await env.DB.prepare(
+      `UPDATE auctions
+       SET current_bid = ?, current_bid_user_id = ?, bid_count = bid_count + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?
+         AND status = 'ACTIVE'
+         AND ends_at > CURRENT_TIMESTAMP
+         AND (current_bid IS NULL OR current_bid < ?)`
+    )
+      .bind(autoAmount, candidateUserId, auctionId, autoAmount)
+      .run();
+    if (Number(updateResult.meta?.changes || 0) < 1) {
+      continue;
+    }
+
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO bids (
+           id, auction_id, user_id, amount, created_at, bid_source, is_retracted, retracted_at, retracted_reason
+         ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, 'AUTO', 0, NULL, NULL)`
+      ).bind(crypto.randomUUID(), auctionId, candidateUserId, autoAmount),
+      env.DB.prepare(
+        `UPDATE auction_auto_bids
+         SET updated_at = CURRENT_TIMESTAMP
+         WHERE auction_id = ? AND user_id = ?`
+      ).bind(auctionId, candidateUserId),
+    ]);
+
+    steps += 1;
+  }
+
+  return { steps };
 }
 
 async function getAdminUsersList(env) {
@@ -2617,6 +3036,16 @@ async function getUserFavoriteLotNoSetSafe(env, userId: string) {
     console.warn("Kullanici favori lot no sorgusu hata verdi, schema onarimi deneniyor:", error);
     await ensureMarketplaceSchemaWarm(env);
     return await getUserFavoriteLotNoSet(env, userId);
+  }
+}
+
+async function getUserAutoBidMapSafe(env, userId: string) {
+  try {
+    return await getUserAutoBidMap(env, userId);
+  } catch (error) {
+    console.warn("Kullanici otomatik teklif haritasi sorgusu hata verdi, schema onarimi deneniyor:", error);
+    await ensureMarketplaceSchemaWarm(env);
+    return await getUserAutoBidMap(env, userId);
   }
 }
 
