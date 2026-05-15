@@ -2527,9 +2527,12 @@ async function getAdminAuctionBidHistory(env, auctionId: string) {
   const bidRowsResult = await env.DB.prepare(
     `SELECT
       b.id, b.auction_id, b.user_id, b.amount, b.created_at,
-      u.name AS bidder_name, u.email AS bidder_email
+      u.name AS bidder_name, u.email AS bidder_email,
+      ab.max_amount AS auto_bid_max_amount,
+      ab.is_active AS auto_bid_is_active
      FROM bids b
      LEFT JOIN users u ON u.id = b.user_id
+     LEFT JOIN auction_auto_bids ab ON ab.auction_id = b.auction_id AND ab.user_id = b.user_id
      WHERE b.auction_id = ?
      ORDER BY b.amount DESC, b.created_at ASC`
   )
@@ -2544,11 +2547,25 @@ async function getAdminAuctionBidHistory(env, auctionId: string) {
     bidderEmail: String(row.bidder_email || "").trim() || "-",
     amount: Number(row.amount || 0),
     createdAt: row.created_at || null,
+    autoBidMax:
+      row.auto_bid_max_amount === null || row.auto_bid_max_amount === undefined
+        ? null
+        : Number(row.auto_bid_max_amount),
+    autoBidActive: Number(row.auto_bid_is_active || 0) === 1,
   }));
 
   const participantsMap = new Map<
     string,
-    { userId: string; bidderName: string; bidderEmail: string; bidCount: number; maxBid: number; lastBidAt: string | null }
+    {
+      userId: string;
+      bidderName: string;
+      bidderEmail: string;
+      bidCount: number;
+      maxBid: number;
+      lastBidAt: string | null;
+      autoBidMax: number | null;
+      autoBidActive: boolean;
+    }
   >();
   for (const row of bids) {
     const key = String(row.userId || "");
@@ -2561,11 +2578,19 @@ async function getAdminAuctionBidHistory(env, auctionId: string) {
         bidCount: 1,
         maxBid: Number(row.amount || 0),
         lastBidAt: row.createdAt || null,
+        autoBidMax: row.autoBidMax === null || row.autoBidMax === undefined ? null : Number(row.autoBidMax),
+        autoBidActive: row.autoBidActive === true,
       });
       continue;
     }
     prev.bidCount += 1;
     if (Number(row.amount || 0) > prev.maxBid) prev.maxBid = Number(row.amount || 0);
+    if (prev.autoBidMax === null && row.autoBidMax !== null && row.autoBidMax !== undefined) {
+      prev.autoBidMax = Number(row.autoBidMax);
+    }
+    if (row.autoBidActive === true) {
+      prev.autoBidActive = true;
+    }
     const prevMs = Date.parse(String(prev.lastBidAt || ""));
     const nextMs = Date.parse(String(row.createdAt || ""));
     if (Number.isFinite(nextMs) && (!Number.isFinite(prevMs) || nextMs > prevMs)) {

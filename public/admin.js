@@ -2346,8 +2346,16 @@ function renderAuctionBidHistoryModal() {
       <div class="bidSummaryValue">${escapeHtml(String(currentBidValue))}</div>
     </div>
   `;
+    const formatAutoBidLimit = (maxAmount, isActive) => {
+        if (maxAmount === null || maxAmount === undefined)
+            return "-";
+        const amount = Number(maxAmount);
+        if (!Number.isFinite(amount) || amount <= 0)
+            return "-";
+        return `${formatMoney(amount)} TL ${isActive === true ? "(Açık)" : "(Pasif)"}`;
+    };
     if (bids.length < 1) {
-        elements.auctionBidsRows.innerHTML = '<tr><td colspan="5"><div class="emptyState">Bu ihalede teklif kaydi yok.</div></td></tr>';
+        elements.auctionBidsRows.innerHTML = '<tr><td colspan="6"><div class="emptyState">Bu ihalede teklif kaydi yok.</div></td></tr>';
         return;
     }
     elements.auctionBidsRows.innerHTML = bids
@@ -2357,6 +2365,7 @@ function renderAuctionBidHistoryModal() {
         <td>${escapeHtml(row.bidderName || "-")}</td>
         <td>${escapeHtml(row.bidderEmail || "-")}</td>
         <td>${formatMoney(row.amount)} TL</td>
+        <td>${escapeHtml(formatAutoBidLimit(row.autoBidMax, row.autoBidActive))}</td>
         <td>${escapeHtml(formatDate(row.createdAt || ""))}</td>
       </tr>
     `)
