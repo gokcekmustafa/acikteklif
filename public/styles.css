@@ -1314,21 +1314,77 @@ button {
 }
 
 .containerAll .sContent .addBid .adBottomLine .bidComposer {
-  position: static;
-  width: 100%;
-  background: #ffffff;
-  border: 1px solid #d4e0e9;
-  border-radius: 11px;
-  box-shadow: 0 8px 18px rgba(13, 36, 58, 0.13);
-  padding: 12px;
+  position: fixed;
+  inset: 0;
   display: none;
-  z-index: 4;
+  z-index: 2500;
+  align-items: center;
+  justify-content: center;
   text-align: left;
-  margin: 0 0 9px;
 }
 
 .containerAll .sContent .addBid .adBottomLine .bidComposer.show {
-  display: block;
+  display: flex;
+}
+
+.containerAll .sContent .addBid .adBottomLine .bidComposerBackdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(9, 24, 40, 0.5);
+  cursor: pointer;
+}
+
+.containerAll .sContent .addBid .adBottomLine .bidComposerPanel {
+  position: relative;
+  width: min(460px, calc(100vw - 28px));
+  max-height: calc(100vh - 28px);
+  overflow-y: auto;
+  border: 1px solid #d4e0e9;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 22px 44px rgba(8, 24, 40, 0.28);
+  padding: 14px;
+}
+
+.containerAll .sContent .addBid .adBottomLine .bidComposerPanelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+
+.containerAll .sContent .addBid .adBottomLine .bidComposerPanelHead h4 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 800;
+  color: #17314a;
+}
+
+.containerAll .sContent .addBid .adBottomLine .bidComposerCloseBtn {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid #d3deea;
+  background: #fff;
+  color: #37506a;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.containerAll .sContent .addBid .adBottomLine .bidComposerMin {
+  font-size: 12px;
+  color: #3f5973;
+  margin-bottom: 10px;
+  background: #f3f8fd;
+  border: 1px solid #dce9f5;
+  border-radius: 8px;
+  padding: 7px 9px;
 }
 
 .containerAll .sContent .addBid .adBottomLine .bidComposerRow {
@@ -1414,33 +1470,6 @@ button {
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
-}
-
-.containerAll .sContent .addBid .adBottomLine .autoBidBtn {
-  width: 100%;
-  margin-top: 7px;
-  border: 1px solid #b8cde2;
-  text-align: center;
-  height: 34px;
-  padding: 0 8px;
-  background: #fff;
-  color: #214767;
-  border-radius: 10px;
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.15px;
-  cursor: pointer;
-}
-
-.containerAll .sContent .addBid .adBottomLine .autoBidBtn:hover {
-  border-color: #88b1d6;
-  background: #f1f7fd;
-}
-
-.containerAll .sContent .addBid .adBottomLine .autoBidBtn.active {
-  border-color: #82b8e8;
-  background: #eaf5ff;
-  color: #0f4d80;
 }
 
 .containerAll .sContent .addBid .adBottomLine .bLine1 {

@@ -1230,6 +1230,13 @@ function bindEvents() {
     await handleLogout();
   });
 
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (!state.bidComposer.lotNo) return;
+    closeBidComposer();
+    render();
+  });
+
   elements.favoritesRows.addEventListener("click", async (event) => {
     const button = event.target.closest("button[data-action='remove-favorite']");
     if (!button) return;
@@ -1951,6 +1958,14 @@ function render() {
     });
   });
 
+  elements.listingBoxes.querySelectorAll(".bidComposerBackdrop").forEach((button) => {
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      closeBidComposer();
+      render();
+    });
+  });
+
   elements.listingBoxes.querySelectorAll(".bidComposerAutoToggle").forEach((input) => {
     input.addEventListener("change", () => {
       const target = input as HTMLInputElement;
@@ -2136,7 +2151,15 @@ function renderCard(item) {
           </div>
           <div class="adBottomLine">
             <div class="bidComposer ${composerActive ? "show" : ""}" data-lot-no="${escapeHtml(item.lotNo)}">
-              <form class="bidComposerForm" data-lot-no="${escapeHtml(item.lotNo)}" data-min-bid="${minimumBid}">
+              <button type="button" class="bidComposerBackdrop" aria-label="Kapat"></button>
+              <form class="bidComposerForm bidComposerPanel" data-lot-no="${escapeHtml(item.lotNo)}" data-min-bid="${minimumBid}">
+                <div class="bidComposerPanelHead">
+                  <h4>Teklif Ver (${escapeHtml(item.lotNo)})</h4>
+                  <button type="button" class="bidComposerCancelBtn bidComposerCloseBtn" aria-label="Kapat">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+                <div class="bidComposerMin">Minimum teklif: ${formatMoneyWithoutCents(minimumBid)} TL</div>
                 <div class="bidComposerRow">
                   <label for="bidAmount_${escapeHtml(item.lotNo)}">Teklif Tutariniz</label>
                   <input id="bidAmount_${escapeHtml(item.lotNo)}" class="bidComposerAmount" type="number" min="${Math.ceil(
