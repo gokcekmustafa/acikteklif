@@ -358,6 +358,12 @@ const state = {
   myBids: [],
   favorites: [],
   favoriteLotNoSet: new Set(),
+  bidComposer: {
+    lotNo: "",
+    amount: "",
+    autoEnabled: false,
+    autoMax: "",
+  },
 };
 
 const elements = {
@@ -1924,8 +1930,9 @@ function render() {
   elements.emptyState.classList.toggle("hide", sorted.length > 0);
 
   elements.listingBoxes.querySelectorAll(".bidBtn").forEach((button) => {
-    button.addEventListener("click", async () => {
-      await handleBid(button);
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await toggleBidComposer(button);
     });
   });
 
@@ -1936,10 +1943,26 @@ function render() {
     });
   });
 
-  elements.listingBoxes.querySelectorAll(".autoBidBtn").forEach((button) => {
+  elements.listingBoxes.querySelectorAll(".bidComposerCancelBtn").forEach((button) => {
     button.addEventListener("click", async (event) => {
       event.preventDefault();
-      await handleAutoBidConfig(button);
+      closeBidComposer();
+      render();
+    });
+  });
+
+  elements.listingBoxes.querySelectorAll(".bidComposerAutoToggle").forEach((input) => {
+    input.addEventListener("change", () => {
+      const target = input as HTMLInputElement;
+      state.bidComposer.autoEnabled = target.checked === true;
+      render();
+    });
+  });
+
+  elements.listingBoxes.querySelectorAll(".bidComposerForm").forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await handleBidComposerSubmit(form);
     });
   });
 }
@@ -2036,10 +2059,21 @@ function renderCard(item) {
   const favoriteIconClass = favoriteActive ? "fas fa-heart" : "far fa-heart";
   const favoriteButtonClass = favoriteActive ? "favoriteToggle isActive" : "favoriteToggle";
   const favoriteAriaLabel = favoriteActive ? "Favorilerden kaldir" : "Favorilere ekle";
-  const autoBidText = item.isAutoBidEnabled
-    ? `OTO TEKLIF (${formatMoneyWithoutCents(item.autoBidMax || 0)} TL)`
-    : "OTO TEKLIF";
-  const autoBidDisabledAttrs = isEnded ? 'disabled aria-disabled="true"' : "";
+  const composerActive = state.bidComposer.lotNo === normalizeLotNoKey(item.lotNo) && !isEnded;
+  const composerAmount =
+    composerActive && String(state.bidComposer.amount || "").trim()
+      ? String(state.bidComposer.amount || "").trim()
+      : String(Math.ceil(minimumBid));
+  const composerAutoEnabled = composerActive ? state.bidComposer.autoEnabled === true : false;
+  const composerAutoMax =
+    composerActive && String(state.bidComposer.autoMax || "").trim()
+      ? String(state.bidComposer.autoMax || "").trim()
+      : item.isAutoBidEnabled && Number(item.autoBidMax || 0) > 0
+      ? String(Math.ceil(Number(item.autoBidMax || 0)))
+      : "";
+  const autoHint = item.isAutoBidEnabled
+    ? `Mevcut oto teklif limiti: ${formatMoneyWithoutCents(item.autoBidMax || 0)} TL`
+    : "Otomatik teklif kapali";
 
   return `
     <div class="box1 imgWrap">
@@ -2073,9 +2107,31 @@ function renderCard(item) {
           </div>
           <div class="adBottomLine">
             <button class="bidBtn" data-lot-no="${escapeHtml(item.lotNo)}" data-min-bid="${minimumBid}" ${bidButtonAttrs}>${bidButtonText}</button>
-            <button class="autoBidBtn ${item.isAutoBidEnabled ? "active" : ""}" data-lot-no="${escapeHtml(
-              item.lotNo
-            )}" data-min-bid="${minimumBid}" data-auto-max="${Number(item.autoBidMax || 0)}" ${autoBidDisabledAttrs}>${autoBidText}</button>
+            <div class="bidComposer ${composerActive ? "show" : ""}" data-lot-no="${escapeHtml(item.lotNo)}">
+              <form class="bidComposerForm" data-lot-no="${escapeHtml(item.lotNo)}" data-min-bid="${minimumBid}">
+                <div class="bidComposerRow">
+                  <label for="bidAmount_${escapeHtml(item.lotNo)}">Teklif Tutariniz</label>
+                  <input id="bidAmount_${escapeHtml(item.lotNo)}" class="bidComposerAmount" type="number" min="${Math.ceil(
+                    minimumBid
+                  )}" step="1" value="${escapeHtml(composerAmount)}" required>
+                </div>
+                <label class="bidComposerAutoLine">
+                  <input type="checkbox" class="bidComposerAutoToggle" ${composerAutoEnabled ? "checked" : ""}>
+                  <span>Otomatik teklif ver</span>
+                </label>
+                <div class="bidComposerRow ${composerAutoEnabled ? "show" : "hide"}">
+                  <label for="bidAutoMax_${escapeHtml(item.lotNo)}">Oto Teklif Ust Limitiniz</label>
+                  <input id="bidAutoMax_${escapeHtml(item.lotNo)}" class="bidComposerAutoMax" type="number" min="${Math.ceil(
+                    minimumBid
+                  )}" step="1" value="${escapeHtml(composerAutoMax)}" ${composerAutoEnabled ? "required" : ""}>
+                </div>
+                <div class="bidComposerHint">${escapeHtml(autoHint)}</div>
+                <div class="bidComposerActions">
+                  <button type="button" class="bidComposerCancelBtn">Vazgec</button>
+                  <button type="submit" class="bidComposerSubmitBtn">Kaydet ve Gonder</button>
+                </div>
+              </form>
+            </div>
             <div class="bLine1">${bidValue}</div>
             <div class="bLine2">${bidLabel}</div>
           </div>
@@ -2083,6 +2139,123 @@ function renderCard(item) {
       </div>
     </div>
   `;
+}
+
+async function toggleBidComposer(button) {
+  const lotNo = normalizeLotNoKey(button?.dataset?.lotNo || "");
+  if (!lotNo) return;
+  const minBid = Number(button?.dataset?.minBid || 0);
+
+  if (!state.auth.user) {
+    setHint(elements.loginFormHint, "Teklif verebilmek icin giris yapmalisiniz.", "error");
+    openModal(elements.signInModal);
+    return;
+  }
+
+  if (state.auth.user.permissions?.[PERMISSION_BIDS_PLACE] === false) {
+    alert("Teklif verme yetkiniz pasif. Lutfen yoneticiyle iletisime gecin.");
+    return;
+  }
+
+  if (state.auth.requireEmailVerification && !state.auth.user.emailVerified) {
+    try {
+      const data = await apiFetch("/api/auth/verify/request", { method: "POST" });
+      const message = data.debugVerifyToken
+        ? `${data.message}\n\nDogrulama tokeni:\n${data.debugVerifyToken}`
+        : data.message;
+      alert(message);
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  if (state.bidComposer.lotNo === lotNo) {
+    closeBidComposer();
+    render();
+    return;
+  }
+
+  state.bidComposer = {
+    lotNo,
+    amount: String(Math.ceil(minBid)),
+    autoEnabled: false,
+    autoMax: "",
+  };
+  render();
+}
+
+function closeBidComposer() {
+  state.bidComposer = {
+    lotNo: "",
+    amount: "",
+    autoEnabled: false,
+    autoMax: "",
+  };
+}
+
+async function handleBidComposerSubmit(form) {
+  const lotNo = normalizeLotNoKey(form?.dataset?.lotNo || state.bidComposer.lotNo || "");
+  if (!lotNo) return;
+
+  const amountInput = form.querySelector(".bidComposerAmount");
+  const autoToggleInput = form.querySelector(".bidComposerAutoToggle");
+  const autoMaxInput = form.querySelector(".bidComposerAutoMax");
+  const amountText = String(amountInput?.value || "").trim();
+  const autoEnabled = autoToggleInput?.checked === true;
+  const autoMaxText = String(autoMaxInput?.value || "").trim();
+
+  const amount = Number(amountText.replace(/\./g, "").replace(",", "."));
+  if (!Number.isFinite(amount) || amount <= 0) {
+    alert("Gecerli bir teklif tutari girin.");
+    return;
+  }
+
+  let autoMaxAmount = null;
+  if (autoEnabled) {
+    autoMaxAmount = Number(autoMaxText.replace(/\./g, "").replace(",", "."));
+    if (!Number.isFinite(autoMaxAmount) || autoMaxAmount <= 0) {
+      alert("Otomatik teklif icin gecerli bir ust limit girin.");
+      return;
+    }
+    if (autoMaxAmount < amount) {
+      alert("Otomatik teklif ust limiti, teklif tutarinizdan dusuk olamaz.");
+      return;
+    }
+  }
+
+  try {
+    await submitBidWithOptions(lotNo, amount, autoEnabled, autoMaxAmount);
+    closeBidComposer();
+    await openMyBidsModalIfOpen();
+    render();
+  } catch (error) {
+    alert(error.message || "Teklif islemi tamamlanamadi.");
+  }
+}
+
+async function submitBidWithOptions(lotNo, amount, autoEnabled, autoMaxAmount) {
+  const bidData = await apiFetch("/api/bids", {
+    method: "POST",
+    body: { lotNo, amount },
+  });
+
+  if (autoEnabled && autoMaxAmount !== null) {
+    await apiFetch("/api/auth/auto-bids", {
+      method: "POST",
+      body: { lotNo, maxAmount: autoMaxAmount },
+    });
+  }
+
+  await loadListings();
+  await syncFavoriteFlagsFromServer();
+  render();
+  setHint(elements.loginFormHint, bidData.message || "Teklifiniz alindi.", "success");
+}
+
+async function openMyBidsModalIfOpen() {
+  if (!elements.myBidsModal.classList.contains("open")) return;
+  await openMyBidsModal();
 }
 
 async function handleBid(button) {
