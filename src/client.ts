@@ -1954,8 +1954,37 @@ function render() {
   elements.listingBoxes.querySelectorAll(".bidComposerAutoToggle").forEach((input) => {
     input.addEventListener("change", () => {
       const target = input as HTMLInputElement;
+      const form = target.closest(".bidComposerForm") as HTMLFormElement | null;
+      const lotNo = normalizeLotNoKey(form?.dataset?.lotNo || state.bidComposer.lotNo || "");
+      const amountInput = form?.querySelector(".bidComposerAmount") as HTMLInputElement | null;
+      const autoMaxInput = form?.querySelector(".bidComposerAutoMax") as HTMLInputElement | null;
+      state.bidComposer.amount = String(amountInput?.value || state.bidComposer.amount || "").trim();
+      state.bidComposer.autoMax = String(autoMaxInput?.value || state.bidComposer.autoMax || "").trim();
       state.bidComposer.autoEnabled = target.checked === true;
       render();
+      if (target.checked && lotNo) {
+        requestAnimationFrame(() => {
+          const activeForm = elements.listingBoxes.querySelector(
+            `.bidComposerForm[data-lot-no="${lotNo}"]`
+          ) as HTMLFormElement | null;
+          const nextInput = activeForm?.querySelector(".bidComposerAutoMax") as HTMLInputElement | null;
+          nextInput?.focus();
+        });
+      }
+    });
+  });
+
+  elements.listingBoxes.querySelectorAll(".bidComposerAmount").forEach((input) => {
+    input.addEventListener("input", () => {
+      const target = input as HTMLInputElement;
+      state.bidComposer.amount = String(target.value || "").trim();
+    });
+  });
+
+  elements.listingBoxes.querySelectorAll(".bidComposerAutoMax").forEach((input) => {
+    input.addEventListener("input", () => {
+      const target = input as HTMLInputElement;
+      state.bidComposer.autoMax = String(target.value || "").trim();
     });
   });
 
@@ -2106,7 +2135,6 @@ function renderCard(item) {
             <div class="tLine2">Başlangıç Bedeli</div>
           </div>
           <div class="adBottomLine">
-            <button class="bidBtn" data-lot-no="${escapeHtml(item.lotNo)}" data-min-bid="${minimumBid}" ${bidButtonAttrs}>${bidButtonText}</button>
             <div class="bidComposer ${composerActive ? "show" : ""}" data-lot-no="${escapeHtml(item.lotNo)}">
               <form class="bidComposerForm" data-lot-no="${escapeHtml(item.lotNo)}" data-min-bid="${minimumBid}">
                 <div class="bidComposerRow">
@@ -2132,6 +2160,7 @@ function renderCard(item) {
                 </div>
               </form>
             </div>
+            <button class="bidBtn" data-lot-no="${escapeHtml(item.lotNo)}" data-min-bid="${minimumBid}" ${bidButtonAttrs}>${bidButtonText}</button>
             <div class="bLine1">${bidValue}</div>
             <div class="bLine2">${bidLabel}</div>
           </div>
@@ -2183,6 +2212,12 @@ async function toggleBidComposer(button) {
     autoMax: "",
   };
   render();
+  requestAnimationFrame(() => {
+    const form = elements.listingBoxes.querySelector(`.bidComposerForm[data-lot-no="${lotNo}"]`) as HTMLFormElement | null;
+    const amountInput = form?.querySelector(".bidComposerAmount") as HTMLInputElement | null;
+    amountInput?.focus();
+    amountInput?.select();
+  });
 }
 
 function closeBidComposer() {
@@ -2256,62 +2291,6 @@ async function submitBidWithOptions(lotNo, amount, autoEnabled, autoMaxAmount) {
 async function openMyBidsModalIfOpen() {
   if (!elements.myBidsModal.classList.contains("open")) return;
   await openMyBidsModal();
-}
-
-async function handleBid(button) {
-  if (!state.auth.user) {
-    setHint(elements.loginFormHint, "Teklif verebilmek için giriş yapmalısınız.", "error");
-    openModal(elements.signInModal);
-    return;
-  }
-
-  if (state.auth.user.permissions?.[PERMISSION_BIDS_PLACE] === false) {
-    alert("Teklif verme yetkiniz pasif. Lütfen yöneticiyle iletişime geçin.");
-    return;
-  }
-
-  if (state.auth.requireEmailVerification && !state.auth.user.emailVerified) {
-    try {
-      const data = await apiFetch("/api/auth/verify/request", { method: "POST" });
-      const message = data.debugVerifyToken
-        ? `${data.message}\n\nDogrulama tokeni:\n${data.debugVerifyToken}`
-        : data.message;
-      alert(message);
-    } catch (error) {
-      alert(error.message);
-    }
-    return;
-  }
-
-  const lotNo = button.dataset.lotNo;
-  const minBid = Number(button.dataset.minBid || 0);
-  const amountInput = prompt(`İhale ${lotNo} için teklif tutarı girin (min ${formatMoney(minBid)}):`, String(minBid));
-  if (!amountInput) return;
-
-  const amount = Number(String(amountInput).replace(/\./g, "").replace(",", "."));
-  if (!Number.isFinite(amount) || amount <= 0) {
-    alert("Geçerli bir teklif tutarı girin.");
-    return;
-  }
-
-  try {
-    const data = await apiFetch("/api/bids", {
-      method: "POST",
-      body: { lotNo, amount },
-    });
-
-    const listing = state.listings.find((x) => x.lotNo === lotNo);
-    if (listing) {
-      listing.lastBid = data.amount;
-      listing.hasOffer = true;
-    }
-
-    await loadListings();
-    render();
-    alert(data.message || "Teklifiniz alındı.");
-  } catch (error) {
-    alert(error.message);
-  }
 }
 
 async function handleAutoBidConfig(button) {
