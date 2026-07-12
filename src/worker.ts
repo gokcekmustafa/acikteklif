@@ -175,7 +175,7 @@ async function handleApi(request, env, url) {
   }
 
   if (method === "GET" && path === "/api/health") {
-    return json({ ok: true, service: "acik-teklif-api" });
+    return json({ ok: true, service: "kamutas-api" });
   }
 
   if (method === "GET" && path === "/api/config") {

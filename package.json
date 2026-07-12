@@ -1,8 +1,8 @@
 {
-  "name": "acik-teklif-pazari",
+  "name": "kamutas",
   "private": true,
   "version": "0.1.0",
-  "description": "Cloudflare Worker + D1 tabanli ihale sitesi",
+  "description": "Kamutas - Cloudflare Worker + D1 tabanli ihale sitesi",
   "scripts": {
     "dev": "wrangler dev",
     "dev:local": "wrangler dev --local --persist-to %TEMP%\\wrangler-persist",
@@ -13,10 +13,10 @@
     "build": "npm run build:client && npm run build:admin && npm run build:auction",
     "typecheck": "tsc -p tsconfig.worker.json --noEmit && tsc -p tsconfig.client.json --noEmit && tsc -p tsconfig.admin.json --noEmit && tsc -p tsconfig.auction.json --noEmit",
     "deploy": "npm run build && wrangler deploy",
-    "d1:create": "wrangler d1 create acik-teklif-pazari-db",
-    "migrate:local": "wrangler d1 migrations apply acik-teklif-pazari-db --local",
-    "migrate:local:persist": "wrangler d1 migrations apply acik-teklif-pazari-db --local --persist-to %TEMP%\\wrangler-persist",
-    "migrate:remote": "wrangler d1 migrations apply acik-teklif-pazari-db --remote",
+    "d1:create": "wrangler d1 create kamutas-db",
+"migrate:local": "wrangler d1 migrations apply kamutas-db --local",
+"migrate:local:persist": "wrangler d1 migrations apply kamutas-db --local --persist-to %TEMP%\\wrangler-persist",
+"migrate:remote": "wrangler d1 migrations apply kamutas-db --remote",
     "whoami": "wrangler whoami"
   },
   "devDependencies": {

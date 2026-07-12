@@ -1,16 +1,16 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kamutas | Online İhale Platformu</title>
-  <meta name="description" content="Kamutas ile online açık artırma yöntemiyle araç, ekipman ve gayrimenkul alım satımı yapın. Güvenli ihale platformu.">
+  <title>Tüm Araçlar - Kamutas</title>
+  <meta name="description" content="Kamutas online açık artırma platformunda tüm araç ihalelerini listeleyin, filtreleyin ve teklif verin.">
   <meta name="turnstile-site-key" content="">
   <meta name="keywords" content="ihale, açık artırma, online ihale, 2.el araç, ikinci el, müzayede">
   <meta name="author" content="Kamutas">
   <meta name="robots" content="index, follow">
-  <link rel="canonical" href="https://kamutas.com">
+  <link rel="canonical" href="https://kamutas.com/listings.html">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -178,7 +178,7 @@
           </a>
           <nav class="headerNav" id="mainMenu">
             <a href="#" class="navClose" id="menuCloseBtn"><i class="fas fa-times"></i></a>
-            <a href="/" class="navLink active"><i class="fas fa-home"></i> Anasayfa</a>
+            <a href="/" class="navLink"><i class="fas fa-home"></i> Anasayfa</a>
             <span class="navAuthStatus" id="authStatus"></span>
             <div class="navActions">
               <a href="#" class="navBtn navBtnOutline signInModalBtn" id="openSignInModal"><i class="fas fa-sign-in-alt"></i> Giriş Yap</a>
@@ -195,97 +195,15 @@
       </div>
     </header>
 
-    <!-- HERO SECTION -->
-    <section class="hero">
-      <div class="container">
-        <div class="heroInner">
-          <div class="heroContent">
-            <h1 class="heroTitle">Online Açık Artırma ile <span class="textHighlight">Güvenli Alışveriş</span></h1>
-            <p class="heroDesc">Araç, ekipman ve gayrimenkul ihalelerine katılın, en iyi fiyata alın veya satın.</p>
-            <div class="heroStats">
-              <div class="heroStat">
-                <span class="statValue" id="statVehicles">0+</span>
-                <span class="statLabel">İlan</span>
-              </div>
-              <div class="heroStat">
-                <span class="statValue" id="statBids">0+</span>
-                <span class="statLabel">Teklif</span>
-              </div>
-              <div class="heroStat">
-                <span class="statValue" id="statUsers">0+</span>
-                <span class="statLabel">Üye</span>
-              </div>
-            </div>
-            <a href="#listingsSection" class="heroBtn"><i class="fas fa-arrow-right"></i> Tüm İlanları Gör</a>
-          </div>
-          <div class="heroAuctions" id="heroAuctions">
-            <!-- Auction cards rendered by heroCards() call below -->
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- AUCTIONS SECTION -->
-    <section class="section sectionGray" id="auctionsSection">
-      <div class="container">
-        <div class="sectionHead">
-          <div class="sectionHeadLeft">
-            <h2 class="sectionTitle"><i class="fas fa-gavel"></i> Açık Artırmalarımız</h2>
-            <p class="sectionDesc">Hafta içi her gün canlı açık artırma ile araçlar sizi bekliyor</p>
-          </div>
-          <div class="sectionHeadRight">
-            <span class="auctionSchedule"><i class="far fa-calendar-alt"></i> Pazartesi - Cuma | 11:00</span>
-          </div>
-        </div>
-        <div class="auctionCards" id="auctionCards">
-          <!-- Populated by JS -->
-        </div>
-      </div>
-    </section>
-
-    <!-- HOW IT WORKS -->
-    <section class="section">
-      <div class="container">
-        <div class="sectionHead">
-          <div class="sectionHeadLeft">
-            <h2 class="sectionTitle"><i class="fas fa-info-circle"></i> Nasıl Çalışır?</h2>
-            <p class="sectionDesc">Tek bir hedefimiz var: Aracınızı doğru fiyata alıp satabilmek</p>
-          </div>
-        </div>
-        <div class="stepsGrid">
-          <div class="stepCard">
-            <div class="stepIcon"><i class="fas fa-search"></i></div>
-            <h3>İlanları İnceleyin</h3>
-            <p>Beğendiğiniz aracın detaylarına bakın, geçmişini görün</p>
-          </div>
-          <div class="stepCard">
-            <div class="stepIcon"><i class="fas fa-user-plus"></i></div>
-            <h3>Ücretsiz Kaydolun</h3>
-            <p>Hemen üye olun, ihalelere katılmaya başlayın</p>
-          </div>
-          <div class="stepCard">
-            <div class="stepIcon"><i class="fas fa-gavel"></i></div>
-            <h3>Teklif Verin</h3>
-            <p>Canlı açık artırmada tek teklifle aracı satın alın</p>
-          </div>
-          <div class="stepCard">
-            <div class="stepIcon"><i class="fas fa-check-circle"></i></div>
-            <h3>Güvenle Satın Alın</h3>
-            <p>Noter satışı ve güvenli ödeme ile aracınızı teslim alın</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <!-- VEHICLE LISTING SECTION -->
     <section class="section sectionGray" id="listingsSection">
       <div class="container">
         <div class="sectionHead">
           <div class="sectionHeadLeft">
-            <h2 class="sectionTitle"><i class="fas fa-car"></i> Yeni Eklenen Araçlar</h2>
+            <h2 class="sectionTitle"><i class="fas fa-car"></i> Tüm Araçlar</h2>
             <p class="sectionDesc">Güncel ihale listesini inceleyin, size uygun aracı bulun</p>
           </div>
-          <div class="sectionHeadRight desktopOnly">
+          <div class="sectionHeadRight">
             <div class="switchView">
               <a href="#" class="changeViewListBtn active" title="Liste"><i class="fas fa-bars"></i></a>
               <a href="#" class="changeViewTableBtn" title="Galeri"><i class="fas fa-border-all"></i></a>
@@ -359,7 +277,6 @@
                   <input id="lotNo" type="text" placeholder="İhale No girin">
                 </div>
                 <button id="searchBtn" class="searchBtn"><i class="fas fa-search"></i> Ara</button>
-                <a href="/listings.html" class="allListingsBtn"><i class="fas fa-list"></i> Tüm Araçlar</a>
               </div>
             </div>
           </div>
@@ -388,8 +305,8 @@
                   <option value="PRICE_DESC">Önce En Yüksek</option>
                 </select>
                 <div class="switchView mobileOnly">
-                  <a href="#" class="changeViewListBtn active" title="Liste"><i class="fas fa-bars"></i></a>
-                  <a href="#" class="changeViewTableBtn" title="Galeri"><i class="fas fa-border-all"></i></a>
+                  <a href="#" class="changeViewListBtn" title="Liste"><i class="fas fa-bars"></i></a>
+                  <a href="#" class="changeViewTableBtn active" title="Galeri"><i class="fas fa-border-all"></i></a>
                 </div>
                 <a class="filterToggleMobile" title="Detaylı arama" href="#searchModule"><i class="fas fa-search"></i></a>
               </div>
@@ -465,107 +382,5 @@
       </div>
     </footer>
   </div>
-
-  <script>
-  // Hero countdown timers and auction cards
-  (function() {
-    function addTime(days, hours, minutes, seconds) {
-      var d = new Date();
-      d.setDate(d.getDate() + days);
-      d.setHours(d.getHours() + hours);
-      d.setMinutes(d.getMinutes() + minutes);
-      d.setSeconds(d.getSeconds() + seconds);
-      return d.toISOString();
-    }
-
-    function getRemaining(endAt) {
-      var total = Math.max(0, Math.floor((new Date(endAt).getTime() - Date.now()) / 1000));
-      return {
-        total: total,
-        days: Math.floor(total / 86400),
-        hours: Math.floor((total % 86400) / 3600),
-        minutes: Math.floor((total % 3600) / 60),
-        seconds: total % 60
-      };
-    }
-
-    function pad(n) { return String(n).padStart(2, '0'); }
-
-    var now = new Date();
-    var saturday = new Date(now);
-    saturday.setDate(saturday.getDate() + (6 - saturday.getDay() + 7) % 7);
-    if (saturday <= now) saturday.setDate(saturday.getDate() + 7);
-    saturday.setHours(12, 0, 0, 0);
-
-    var auctionTime1 = new Date(saturday);
-    var auctionTime2 = new Date(saturday);
-    auctionTime2.setHours(auctionTime2.getHours() + 0, auctionTime2.getMinutes() + 30, 0, 0);
-
-    var auctionEnd1 = new Date(auctionTime1);
-    auctionEnd1.setHours(auctionEnd1.getHours() + 2);
-    var auctionEnd2 = new Date(auctionTime2);
-    auctionEnd2.setHours(auctionEnd2.getHours() + 2);
-
-    function formatDateTR(date) {
-      var months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
-      var days = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
-      return date.getDate() + ' ' + months[date.getMonth()] + ' ' + days[date.getDay()];
-    }
-
-    var cardsHtml = '';
-    for (var i = 1; i <= 2; i++) {
-      var startDate = i === 1 ? auctionTime1 : auctionTime2;
-      var endDate = i === 1 ? auctionEnd1 : auctionEnd2;
-      var remaining = getRemaining(endDate.toISOString());
-      var isActive = remaining.total > 0;
-      var statusLabel = isActive
-        ? '<span class="statusBadge live"><i class="fas fa-circle"></i> Canlı</span>'
-        : '<span class="statusBadge pending"><i class="fas fa-clock"></i> Başlamadı</span>';
-
-      cardsHtml +=
-        '<div class="auctionCard">' +
-          '<div class="auctionCardHeader">' +
-            '<span class="auctionCardNum">' + i + '. KARMA CANLI AÇIK ARTIRMA</span>' +
-            statusLabel +
-          '</div>' +
-          '<div class="auctionCardBody">' +
-            '<div class="auctionDate"><i class="far fa-calendar-alt"></i> ' + formatDateTR(startDate) + ' ' + pad(startDate.getHours()) + ':' + pad(startDate.getMinutes()) + '</div>' +
-            '<div class="countdown" data-end="' + endDate.toISOString() + '" data-id="hero-' + i + '">' +
-              '<div class="countdownItem"><span class="cdNum" id="hero-days-' + i + '">' + pad(remaining.days) + '</span><span class="cdLabel">Gün</span></div>' +
-              '<div class="countdownItem"><span class="cdNum" id="hero-hours-' + i + '">' + pad(remaining.hours) + '</span><span class="cdLabel">Saat</span></div>' +
-              '<div class="countdownItem"><span class="cdNum" id="hero-mins-' + i + '">' + pad(remaining.minutes) + '</span><span class="cdLabel">Dk</span></div>' +
-              '<div class="countdownItem"><span class="cdNum" id="hero-secs-' + i + '">' + pad(remaining.seconds) + '</span><span class="cdLabel">Sn</span></div>' +
-            '</div>' +
-          '</div>' +
-          '<div class="auctionCardFooter">' +
-            '<a href="#listingsSection" class="btnOutline">Araç Listesini Görüntüle</a>' +
-            '<a href="#" class="btnPrimary">Katıl</a>' +
-          '</div>' +
-        '</div>';
-    }
-
-    var container = document.getElementById('auctionCards');
-    if (container) container.innerHTML = cardsHtml;
-
-    // Update hero countdowns
-    var timers = document.querySelectorAll('.countdown[data-end]');
-    function tick() {
-      timers.forEach(function(el) {
-        var end = el.getAttribute('data-end');
-        if (!end) return;
-        var r = getRemaining(end);
-        var id = el.getAttribute('data-id') || '';
-        ['days', 'hours', 'minutes', 'seconds'].forEach(function(key, idx) {
-          var numEl = document.getElementById('hero-' + key + '-' + id.replace('hero-', ''));
-          if (numEl) numEl.textContent = pad(r[key]);
-        });
-        if (r.total <= 0) {
-          el.innerHTML = '<div class="countdownEnded">İhale başladı</div>';
-        }
-      });
-    }
-    setInterval(tick, 1000);
-  })();
-  </script>
 </body>
 </html>

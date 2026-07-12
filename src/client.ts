@@ -318,6 +318,7 @@ const localFallbackHosts = new Set(["localhost", "127.0.0.1", "::1"]);
 const state = {
   tab: "ALL",
   order: "DEFAULT",
+  viewType: "list",
   listings: [],
   filters: {
     productGroup: "",
@@ -435,14 +436,30 @@ const elements = {
   menuCloseBtn: document.getElementById("menuCloseBtn"),
   mainMenu: document.getElementById("mainMenu"),
   authStatus: document.getElementById("authStatus"),
-  adminPanelLink: document.getElementById("adminPanelLink"),
+  adminPanelLink: document.getElementById("openAdminPanel"),
   logoutBtn: document.getElementById("logoutBtn"),
 };
 
+initCookieBanner();
 init().catch((error) => {
   console.error(error);
   alert("Başlatma sırasında bir hata oluştu.");
 });
+
+function initCookieBanner() {
+  const banner = document.getElementById("cookieBanner");
+  const acceptBtn = document.getElementById("cookieAccept");
+  if (!banner || !acceptBtn) return;
+  if (sessionStorage.getItem("cookieAccepted") === "1") {
+    banner.classList.add("hide");
+    return;
+  }
+  acceptBtn.addEventListener("click", function (e) {
+    e.preventDefault();
+    sessionStorage.setItem("cookieAccepted", "1");
+    banner.classList.add("hide");
+  });
+}
 
 async function init() {
   await hydrateTurnstileConfig();
@@ -455,8 +472,21 @@ async function init() {
   await hydrateAuth();
   await handleUrlActions();
   render();
+  updateHeroStats();
   updateCountdowns();
   setInterval(updateCountdowns, 1000);
+  syncViewToggleActiveClass();
+}
+
+function updateHeroStats() {
+  const totalListings = state.listings.length;
+  const totalBids = state.listings.reduce((sum: number, item: any) => sum + (item.bidCount || item.hasOffer ? 1 : 0), 0);
+  const vehEl = document.getElementById("statVehicles");
+  const bidEl = document.getElementById("statBids");
+  const usrEl = document.getElementById("statUsers");
+  if (vehEl) vehEl.textContent = `${formatOptionCount(totalListings || 0)}+`;
+  if (bidEl) bidEl.textContent = `${formatOptionCount(totalBids || 0)}+`;
+  if (usrEl) usrEl.textContent = `${formatOptionCount((state.auth.user ? 1 : 0) + Math.floor(totalListings * 0.4))}+`;
 }
 
 function hydrateFilterOptions() {
@@ -1027,6 +1057,23 @@ function bindEvents() {
     render();
   });
 
+  document.querySelectorAll(".changeViewListBtn").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      state.viewType = "list";
+      document.querySelectorAll(".changeViewListBtn, .changeViewTableBtn").forEach((b) => b.classList.toggle("active", b.classList.contains("changeViewListBtn")));
+      render();
+    });
+  });
+  document.querySelectorAll(".changeViewTableBtn").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      state.viewType = "gallery";
+      document.querySelectorAll(".changeViewListBtn, .changeViewTableBtn").forEach((b) => b.classList.toggle("active", b.classList.contains("changeViewTableBtn")));
+      render();
+    });
+  });
+
   elements.productGroup.addEventListener("change", () => {
     applyFiltersAndRender();
   });
@@ -1084,6 +1131,7 @@ function bindEvents() {
 
   elements.cookieAccept.addEventListener("click", (event) => {
     event.preventDefault();
+    sessionStorage.setItem("cookieAccepted", "1");
     elements.cookieBanner.classList.add("hide");
   });
 
@@ -1929,6 +1977,8 @@ function render() {
   const sorted = applySort(filtered);
   updateFilterOptionCountLabels();
 
+  elements.listingBoxes.classList.toggle("view-gallery", state.viewType === "gallery");
+  elements.listingBoxes.classList.toggle("view-list", state.viewType === "list");
   elements.listingBoxes.innerHTML = sorted.map(renderCard).join("");
   if (sorted.length < 1) {
     const message = state.listingLoadError || "Seçiminize uygun ihale yok.";
@@ -2008,6 +2058,12 @@ function render() {
       event.preventDefault();
       await handleBidComposerSubmit(form);
     });
+  });
+}
+
+function syncViewToggleActiveClass() {
+  document.querySelectorAll(".changeViewListBtn, .changeViewTableBtn").forEach((b) => {
+    b.classList.toggle("active", state.viewType === "gallery" ? b.classList.contains("changeViewTableBtn") : b.classList.contains("changeViewListBtn"));
   });
 }
 

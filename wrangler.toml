@@ -2,6 +2,10 @@ name = "acik-teklif-pazari"
 main = "src/worker.ts"
 compatibility_date = "2025-02-14"
 
+routes = [
+  { pattern = "salonum.site", custom_domain = true }
+]
+
 [assets]
 directory = "public"
 binding = "ASSETS"

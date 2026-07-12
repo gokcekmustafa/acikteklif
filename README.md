@@ -1,4 +1,4 @@
-# Acik Teklif Pazari (Cloudflare + D1)
+# Kamutas (Cloudflare + D1)
 
 Bu proje statik arayuzun yaninda Cloudflare Worker + D1 ile calisan uyelik ve teklif API'si icerir.
 
@@ -42,15 +42,15 @@ npx wrangler login
 
 3. D1 veritabani olustur:
 ```bash
-npx wrangler d1 create acik-teklif-pazari-db
+npx wrangler d1 create kamutas-db
 ```
 
 4. Olusan `database_id` degerini `wrangler.toml` icine yaz.
 
 5. Migration calistir:
 ```bash
-npx wrangler d1 migrations apply acik-teklif-pazari-db --local
-npx wrangler d1 migrations apply acik-teklif-pazari-db --remote
+npx wrangler d1 migrations apply kamutas-db --local
+npx wrangler d1 migrations apply kamutas-db --remote
 ```
 
 6. Session secret ekle:
