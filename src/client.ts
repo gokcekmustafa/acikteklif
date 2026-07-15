@@ -12,7 +12,7 @@ const API_BASE = "";
 const PRIMARY_APP_ORIGIN = "https://acik-teklif-pazari.gokcek.workers.dev";
 const PERMISSION_ADMIN_PANEL_ACCESS = "admin.panel.access";
 const PERMISSION_BIDS_PLACE = "bids.place";
-const ONLY_AUTOMOBILE_MODE = true;
+const ONLY_AUTOMOBILE_MODE = false;
 const AUTOMOBILE_PRODUCT_GROUP = "Vasıta";
 const AUTOMOBILE_CATEGORY = "Otomobil";
 const DEFAULT_TURKEY_CITIES = [
@@ -345,6 +345,7 @@ const state = {
   auth: {
     user: null,
     requireEmailVerification: false,
+    hasActiveMembership: false,
   },
   turnstile: {
     siteKey: META_TURNSTILE_SITE_KEY || "",
@@ -462,14 +463,25 @@ function initCookieBanner() {
 }
 
 async function init() {
+  bindEvents();
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted && state.listings.length > 0) {
+      render();
+      updateCountdowns();
+      return;
+    }
+    if (event.persisted) {
+      location.reload();
+    }
+  });
   await hydrateTurnstileConfig();
   await initTurnstile();
-  await loadListings();
-  await loadFilterOptions();
+  await Promise.all([
+    loadInitialData(),
+    hydrateAuth(),
+  ]);
   hydrateFilterOptions();
   applyInitialFilters();
-  bindEvents();
-  await hydrateAuth();
   await handleUrlActions();
   render();
   updateHeroStats();
@@ -507,7 +519,7 @@ function hydrateFilterOptions() {
     }
   }
 
-  const categoryValues = state.filterOptions.categories;
+  const categoryValues = getFilteredCategoryOptions(String(elements.productGroup.value || ""));
   refillSelect(elements.category, categoryValues, LABEL_ALL_CATEGORIES);
   const matchedCategory = findMatchingOptionValue(categoryValues, previousCategory);
   elements.category.value = matchedCategory || "";
@@ -525,6 +537,14 @@ function hydrateFilterOptions() {
   elements.vehicleBrand.value = matchedBrand || "";
   refreshVehicleModelOptions(previousModel);
   updateFilterOptionCountLabels();
+}
+
+function getFilteredCategoryOptions(selectedGroup) {
+  if (!selectedGroup) return state.filterOptions.categories || [];
+  const byGroup = state.filterOptions.categoriesByGroup || {};
+  const groupCategories = byGroup[selectedGroup];
+  if (groupCategories && groupCategories.length > 0) return groupCategories;
+  return [];
 }
 
 function refreshDistrictOptions(preferredDistrict = "") {
@@ -678,6 +698,23 @@ function refillSelect(selectElement, values, placeholder) {
   fillSelect(selectElement, values);
 }
 
+async function loadInitialData() {
+  state.listingLoadError = "";
+  let apiFailed = false;
+  try {
+    const data = await apiFetch("/api/initial-data");
+    const items = Array.isArray(data.items) ? data.items : [];
+    state.listings = enforceListingScope(items.map((item, index) => toListingModel(item, index)));
+    applyFilterOptionsPayload(data.filterOptions);
+    return;
+  } catch (error) {
+    apiFailed = true;
+    console.warn("Initial data fetch failed, falling back to individual endpoints.", error);
+  }
+  await loadListings();
+  await loadFilterOptions();
+}
+
 async function loadListings() {
   state.listingLoadError = "";
   let apiFailed = false;
@@ -745,9 +782,18 @@ function applyFilterOptionsPayload(data) {
   const districts = uniqueTextList([...districtsFromApi, ...districtsFromMap]);
   const vehicleFilters = buildVehicleFilterOptions();
 
+  const sortedProductGroups = [...(productGroups.length > 0 ? productGroups : uniqueValues("productGroup"))].sort((a, b) => a.localeCompare(b, "tr"));
+  const sortedCategories = [...(categories.length > 0 ? categories : uniqueValues("category"))].sort((a, b) => a.localeCompare(b, "tr"));
+  const catByGroup: Record<string, string[]> = {};
+  const rawByGroup = options.categoriesByGroup || {};
+  for (const key of Object.keys(rawByGroup)) {
+    catByGroup[key] = [...(rawByGroup[key] || [])].sort((a, b) => a.localeCompare(b, "tr"));
+  }
+
   state.filterOptions = {
-    productGroups: productGroups.length > 0 ? productGroups : uniqueValues("productGroup"),
-    categories: categories.length > 0 ? categories : uniqueValues("category"),
+    productGroups: sortedProductGroups,
+    categories: sortedCategories,
+    categoriesByGroup: catByGroup,
     cities,
     districts: districts.length > 0 ? districts : uniqueValues("district"),
     neighborhoods: neighborhoods.length > 0 ? neighborhoods : uniqueValues("neighborhood"),
@@ -938,6 +984,14 @@ function toListingModel(item, index) {
   const vehicleModelDetail = String(item?.vehicle_model_detail || item?.vehicleModelDetail || "");
   const vehicleYear = Number(item?.vehicle_year || item?.vehicleYear || 0);
   const vehicleKm = Number(item?.vehicle_km || item?.vehicleKm || 0);
+  const machineBrand = String(item?.machine_brand || item?.machineBrand || "");
+  const machineModel = String(item?.machine_model || item?.machineModel || "");
+  const machineYear = Number(item?.machine_year || item?.machineYear || 0);
+  const machineHours = Number(item?.machine_hours || item?.machineHours || 0);
+  const machineType = String(item?.machine_type || item?.machineType || "");
+  const machineWeight = Number(item?.machine_weight || item?.machineWeight || 0);
+  const machinePower = String(item?.machine_power || item?.machinePower || "");
+  const machineAttrsJson = String(item?.machine_attrs_json || item?.machineAttrsJson || "");
   const detailUrl = buildAuctionDetailUrl(lotNo || fallback.lotNo || `LOT${String(index + 1).padStart(3, "0")}`);
   const isNewExplicit = readBooleanValue(item?.is_new, item?.isNew, item?.new);
   const isNewComputed = isWithinLastDays(createdAt, NEW_LISTING_WINDOW_DAYS);
@@ -973,6 +1027,14 @@ function toListingModel(item, index) {
     vehicleModelDetail,
     vehicleYear: Number.isFinite(vehicleYear) && vehicleYear > 0 ? vehicleYear : null,
     vehicleKm: Number.isFinite(vehicleKm) && vehicleKm >= 0 ? vehicleKm : null,
+    machineBrand,
+    machineModel,
+    machineYear: Number.isFinite(machineYear) && machineYear > 0 ? machineYear : null,
+    machineHours: Number.isFinite(machineHours) && machineHours >= 0 ? machineHours : null,
+    machineType,
+    machineWeight: Number.isFinite(machineWeight) && machineWeight > 0 ? machineWeight : null,
+    machinePower,
+    machineAttrsJson,
     isFavorite,
     isAutoBidEnabled,
     autoBidMax: Number.isFinite(autoBidMax) ? autoBidMax : null,
@@ -1075,6 +1137,12 @@ function bindEvents() {
   });
 
   elements.productGroup.addEventListener("change", () => {
+    const selectedGroup = String(elements.productGroup.value || "");
+    const categoryValues = getFilteredCategoryOptions(selectedGroup);
+    refillSelect(elements.category, categoryValues, LABEL_ALL_CATEGORIES);
+    if (categoryValues.length === 1) {
+      elements.category.value = categoryValues[0];
+    }
     applyFiltersAndRender();
   });
 
@@ -1285,6 +1353,83 @@ function bindEvents() {
     render();
   });
 
+  elements.listingBoxes.addEventListener("click", async (event) => {
+    const target = event.target;
+    const favoriteBtn = target.closest(".favoriteToggle") as HTMLElement | null;
+    if (favoriteBtn) {
+      event.preventDefault();
+      await handleFavoriteToggle(favoriteBtn);
+      return;
+    }
+    const bidBtn = target.closest(".bidBtn") as HTMLElement | null;
+    if (bidBtn) {
+      event.preventDefault();
+      await toggleBidComposer(bidBtn);
+      return;
+    }
+    const cancelBtn = target.closest(".bidComposerCancelBtn") as HTMLElement | null;
+    if (cancelBtn) {
+      event.preventDefault();
+      closeBidComposer();
+      render();
+      return;
+    }
+    const backdrop = target.closest(".bidComposerBackdrop") as HTMLElement | null;
+    if (backdrop) {
+      event.preventDefault();
+      closeBidComposer();
+      render();
+      return;
+    }
+  });
+
+  elements.listingBoxes.addEventListener("change", async (event) => {
+    const target = event.target as HTMLElement;
+    const autoToggle = target.closest(".bidComposerAutoToggle") as HTMLInputElement | null;
+    if (autoToggle) {
+      const form = autoToggle.closest(".bidComposerForm") as HTMLFormElement | null;
+      const lotNo = normalizeLotNoKey(form?.dataset?.lotNo || state.bidComposer.lotNo || "");
+      const amountInput = form?.querySelector(".bidComposerAmount") as HTMLInputElement | null;
+      const autoMaxInput = form?.querySelector(".bidComposerAutoMax") as HTMLInputElement | null;
+      state.bidComposer.amount = String(amountInput?.value || state.bidComposer.amount || "").trim();
+      state.bidComposer.autoMax = String(autoMaxInput?.value || state.bidComposer.autoMax || "").trim();
+      state.bidComposer.autoEnabled = autoToggle.checked === true;
+      render();
+      if (autoToggle.checked && lotNo) {
+        requestAnimationFrame(() => {
+          const activeForm = elements.listingBoxes.querySelector(
+            `.bidComposerForm[data-lot-no="${lotNo}"]`
+          ) as HTMLFormElement | null;
+          const nextInput = activeForm?.querySelector(".bidComposerAutoMax") as HTMLInputElement | null;
+          nextInput?.focus();
+        });
+      }
+      return;
+    }
+  });
+
+  elements.listingBoxes.addEventListener("input", (event) => {
+    const target = event.target as HTMLElement;
+    const amountInput = target.closest(".bidComposerAmount") as HTMLInputElement | null;
+    if (amountInput) {
+      state.bidComposer.amount = String(amountInput.value || "").trim();
+      return;
+    }
+    const autoMaxInput = target.closest(".bidComposerAutoMax") as HTMLInputElement | null;
+    if (autoMaxInput) {
+      state.bidComposer.autoMax = String(autoMaxInput.value || "").trim();
+      return;
+    }
+  });
+
+  elements.listingBoxes.addEventListener("submit", async (event) => {
+    const form = event.target as HTMLElement;
+    if (form.closest(".bidComposerForm")) {
+      event.preventDefault();
+      await handleBidComposerSubmit(form as HTMLFormElement);
+    }
+  });
+
   elements.favoritesRows.addEventListener("click", async (event) => {
     const button = event.target.closest("button[data-action='remove-favorite']");
     if (!button) return;
@@ -1346,14 +1491,26 @@ function bindEvents() {
     event.preventDefault();
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
+
+  [elements.registerPhone, elements.profilePhone].forEach((el) => {
+    if (!el) return;
+    el.addEventListener("input", () => {
+      el.value = formatPhone(el.value);
+    });
+    el.addEventListener("blur", () => {
+      el.value = formatPhone(el.value) || String(el.value || "").replace(/\D/g, "").slice(0, 10);
+    });
+  });
 }
 
 async function hydrateAuth() {
   try {
     const data = await apiFetch("/api/auth/me");
     state.auth.user = data.authenticated ? data.user : null;
+    state.auth.hasActiveMembership = data.hasActiveMembership === true;
   } catch {
     state.auth.user = null;
+    state.auth.hasActiveMembership = false;
   }
   if (state.auth.user) {
     await syncFavoriteFlagsFromServer();
@@ -1427,7 +1584,7 @@ async function handleLogin() {
 async function handleRegister() {
   const name = elements.registerName.value.trim();
   const tcIdentityNo = elements.registerIdentityNo.value.trim();
-  const phone = elements.registerPhone.value.trim();
+  const phone = String(elements.registerPhone.value || "").replace(/\D/g, "");
   const address = elements.registerAddress.value.trim();
   const email = elements.registerEmail.value.trim();
   const password = elements.registerPassword.value;
@@ -1441,25 +1598,30 @@ async function handleRegister() {
     return;
   }
 
+  const accountTypeRadio = document.querySelector('input[name="accountType"]:checked') as HTMLInputElement | null;
+  const accountType = accountTypeRadio?.value || "";
+  if (!accountType || (accountType !== "bireysel" && accountType !== "ticari")) {
+    setHint(elements.registerFormHint, "Hesap türü (Bireysel/Ticari) seçilmelidir.", "error");
+    return;
+  }
+
+  const agreementCheckbox = document.getElementById("registerAgreement") as HTMLInputElement | null;
+  if (!agreementCheckbox || !agreementCheckbox.checked) {
+    setHint(elements.registerFormHint, "Üyelik sözleşmesini kabul etmelisiniz.", "error");
+    return;
+  }
+
   try {
     const turnstileToken = await getTurnstileToken("register", state.turnstile.required);
     const data = await apiFetch("/api/auth/register", {
       method: "POST",
-      body: { name, tcIdentityNo, phone, address, email, password, turnstileToken },
+      body: { name, tcIdentityNo, phone, address, email, password, turnstileToken, acceptedAgreement: true, accountType },
     });
 
-    await hydrateAuth();
-    setHint(elements.registerFormHint, data.message || "Kayıt başarılı.", "success");
-    if (data.debugVerifyToken) {
-      setHint(
-        elements.registerFormHint,
-        `Kayıt başarılı. Doğrulama tokeni: ${data.debugVerifyToken}`,
-        "success"
-      );
-    }
-    elements.registerForm.reset();
-    resetTurnstile("register");
-    closeAuthModals();
+    const naText = elements.registerForm.parentElement?.querySelector(".naText") as HTMLElement | null;
+    if (naText) naText.style.display = "none";
+    elements.registerForm.innerHTML = `<div class="registerSuccess"><i class="fas fa-check-circle" style="font-size:3rem;color:#22c55e;display:block;margin:0 auto 1rem;text-align:center"></i><p style="text-align:center;font-size:1.1rem">${escapeHtml(data.message || "Üyelik başvurunuz alınmıştır. En kısa sürede onay süreci tamamlanacaktır.")}</p></div>`;
+    setHint(elements.registerFormHint, "", "");
   } catch (error) {
     resetTurnstile("register");
     setHint(elements.registerFormHint, error.message, "error");
@@ -1474,7 +1636,7 @@ async function openProfileEditor() {
     const profile = data.profile || {};
     elements.profileName.value = String(profile.name || state.auth.user?.name || "");
     elements.profileIdentityNo.value = String(profile.tcIdentityNo || "");
-    elements.profilePhone.value = String(profile.phone || "");
+    elements.profilePhone.value = formatPhone(profile.phone || "");
     elements.profileAddress.value = String(profile.address || "");
     elements.profileEmail.value = String(profile.email || state.auth.user?.email || "");
     setHint(elements.profileFormHint, "", "");
@@ -1486,7 +1648,7 @@ async function openProfileEditor() {
 async function handleProfileSave() {
   const name = elements.profileName.value.trim();
   const tcIdentityNo = elements.profileIdentityNo.value.trim();
-  const phone = elements.profilePhone.value.trim();
+  const phone = String(elements.profilePhone.value || "").replace(/\D/g, "");
   const address = elements.profileAddress.value.trim();
 
   if (!name || !tcIdentityNo || !phone || !address) {
@@ -1712,31 +1874,62 @@ async function handleFavoriteToggle(button) {
   }
 }
 
+async function toggleFavoriteOptimistic(lotNo) {
+  const key = normalizeLotNoKey(lotNo);
+  if (!key) return;
+  const listing = state.listings.find((l) => normalizeLotNoKey(l.lotNo) === key);
+  if (listing) {
+    listing.isFavorite = !listing.isFavorite;
+    if (listing.isFavorite) {
+      state.favoriteLotNoSet.add(key);
+    } else {
+      state.favoriteLotNoSet.delete(key);
+    }
+  }
+  const btn = elements.listingBoxes.querySelector(`.favoriteToggle[data-lot-no="${CSS.escape(key)}"]`);
+  if (btn) {
+    btn.classList.toggle("isActive", listing?.isFavorite ?? false);
+    btn.textContent = listing?.isFavorite ? "Favorilerden Çıkar" : "Favorilere Ekle";
+    btn.setAttribute("aria-label", listing?.isFavorite ? "Favorilerden çikar" : "Favorilere ekle");
+  }
+}
+
 async function addFavorite(lotNo) {
   const key = normalizeLotNoKey(lotNo);
   if (!key) return;
-  const data = await apiFetch("/api/auth/favorites", {
-    method: "POST",
-    body: { lotNo: key },
-  });
-  await refreshFavoritesList();
-  render();
-  if (elements.favoritesModal.classList.contains("open")) {
-    renderFavoritesModal();
+  await toggleFavoriteOptimistic(lotNo);
+  try {
+    const data = await apiFetch("/api/auth/favorites", {
+      method: "POST",
+      body: { lotNo: key },
+    });
+    if (elements.favoritesModal.classList.contains("open")) {
+      await refreshFavoritesList();
+      renderFavoritesModal();
+    }
+    setHint(elements.loginFormHint, data.message || "Favorilere eklendi.", "success");
+  } catch (error) {
+    await toggleFavoriteOptimistic(lotNo);
+    alert(error.message || "Favori eklenemedi.");
   }
-  setHint(elements.loginFormHint, data.message || "Favorilere eklendi.", "success");
 }
 
 async function removeFavorite(lotNo, keepModalOpen = false) {
   const key = normalizeLotNoKey(lotNo);
   if (!key) return;
-  const data = await apiFetch(`/api/auth/favorites/${encodeURIComponent(key)}`, { method: "DELETE" });
-  await refreshFavoritesList();
-  render();
-  if (keepModalOpen || elements.favoritesModal.classList.contains("open")) {
-    renderFavoritesModal();
+  const previousState = state.favoriteLotNoSet.has(key);
+  await toggleFavoriteOptimistic(lotNo);
+  try {
+    const data = await apiFetch(`/api/auth/favorites/${encodeURIComponent(key)}`, { method: "DELETE" });
+    if (keepModalOpen || elements.favoritesModal.classList.contains("open")) {
+      await refreshFavoritesList();
+      renderFavoritesModal();
+    }
+    setHint(elements.loginFormHint, data.message || "Favorilerden kaldirildi.", "success");
+  } catch (error) {
+    await toggleFavoriteOptimistic(lotNo);
+    alert(error.message || "Favori kaldirilamadi.");
   }
-  setHint(elements.loginFormHint, data.message || "Favorilerden kaldirildi.", "success");
 }
 
 async function handleForgotPassword() {
@@ -1985,80 +2178,6 @@ function render() {
     elements.emptyState.innerHTML = `<i class="fas fa-circle-info"></i> ${escapeHtml(message)}`;
   }
   elements.emptyState.classList.toggle("hide", sorted.length > 0);
-
-  elements.listingBoxes.querySelectorAll(".bidBtn").forEach((button) => {
-    button.addEventListener("click", async (event) => {
-      event.preventDefault();
-      await toggleBidComposer(button);
-    });
-  });
-
-  elements.listingBoxes.querySelectorAll(".favoriteToggle").forEach((button) => {
-    button.addEventListener("click", async (event) => {
-      event.preventDefault();
-      await handleFavoriteToggle(button);
-    });
-  });
-
-  elements.listingBoxes.querySelectorAll(".bidComposerCancelBtn").forEach((button) => {
-    button.addEventListener("click", async (event) => {
-      event.preventDefault();
-      closeBidComposer();
-      render();
-    });
-  });
-
-  elements.listingBoxes.querySelectorAll(".bidComposerBackdrop").forEach((button) => {
-    button.addEventListener("click", async (event) => {
-      event.preventDefault();
-      closeBidComposer();
-      render();
-    });
-  });
-
-  elements.listingBoxes.querySelectorAll(".bidComposerAutoToggle").forEach((input) => {
-    input.addEventListener("change", () => {
-      const target = input as HTMLInputElement;
-      const form = target.closest(".bidComposerForm") as HTMLFormElement | null;
-      const lotNo = normalizeLotNoKey(form?.dataset?.lotNo || state.bidComposer.lotNo || "");
-      const amountInput = form?.querySelector(".bidComposerAmount") as HTMLInputElement | null;
-      const autoMaxInput = form?.querySelector(".bidComposerAutoMax") as HTMLInputElement | null;
-      state.bidComposer.amount = String(amountInput?.value || state.bidComposer.amount || "").trim();
-      state.bidComposer.autoMax = String(autoMaxInput?.value || state.bidComposer.autoMax || "").trim();
-      state.bidComposer.autoEnabled = target.checked === true;
-      render();
-      if (target.checked && lotNo) {
-        requestAnimationFrame(() => {
-          const activeForm = elements.listingBoxes.querySelector(
-            `.bidComposerForm[data-lot-no="${lotNo}"]`
-          ) as HTMLFormElement | null;
-          const nextInput = activeForm?.querySelector(".bidComposerAutoMax") as HTMLInputElement | null;
-          nextInput?.focus();
-        });
-      }
-    });
-  });
-
-  elements.listingBoxes.querySelectorAll(".bidComposerAmount").forEach((input) => {
-    input.addEventListener("input", () => {
-      const target = input as HTMLInputElement;
-      state.bidComposer.amount = String(target.value || "").trim();
-    });
-  });
-
-  elements.listingBoxes.querySelectorAll(".bidComposerAutoMax").forEach((input) => {
-    input.addEventListener("input", () => {
-      const target = input as HTMLInputElement;
-      state.bidComposer.autoMax = String(target.value || "").trim();
-    });
-  });
-
-  elements.listingBoxes.querySelectorAll(".bidComposerForm").forEach((form) => {
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      await handleBidComposerSubmit(form);
-    });
-  });
 }
 
 function syncViewToggleActiveClass() {
@@ -2145,20 +2264,29 @@ function renderCard(item) {
   const minimumBid = (item.lastBid ?? item.startPrice) + Number(item.minIncrement || guessIncrement(item));
   const bidButtonText = isEnded ? "SONUCLANDI" : "TEKLIF VER";
   const bidButtonAttrs = isEnded ? 'disabled aria-disabled="true"' : "";
-  const vehicleBits = [item.vehicleBrand, item.vehicleModel, item.vehicleYear ? String(item.vehicleYear) : "", item.vehicleKm ? `${item.vehicleKm} km` : ""]
-    .filter(Boolean)
-    .join(" • ");
-  const vehicleDetailLine = [item.vehicleModelDetail].filter(Boolean).join(" • ");
-  const vehicleHtml =
-    vehicleBits || vehicleDetailLine
-      ? `<div class="location"><i class="fas fa-car-side"></i> <span>${escapeHtml(
-          [vehicleBits, vehicleDetailLine].filter(Boolean).join(" | ")
-        )}</span></div>`
-      : "";
+  const isMachineItem = item.productGroup === "İş Makineleri";
+  let vehicleHtml = "";
+  if (isMachineItem) {
+    const machineBits = [item.machineBrand, item.machineModel, item.machineYear ? String(item.machineYear) : "", item.machineHours ? `${item.machineHours} saat` : ""]
+      .filter(Boolean)
+      .join(" • ");
+    if (machineBits) {
+      vehicleHtml = `<div class="location"><i class="fas fa-tractor"></i> <span>${escapeHtml(machineBits)}</span></div>`;
+    }
+  } else {
+    const vehicleBits = [item.vehicleBrand, item.vehicleModel, item.vehicleYear ? String(item.vehicleYear) : "", item.vehicleKm ? `${item.vehicleKm} km` : ""]
+      .filter(Boolean)
+      .join(" • ");
+    const vehicleDetailLine = [item.vehicleModelDetail].filter(Boolean).join(" • ");
+    if (vehicleBits || vehicleDetailLine) {
+      vehicleHtml = `<div class="location"><i class="fas fa-car-side"></i> <span>${escapeHtml(
+        [vehicleBits, vehicleDetailLine].filter(Boolean).join(" | ")
+      )}</span></div>`;
+    }
+  }
   const favoriteActive = item.isFavorite === true;
-  const favoriteIconClass = favoriteActive ? "fas fa-heart" : "far fa-heart";
   const favoriteButtonClass = favoriteActive ? "favoriteToggle isActive" : "favoriteToggle";
-  const favoriteAriaLabel = favoriteActive ? "Favorilerden kaldir" : "Favorilere ekle";
+  const favoriteLabel = favoriteActive ? "Favorilerden Çıkar" : "Favorilere Ekle";
   const composerActive = state.bidComposer.lotNo === normalizeLotNoKey(item.lotNo) && !isEnded;
   const composerAmount =
     composerActive && String(state.bidComposer.amount || "").trim()
@@ -2179,18 +2307,17 @@ function renderCard(item) {
     <div class="box1 imgWrap">
       <div class="iContent">
         <div class="imgHead">
-          <h3 class="reNo">No: <span>${escapeHtml(item.lotNo)}</span></h3>
-          <button class="${favoriteButtonClass}" type="button" data-lot-no="${escapeHtml(item.lotNo)}" aria-label="${favoriteAriaLabel}">
-            <i class="${favoriteIconClass}"></i>
-          </button>
           <a href="${escapeHtml(item.detailUrl || buildAuctionDetailUrl(item.lotNo))}" class="mainImg">
             <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}">
           </a>
         </div>
         <div class="reInfo">
-          <a href="${escapeHtml(item.detailUrl || buildAuctionDetailUrl(item.lotNo))}" class="headline">
-            <h1><span>${escapeHtml(item.title)} (${escapeHtml(item.lotNo)})</span></h1>
-          </a>
+          <div class="reInfoTop">
+            <a href="${escapeHtml(item.detailUrl || buildAuctionDetailUrl(item.lotNo))}" class="headline">
+              <h1><span>${escapeHtml(item.title)} (${escapeHtml(item.lotNo)})</span></h1>
+            </a>
+            <button class="${favoriteButtonClass}" type="button" data-lot-no="${escapeHtml(item.lotNo)}" aria-label="${favoriteLabel}">${favoriteLabel}</button>
+          </div>
           <div class="location"><i class="fas fa-map-marker-alt"></i> <span>${escapeHtml(item.city || "-")}</span></div>
           <h2 class="type"><i class="far fa-car"></i> <span>${escapeHtml(`${item.productGroup} / ${item.category}`)}</span></h2>
           ${vehicleHtml}
@@ -2617,6 +2744,7 @@ async function apiFetch(path, options = {}) {
 async function initTurnstile() {
   const siteKey = String(state.turnstile.siteKey || "").trim();
   if (!siteKey) return;
+  if (!state.turnstile.required) return;
   if (!elements.loginTurnstile || !elements.registerTurnstile) return;
 
   const turnstile = await waitForTurnstile(6000);
@@ -2703,6 +2831,18 @@ function resetTurnstile(kind) {
     state.turnstile.registerToken = "";
     window.turnstile.reset(state.turnstile.registerWidgetId);
   }
+}
+
+function formatPhone(raw) {
+  let digits = String(raw || "").replace(/\D/g, "").replace(/^90/, "");
+  if (digits.startsWith("0")) digits = digits.slice(1);
+  digits = digits.slice(0, 10);
+  if (digits.length < 1) return "";
+  let result = "0 (" + digits.slice(0, 3);
+  if (digits.length > 3) result += ") " + digits.slice(3, 6);
+  if (digits.length > 6) result += " " + digits.slice(6, 8);
+  if (digits.length > 8) result += " " + digits.slice(8, 10);
+  return result;
 }
 
 function sleep(ms) {

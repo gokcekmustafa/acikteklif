@@ -36,6 +36,7 @@
           <button class="tabBtn active" data-tab="users"><i class="fas fa-users"></i> Kullanıcı Yönetimi</button>
           <button class="tabBtn" data-tab="catalog"><i class="fas fa-layer-group"></i> Ürün Kategori</button>
           <button class="tabBtn" data-tab="auctions"><i class="fas fa-gavel"></i> İhale Yönetimi</button>
+          <button class="tabBtn" data-tab="membership-plans"><i class="fas fa-crown"></i> Üyelik Paketleri</button>
           <button class="tabBtn" data-tab="reports"><i class="fas fa-chart-column"></i> Raporlar</button>
           <button class="tabBtn" data-tab="settings"><i class="fas fa-sliders"></i> Sistem Ayarları</button>
           <button class="tabBtn" data-tab="logs"><i class="fas fa-clipboard-list"></i> Denetim Kayıtları</button>
@@ -48,6 +49,7 @@
           <div class="card"><div class="label">Toplam Kullanıcı</div><div class="value" id="statTotalUsers">0</div></div>
           <div class="card"><div class="label">Admin / Yönetici</div><div class="value" id="statManagers">0</div></div>
           <div class="card"><div class="label">Pasif Kullanıcı</div><div class="value" id="statDisabledUsers">0</div></div>
+          <div class="card"><div class="label">Onay Bekleyen</div><div class="value" id="statPendingUsers">0</div></div>
           <div class="card"><div class="label">Ürün Grubu</div><div class="value" id="statGroups">0</div></div>
           <div class="card"><div class="label">Kategori</div><div class="value" id="statCategories">0</div></div>
           <div class="card"><div class="label">İhale</div><div class="value" id="statAuctions">0</div></div>
@@ -473,6 +475,51 @@
                 </label>
               </div>
 
+              <div class="formSection hide" id="auctionMachineSection">
+                <h4>İş Makinesi Bilgileri</h4>
+                <div class="row3">
+                  <label class="fieldWrap">
+                    <span>Marka</span>
+                    <select id="auctionMachineBrandInput">
+                      <option value="">Marka seçiniz</option>
+                    </select>
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Model</span>
+                    <input id="auctionMachineModelInput" type="text" placeholder="Örn: PC300-8">
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Model Yılı</span>
+                    <input id="auctionMachineYearInput" type="number" min="1950" max="2100" placeholder="Örn: 2020">
+                  </label>
+                </div>
+                <div class="row3">
+                  <label class="fieldWrap">
+                    <span>Çalışma Saati</span>
+                    <input id="auctionMachineHoursInput" type="number" min="0" step="1" placeholder="Örn: 8500">
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Paletli / Lastikli</span>
+                    <select id="auctionMachineTypeInput">
+                      <option value="">Seçiniz</option>
+                      <option value="Paletli">Paletli</option>
+                      <option value="Lastikli">Lastikli</option>
+                    </select>
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Ağırlık (ton)</span>
+                    <input id="auctionMachineWeightInput" type="number" min="0" step="0.1" placeholder="Örn: 25.5">
+                  </label>
+                </div>
+                <div class="row3">
+                  <label class="fieldWrap">
+                    <span>Motor Gücü</span>
+                    <input id="auctionMachinePowerInput" type="text" placeholder="Örn: 180 kW / 245 hp">
+                  </label>
+                </div>
+                <div id="auctionMachineExtraFields" class="machineExtraFields"></div>
+              </div>
+
               <div class="uploadBlock">
                 <div class="uploadHead">
                   <strong>Araç Görselleri Yukle</strong>
@@ -589,6 +636,13 @@
           </article>
         </section>
 
+        <section class="panel hide" id="panelMembershipPlans">
+          <article class="panelCard">
+            <h3>Üyelik Paketleri</h3>
+            <div id="membershipPlansEditor"></div>
+          </article>
+        </section>
+
         <section class="panel hide" id="panelReports">
           <article class="panelCard">
             <h3>Raporlar</h3>
@@ -623,6 +677,11 @@
                 <button class="miniBtn" type="button" id="filterOrderResetBtn">Varsayilan Listeyi Getir</button>
               </div>
             </form>
+          </article>
+          <article class="panelCard" id="membershipPlansSection">
+            <h3>Üyelik Paketleri</h3>
+            <div id="membershipPlansList"></div>
+            <button class="miniBtn" type="button" id="addMembershipPlanBtn"><i class="fas fa-plus"></i> Paket Ekle</button>
           </article>
         </section>
 

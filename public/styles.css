@@ -128,6 +128,15 @@ button { cursor: pointer; border: 0; background: none; }
 }
 .profileForm input[readonly] { background: #edf2f6; color: #627688; cursor: not-allowed; }
 .turnstileSlot { width: 100%; min-height: 40px; margin-top: 4px; }
+.agreementCheckbox { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.agreementCheckbox input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; }
+.agreementCheckbox a { color: var(--primary); text-decoration: underline; }
+.agreementCheckbox a:hover { color: var(--primary-hover); }
+
+.accountTypeGroup { display: grid; gap: 4px; }
+.accountTypeLabel { font-size: 12px; font-weight: 700; color: var(--muted); }
+.accountTypeRadio { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.accountTypeRadio input[type="radio"] { accent-color: var(--primary-hover); }
 .formHint { margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 18px; }
 .formHint.error { color: var(--danger); }
 .formHint.success { color: #1f7a3f; }
@@ -323,7 +332,7 @@ button { cursor: pointer; border: 0; background: none; }
   transition: all 0.2s;
 }
 .heroBtn:hover { filter: brightness(1.08); transform: translateY(-1px); }
-.navToggle { display: none; font-size: 24px; color: var(--text); padding: 8px; }
+.navClose { display: none; } .turnstileSlot:empty { display: none; } .navToggle { display: none; font-size: 24px; color: var(--text); padding: 8px; }
 
 /* HERO SECTION */
 .hero {
@@ -523,9 +532,11 @@ button { cursor: pointer; border: 0; background: none; }
 .vehicleGrid.view-gallery .iContent { flex-direction: column; align-items: stretch; }
 .vehicleGrid.view-gallery .imgHead { width: 100%; height: 150px; }
 .vehicleGrid.view-gallery .reInfo { min-height: unset; border-right: 0; border-bottom: 1px solid #e2eaf0; padding: 12px 14px; }
+.vehicleGrid.view-gallery .reInfoTop { flex-wrap: wrap; }
 .vehicleGrid.view-gallery .reInfo .headline h1 { font-size: 14px; }
 .vehicleGrid.view-gallery .reInfo .location { margin-bottom: 6px; }
 .vehicleGrid.view-gallery .reInfo .type { margin-bottom: 6px; }
+.vehicleGrid.view-gallery .favoriteToggle { font-size: 11px; padding: 3px 10px; }
 .vehicleGrid.view-gallery .addBid { width: 100%; min-height: unset; flex-direction: row; padding: 12px 14px; }
 .vehicleGrid.view-gallery .addBid .adTopLine { margin-bottom: 0; width: auto; }
 .vehicleGrid.view-gallery .addBid .adBottomLine { width: auto; }
@@ -557,16 +568,18 @@ button { cursor: pointer; border: 0; background: none; }
   border: 1px solid rgba(255, 255, 255, 0.22); color: #f2f8fd;
   letter-spacing: 0.15px; font-weight: 500;
 }
+.vehicleGrid .reInfoTop { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
+.vehicleGrid .reInfoTop .headline { flex: 1; margin-bottom: 0; min-width: 0; }
 .vehicleGrid .favoriteToggle {
-  position: absolute; top: 10px; right: 10px; z-index: 2;
-  width: 34px; height: 34px; border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  background: rgba(8, 20, 33, 0.72); color: #eaf2f9;
-  display: inline-flex; align-items: center; justify-content: center;
-  cursor: pointer; font-size: 15px;
+  flex-shrink: 0; white-space: nowrap; font-size: 12px; font-weight: 600; padding: 5px 12px;
+  border-radius: 8px; border: 1px solid var(--border); background: var(--panel);
+  color: var(--primary); cursor: pointer; line-height: 1.4; margin-top: 2px;
 }
-.vehicleGrid .favoriteToggle:hover { background: rgba(10, 37, 61, 0.9); }
-.vehicleGrid .favoriteToggle.isActive { color: #ff7a8f; border-color: rgba(255, 122, 143, 0.7); background: rgba(36, 13, 23, 0.78); }
+.vehicleGrid .favoriteToggle:hover { background: var(--soft); border-color: var(--primary); }
+.vehicleGrid .favoriteToggle.isActive {
+  background: var(--primary); color: #fff; border-color: var(--primary);
+}
+.vehicleGrid .favoriteToggle.isActive:hover { filter: brightness(1.1); }
 .vehicleGrid .reInfo {
   flex: 1; min-height: 214px; display: flex; flex-direction: column;
   justify-content: space-evenly; border-right: 1px solid #e2eaf0; padding: 16px;

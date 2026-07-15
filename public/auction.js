@@ -82,6 +82,8 @@ const state = {
     activeTab: "basic",
     vehicleConditionLayout: createDefaultVehicleConditionLayout(),
     vehicleConditionScale: VEHICLE_CONDITION_SCALE_DEFAULT,
+    accessDenied: false,
+    accessDeniedMessage: "",
 };
 const elements = {
     auctionTitle: document.getElementById("auctionTitle"),
@@ -99,10 +101,7 @@ const elements = {
     expertiseMechanicalList: document.getElementById("expertiseMechanicalList"),
     documentFiles: document.getElementById("documentFiles"),
 };
-init().catch((error) => {
-    console.error(error);
-    showPageError(error?.message || "Sayfa yüklenemedi.");
-});
+init();
 async function init() {
     state.lotNo = resolveLotNoFromUrl();
     if (!state.lotNo) {
@@ -110,7 +109,18 @@ async function init() {
         return;
     }
     bindEvents();
-    await loadAuctionDetail();
+    try {
+        await loadAuctionDetail();
+    }
+    catch (error) {
+        console.error(error);
+        showPageError(error?.message || "Sayfa yüklenemedi.");
+        return;
+    }
+    if (state.accessDenied) {
+        renderLockedPage();
+        return;
+    }
     renderAll();
 }
 function bindEvents() {
@@ -138,7 +148,17 @@ function bindEvents() {
     });
 }
 async function loadAuctionDetail() {
-    const data = await apiFetch(`/api/auctions/${encodeURIComponent(state.lotNo)}`);
+    const response = await fetch(`/api/auctions/${encodeURIComponent(state.lotNo)}`, { credentials: "same-origin" });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        if (data.requiresMembership) {
+            state.accessDenied = true;
+            state.accessDeniedMessage = data.error || "Bu ilanın detaylarını görüntülemek için üye olmalısınız.";
+            state.item = null;
+            return;
+        }
+        throw new Error(data.error || `İstek başarısız (${response.status})`);
+    }
     const item = data.item || {};
     const gallery = normalizeGallery(item.gallery || item.gallery_json || [], item.image_url);
     const documentFiles = normalizeFiles(item.document_files || item.document_files_json || []);
@@ -231,6 +251,29 @@ function renderInfoCards() {
         infoRow("Motor Gücü", item.vehicle_engine_power || "-"),
         infoRow("Çekiş Türü", item.vehicle_drive_type || "-"),
     ];
+    const isMachine = item.product_group === "İş Makineleri";
+    if (isMachine) {
+        const machineRows = [
+            infoRow("Makine Markası", item.machine_brand || "-"),
+            infoRow("Makine Modeli", item.machine_model || "-"),
+            infoRow("Model Yılı", item.machine_year ? String(item.machine_year) : "-"),
+            infoRow("Çalışma Saati", item.machine_hours ? String(item.machine_hours) : "-"),
+            infoRow("Makine Tipi", item.machine_type || "-"),
+            infoRow("Ağırlık (kg)", item.machine_weight ? String(item.machine_weight) : "-"),
+            infoRow("Motor Gücü", item.machine_power || "-"),
+        ];
+        basicRows.push(...machineRows);
+        if (item.machine_attrs_json) {
+            try {
+                const attrs = typeof item.machine_attrs_json === "string" ? JSON.parse(item.machine_attrs_json) : item.machine_attrs_json;
+                for (const [key, val] of Object.entries(attrs)) {
+                    if (val)
+                        basicRows.push(infoRow(key, String(val)));
+                }
+            }
+            catch (_) { }
+        }
+    }
     elements.basicInfoGrid.innerHTML = basicRows.join("");
     const auctionRows = [
         infoRow("İhale No", item.lot_no || "-"),
@@ -702,6 +745,51 @@ function showPageError(message) {
     elements.documentFiles.innerHTML = '<div class="empty">Kayıt bulunmuyor.</div>';
     elements.galleryMainImage.src = DEFAULT_IMAGE;
     elements.galleryThumbs.innerHTML = "";
+}
+function renderLockedPage() {
+    const isGuest = state.accessDeniedMessage?.includes("giriş yapmalısınız");
+    const overlayTitle = isGuest ? "Üyelik Gerekli" : "Premium üyelik gerekli";
+    const overlayMeta = "Bu içerik kısıtlanmıştır.";
+    const lockedTitle = isGuest
+        ? "İlan detaylarını görmek için giriş yapmalısınız."
+        : "İhale detaylarını görmek için premium üyelik gerekli";
+    const lockedDesc = isGuest
+        ? "İlan detaylarını, ekspertiz raporunu, galeri görsellerini ve tüm belgeleri görüntülemek için giriş yapmalısınız."
+        : "İlan detaylarını, ekspertiz raporunu, galeri görsellerini ve tüm belgeleri görüntülemek için premium üyelik gereklidir.";
+    const buttonHtml = isGuest
+        ? '<a href="/" class="lockedSignupBtn">Giriş Yap / Kayıt Ol</a>'
+        : '<a href="/paketler.html" class="lockedSignupBtn">Premium üye ol</a>';
+    elements.auctionTitle.textContent = isGuest ? "Üyelik Gerekli" : "Premium üyelik gerekli";
+    elements.auctionMeta.textContent = "Bu içerik kısıtlanmıştır.";
+    elements.galleryMainImage.src = DEFAULT_IMAGE;
+    elements.galleryThumbs.innerHTML = "";
+    const lockedContent = `
+    <div class="lockedPage">
+      <div class="lockedIcon"><i class="fas fa-lock"></i></div>
+      <h2>${escapeHtml(lockedTitle)}</h2>
+      <p>${escapeHtml(lockedDesc)}</p>
+      ${buttonHtml}
+    </div>
+  `;
+    elements.basicInfoGrid.innerHTML = lockedContent;
+    elements.auctionInfoGrid.innerHTML = lockedContent;
+    elements.descriptionBox.innerHTML = lockedContent;
+    if (elements.expertiseConditionMap)
+        elements.expertiseConditionMap.innerHTML = lockedContent;
+    if (elements.expertiseStructureList)
+        elements.expertiseStructureList.innerHTML = "";
+    if (elements.expertiseMechanicalList)
+        elements.expertiseMechanicalList.innerHTML = "";
+    if (elements.expertiseTireList)
+        elements.expertiseTireList.innerHTML = "";
+    elements.documentFiles.innerHTML = lockedContent;
+    const galleryWrapper = elements.galleryMainImage.closest(".galleryMain") || elements.galleryMainImage.parentElement;
+    const overlayEl = galleryWrapper?.querySelector(".galleryLockOverlay");
+    if (overlayEl) {
+        overlayEl.querySelector("h3").textContent = overlayTitle;
+        overlayEl.querySelector("p").textContent = overlayMeta;
+        overlayEl.classList.remove("hide");
+    }
 }
 function formatDate(value) {
     if (!value)

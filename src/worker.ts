@@ -195,10 +195,17 @@ async function handleApi(request, env, url) {
     const session = await getSession(request, env);
     if (!session) return json({ ok: true, authenticated: false, user: null });
     await ensureUserRole(env, session.user.id, session.user.email);
+    await ensureMarketplaceSchemaWarm(env);
     const access = await getUserAccess(env, session.user.id, session.user.email);
+    const membership = await getUserActiveMembershipSafe(env, session.user.id);
     return json({
       ok: true,
       authenticated: true,
+      hasActiveMembership: !!membership,
+      activeMembership: membership ? {
+        planName: membership.plan_name,
+        expiresAt: membership.expires_at,
+      } : null,
       user: {
         id: session.user.id,
         email: session.user.email,
@@ -308,16 +315,24 @@ async function handleApi(request, env, url) {
     const tcIdentityNo = normalizeTcIdentityNo(body.tcIdentityNo);
     const phone = sanitizePhone(body.phone);
     const address = sanitizeAddress(body.address);
+    const accountType = String(body.accountType || "").toLowerCase().trim();
     const password = String(body.password || "");
 
     if (!String(body.name || "").trim()) return json({ ok: false, error: "Isim Soyisim zorunludur." }, 400);
     if (!isValidTcIdentityNo(tcIdentityNo)) return json({ ok: false, error: "TC kimlik no 11 haneli olmalidir." }, 400);
     if (!isValidPhone(phone)) return json({ ok: false, error: "Telefon numarasi gecersiz." }, 400);
     if (!address) return json({ ok: false, error: "Adres zorunludur." }, 400);
+    if (accountType !== "bireysel" && accountType !== "ticari") {
+      return json({ ok: false, error: "Hesap türü (Bireysel/Ticari) seçilmelidir." }, 400);
+    }
 
     if (!isValidEmail(email)) return json({ ok: false, error: "Geçerli bir e-posta girin." }, 400);
     if (password.length < MIN_PASSWORD_LENGTH) {
       return json({ ok: false, error: `Şifre en az ${MIN_PASSWORD_LENGTH} karakter olmalıdır.` }, 400);
+    }
+
+    if (body.acceptedAgreement !== true) {
+      return json({ ok: false, error: "Üyelik sözleşmesini kabul etmelisiniz." }, 400);
     }
 
     const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
@@ -329,44 +344,37 @@ async function handleApi(request, env, url) {
 
     await env.DB.prepare(
       `INSERT INTO users (
-        id, email, name, password_hash, tc_identity_no, phone, address, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+        id, email, name, password_hash, tc_identity_no, phone, address, account_type, status, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
     )
-      .bind(userId, email, name, passwordHash, tcIdentityNo, phone, address)
+      .bind(userId, email, name, passwordHash, tcIdentityNo, phone, address, accountType)
       .run();
     await ensureUserRole(env, userId, email);
 
-    const verifyToken = requireEmailVerification ? await createEmailVerifyToken(env, userId) : null;
-    if (requireEmailVerification && verifyToken) {
-      const verifyUrl = `${getBaseUrl(request, env)}/?verify=${encodeURIComponent(verifyToken)}`;
-      await sendAuthEmail(
-        env,
-        email,
-        "E-posta Doğrulama",
-        `Hesabınızı doğrulamak için bu bağlantıyı açın: ${verifyUrl}`
-      );
-    } else {
-      await env.DB.prepare(
-        "UPDATE users SET email_verified_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
-      )
-        .bind(userId)
-        .run();
+    await env.DB.prepare(
+      `INSERT INTO accepted_legal_agreements (id, user_id, agreement_type, agreement_version, accepted_at, ip_address)
+       VALUES (?, ?, 'membership', '1.0', CURRENT_TIMESTAMP, ?)`
+    ).bind(crypto.randomUUID(), userId, ip).run();
+
+    if (requireEmailVerification) {
+      const verifyToken = await createEmailVerifyToken(env, userId);
+      if (verifyToken) {
+        const verifyUrl = `${getBaseUrl(request, env)}/?verify=${encodeURIComponent(verifyToken)}`;
+        await sendAuthEmail(
+          env,
+          email,
+          "E-posta Doğrulama",
+          `Hesabınızı doğrulamak için bu bağlantıyı açın: ${verifyUrl}`
+        );
+      }
     }
 
-    const { cookie, expiresAt } = await createSession(env, request, userId);
     const headers = new Headers({ "content-type": "application/json; charset=utf-8" });
-    headers.append("set-cookie", cookie);
-
-    const registerMessage = requireEmailVerification
-      ? "Kayit basarili. E-posta dogrulama baglantisi gonderildi."
-      : "Kayit basarili.";
 
     return new Response(
       JSON.stringify({
         ok: true,
-        expiresAt,
-        message: registerMessage,
-        debugVerifyToken: requireEmailVerification && shouldExposeDebugToken(env) ? verifyToken : undefined,
+        message: "Üyelik başvurunuz alınmıştır. En kısa sürede onay süreci tamamlanacaktır.",
       }),
       { status: 201, headers }
     );
@@ -402,7 +410,7 @@ async function handleApi(request, env, url) {
     }
 
     let user = await db.prepare(
-      "SELECT id, email, name, password_hash, email_verified_at, disabled_at FROM users WHERE email = ?"
+      "SELECT id, email, name, password_hash, email_verified_at, disabled_at, status FROM users WHERE email = ?"
     )
       .bind(email)
       .first();
@@ -410,13 +418,17 @@ async function handleApi(request, env, url) {
     if (!user && bootstrapLogin) {
       await ensureBootstrapAdminUser(env, db);
       user = await db.prepare(
-        "SELECT id, email, name, password_hash, email_verified_at, disabled_at FROM users WHERE email = ?"
+        "SELECT id, email, name, password_hash, email_verified_at, disabled_at, status FROM users WHERE email = ?"
       )
         .bind(email)
         .first();
     }
 
-    if (!user || user.disabled_at) return json({ ok: false, error: "E-posta veya şifre hatalı." }, 401);
+    if (!user) return json({ ok: false, error: "E-posta veya şifre hatalı." }, 401);
+    if (user.status === "pending") {
+      return json({ ok: false, error: "Üyeliğiniz onay sürecindedir. Onaylandıktan sonra giriş yapabilirsiniz." }, 403);
+    }
+    if (user.disabled_at) return json({ ok: false, error: "Hesabınız pasif durumdadır. Yöneticinizle iletişime geçin." }, 403);
 
     let passOk = await verifyPassword(password, user.password_hash);
     if (!passOk && bootstrapLogin) {
@@ -610,10 +622,40 @@ async function handleApi(request, env, url) {
   if (method === "GET" && path === "/api/filter-options") {
     return json({ ok: true, ...(await getPublicFilterOptionsSafe(env)) });
   }
+  if (method === "GET" && path === "/api/initial-data") {
+    const items = await getPublicAuctionsListSafe(env);
+    const filterOptions = await getPublicFilterOptions(env, items);
+    const session = await getSessionSafe(request, env);
+    let withFavorites = items;
+    if (session) {
+      const favoriteLotNos = await getUserFavoriteLotNoSetSafe(env, session.user.id);
+      const autoBidMap = await getUserAutoBidMapSafe(env, session.user.id);
+      withFavorites = items.map((row: any) => {
+        const lotNo = String(row?.lot_no || "").trim().toUpperCase();
+        const autoBid = autoBidMap.get(lotNo) || null;
+        return {
+          ...row,
+          is_favorite: favoriteLotNos.has(lotNo) ? 1 : 0,
+          user_auto_bid_enabled: autoBid?.isActive ? 1 : 0,
+          user_auto_bid_max: autoBid?.maxAmount ?? null,
+        };
+      });
+    }
+    return json({ ok: true, items: withFavorites, filterOptions });
+  }
   const auctionDetailMatch = path.match(/^\/api\/auctions\/([^/]+)$/);
   if (method === "GET" && auctionDetailMatch) {
     const lotNo = decodeURIComponent(String(auctionDetailMatch[1] || "")).trim().toUpperCase();
     if (!lotNo) return json({ ok: false, error: "Ihale no zorunludur." }, 400);
+    await ensureMarketplaceSchemaWarm(env);
+    const session = await getSessionSafe(request, env);
+    if (!session) {
+      return json({ ok: false, requiresMembership: true, error: "İlan detaylarını görmek için giriş yapmalısınız." }, 403);
+    }
+    const membership = await getUserActiveMembershipSafe(env, session.user.id);
+    if (!membership) {
+      return json({ ok: false, requiresMembership: true, error: "İhale detaylarını görmek için premium üyelik gerekli" }, 403);
+    }
     const detail = await getPublicAuctionDetailByLotNoSafe(env, lotNo);
     if (!detail) return json({ ok: false, error: "Ihale bulunamadi." }, 404);
     return json({
@@ -622,6 +664,14 @@ async function handleApi(request, env, url) {
       vehicleConditionLayout: await getVehicleConditionLayoutSafe(env),
       vehicleConditionScale: await getVehicleConditionScaleSafe(env),
     });
+  }
+
+  if (method === "GET" && path === "/api/membership-plans") {
+    await ensureMarketplaceSchemaWarm(env);
+    const plans = await env.DB.prepare(
+      "SELECT id, name, description, price, currency, duration_days, features_json, sort_order FROM membership_plans WHERE is_active = 1 ORDER BY sort_order ASC, price ASC"
+    ).all();
+    return json({ ok: true, items: plans.results || [] });
   }
 
   if (method === "POST" && path === "/api/bids") {
@@ -1456,8 +1506,9 @@ async function handleApi(request, env, url) {
             vehicle_brand, vehicle_model, vehicle_model_detail, vehicle_year, vehicle_km, vehicle_fuel_type,
             vehicle_transmission, vehicle_body_type, vehicle_color, vehicle_chassis_no, vehicle_engine_volume, vehicle_engine_power, vehicle_drive_type,
             vehicle_condition_map_json, vehicle_expertise_meta_json,
+            machine_brand, machine_model, machine_year, machine_hours, machine_type, machine_weight, machine_power, machine_attrs_json,
             created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, NULL, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+          ) VALUES (?, ?, ?, ?, ?, NULL, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
         )
           .bind(
             crypto.randomUUID(),
@@ -1494,7 +1545,15 @@ async function handleApi(request, env, url) {
             validation.vehicleEnginePower,
             validation.vehicleDriveType,
             validation.vehicleConditionMapJson,
-            validation.vehicleExpertiseMetaJson
+            validation.vehicleExpertiseMetaJson,
+            validation.machineBrand || "",
+            validation.machineModel || "",
+            validation.machineYear || 0,
+            validation.machineHours || 0,
+            validation.machineType || "",
+            validation.machineWeight || 0,
+            validation.machinePower || "",
+            validation.machineAttrsJson || ""
           )
           .run();
       } catch (error) {
@@ -1805,6 +1864,171 @@ async function handleApi(request, env, url) {
 
       await writeAdminAuditLog(env, session.user.id, targetUserId, "user.sessions.revoke", {});
       return json({ ok: true, message: "Aktif oturumlar sonlandırıldı." });
+    }
+
+    if (method === "PUT" && path.endsWith("/approve")) {
+      const approveMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/approve$/);
+      if (approveMatch) {
+        if (!actorAccess.permissions[PERMISSIONS.USERS_BLOCK]) {
+          return json({ ok: false, error: "Kullanıcı onaylama yetkiniz yok." }, 403);
+        }
+        const targetUserId = decodeURIComponent(String(approveMatch[1] || ""));
+        const targetUser = await env.DB.prepare("SELECT id, status FROM users WHERE id = ?").bind(targetUserId).first();
+        if (!targetUser) return json({ ok: false, error: "Kullanıcı bulunamadı." }, 404);
+        if (targetUser.status !== "pending") return json({ ok: false, error: "Bu kullanıcı onay beklememektedir." }, 400);
+        await env.DB.prepare(
+          "UPDATE users SET status = 'active', email_verified_at = COALESCE(email_verified_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+        ).bind(targetUserId).run();
+        await writeAdminAuditLog(env, session.user.id, targetUserId, "user.approve", {});
+        return json({ ok: true, message: "Kullanıcı onaylandı." });
+      }
+    }
+
+    if (method === "PUT" && path.endsWith("/reject")) {
+      const rejectMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/reject$/);
+      if (rejectMatch) {
+        if (!actorAccess.permissions[PERMISSIONS.USERS_BLOCK]) {
+          return json({ ok: false, error: "Kullanıcı reddetme yetkiniz yok." }, 403);
+        }
+        const targetUserId = decodeURIComponent(String(rejectMatch[1] || ""));
+        const targetUser = await env.DB.prepare("SELECT id, status FROM users WHERE id = ?").bind(targetUserId).first();
+        if (!targetUser) return json({ ok: false, error: "Kullanıcı bulunamadı." }, 404);
+        if (targetUser.status !== "pending") return json({ ok: false, error: "Bu kullanıcı onay beklememektedir." }, 400);
+        await env.DB.prepare(
+          "UPDATE users SET status = 'disabled', disabled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+        ).bind(targetUserId).run();
+        await writeAdminAuditLog(env, session.user.id, targetUserId, "user.reject", {});
+        return json({ ok: true, message: "Kullanıcı reddedildi." });
+      }
+    }
+
+    const deleteUserMatch = path.match(/^\/api\/admin\/users\/([^/]+)$/);
+    if (method === "DELETE" && deleteUserMatch) {
+      if (actorAccess.role !== USER_ROLES.ADMIN) {
+        return json({ ok: false, error: "Kullanıcı silme yetkiniz yok." }, 403);
+      }
+      const targetUserId = decodeURIComponent(String(deleteUserMatch[1] || ""));
+      if (targetUserId === session.user.id) {
+        return json({ ok: false, error: "Kendinizi silemezsiniz." }, 400);
+      }
+      const targetUser = await env.DB.prepare("SELECT id, role FROM users WHERE id = ?").bind(targetUserId).first();
+      if (!targetUser) return json({ ok: false, error: "Kullanıcı bulunamadı." }, 404);
+      if (targetUser.role === USER_ROLES.ADMIN) {
+        return json({ ok: false, error: "Admin kullanıcı silinemez." }, 400);
+      }
+      await env.DB.prepare("DELETE FROM users WHERE id = ?").bind(targetUserId).run();
+      await writeAdminAuditLog(env, session.user.id, targetUserId, "user.delete", {});
+      return json({ ok: true, message: "Kullanıcı silindi." });
+    }
+
+    if (method === "GET" && path === "/api/admin/membership-plans") {
+      if (!actorAccess.permissions[PERMISSIONS.SETTINGS_MANAGE]) {
+        return json({ ok: false, error: "Yetkiniz yok." }, 403);
+      }
+      await ensureMarketplaceSchemaWarm(env);
+      const rows = await env.DB.prepare(
+        "SELECT id, name, description, price, currency, duration_days, features_json, sort_order, is_active, created_at FROM membership_plans ORDER BY sort_order ASC"
+      ).all();
+      return json({ ok: true, items: rows.results || [] });
+    }
+
+    if (method === "POST" && path === "/api/admin/membership-plans") {
+      if (!actorAccess.permissions[PERMISSIONS.SETTINGS_MANAGE]) {
+        return json({ ok: false, error: "Yetkiniz yok." }, 403);
+      }
+      await ensureMarketplaceSchemaWarm(env);
+      const body = await readJson(request);
+      const name = String(body.name || "").trim();
+      if (!name) return json({ ok: false, error: "Paket adı zorunludur." }, 400);
+      const price = Number(body.price) || 0;
+      const durationDays = Number(body.durationDays) || 0;
+      if (durationDays < 1) return json({ ok: false, error: "Geçerli süre girin." }, 400);
+      const id = crypto.randomUUID();
+      const featuresJson = JSON.stringify(Array.isArray(body.features) ? body.features : []);
+      await env.DB.prepare(
+        `INSERT INTO membership_plans (id, name, description, price, currency, duration_days, features_json, sort_order, is_active, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)`
+      ).bind(id, name, String(body.description || "").trim(), price, "TRY", durationDays, featuresJson, Number(body.sortOrder) || 0).run();
+      return json({ ok: true, message: "Paket eklendi.", id });
+    }
+
+    const planMatch = path.match(/^\/api\/admin\/membership-plans\/([^/]+)$/);
+    if (planMatch) {
+      if (!actorAccess.permissions[PERMISSIONS.SETTINGS_MANAGE]) {
+        return json({ ok: false, error: "Yetkiniz yok." }, 403);
+      }
+      await ensureMarketplaceSchemaWarm(env);
+      const planId = decodeURIComponent(String(planMatch[1] || ""));
+      if (method === "PUT") {
+        const body = await readJson(request);
+        const name = String(body.name || "").trim();
+        if (!name) return json({ ok: false, error: "Paket adı zorunludur." }, 400);
+        const price = Number(body.price) || 0;
+        const durationDays = Number(body.durationDays) || 0;
+        if (durationDays < 1) return json({ ok: false, error: "Geçerli süre girin." }, 400);
+        const featuresJson = JSON.stringify(Array.isArray(body.features) ? body.features : []);
+        await env.DB.prepare(
+          `UPDATE membership_plans SET name = ?, description = ?, price = ?, currency = ?, duration_days = ?, features_json = ?, sort_order = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+        ).bind(name, String(body.description || "").trim(), price, "TRY", durationDays, featuresJson, Number(body.sortOrder) || 0, body.isActive === false ? 0 : 1, planId).run();
+        return json({ ok: true, message: "Paket güncellendi." });
+      }
+      if (method === "DELETE") {
+        await env.DB.prepare("DELETE FROM membership_plans WHERE id = ?").bind(planId).run();
+        return json({ ok: true, message: "Paket silindi." });
+      }
+    }
+
+    if (method === "GET" && path.startsWith("/api/admin/users/") && path.endsWith("/memberships")) {
+      if (!actorAccess.permissions[PERMISSIONS.USERS_VIEW]) {
+        return json({ ok: false, error: "Yetkiniz yok." }, 403);
+      }
+      await ensureMarketplaceSchemaWarm(env);
+      const userId = path.split("/")[4];
+      if (!userId) return json({ ok: false, error: "Kullanıcı ID gerekli." }, 400);
+      const rows = await env.DB.prepare(
+        `SELECT m.id, m.starts_at, m.expires_at, m.status, p.name AS plan_name
+         FROM user_memberships m
+         JOIN membership_plans p ON p.id = m.plan_id
+         WHERE m.user_id = ?
+         ORDER BY m.created_at DESC`
+      ).bind(userId).all();
+      return json({ ok: true, items: rows.results || [] });
+    }
+
+    const assignMembershipMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/memberships$/);
+    if (method === "POST" && assignMembershipMatch) {
+      if (!actorAccess.permissions[PERMISSIONS.USERS_PERMISSIONS]) {
+        return json({ ok: false, error: "Yetkiniz yok." }, 403);
+      }
+      const targetUserId = decodeURIComponent(String(assignMembershipMatch[1] || ""));
+      const body = await readJson(request);
+      const planId = String(body.planId || "").trim();
+      if (!planId) return json({ ok: false, error: "Plan ID gerekli." }, 400);
+      const plan = await env.DB.prepare("SELECT id, duration_days FROM membership_plans WHERE id = ?").bind(planId).first();
+      if (!plan) return json({ ok: false, error: "Plan bulunamadı." }, 404);
+      const startsAt = String(body.startsAt || new Date().toISOString());
+      const startDate = new Date(startsAt);
+      const endDate = new Date(startDate.getTime() + Number(plan.duration_days) * 86400000);
+      const id = crypto.randomUUID();
+      await env.DB.prepare(
+        `INSERT INTO user_memberships (id, user_id, plan_id, starts_at, expires_at, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+      ).bind(id, targetUserId, planId, startDate.toISOString(), endDate.toISOString()).run();
+      await writeAdminAuditLog(env, session.user.id, targetUserId, "user.membership.assign", { planId });
+      return json({ ok: true, message: "Üyelik atandı.", id, expiresAt: endDate.toISOString() });
+    }
+
+    const revokeMembershipMatch = path.match(/^\/api\/admin\/memberships\/([^/]+)\/revoke$/);
+    if (method === "POST" && revokeMembershipMatch) {
+      if (!actorAccess.permissions[PERMISSIONS.USERS_PERMISSIONS]) {
+        return json({ ok: false, error: "Yetkiniz yok." }, 403);
+      }
+      const membershipId = decodeURIComponent(String(revokeMembershipMatch[1] || ""));
+      const membership = await env.DB.prepare("SELECT user_id FROM user_memberships WHERE id = ?").bind(membershipId).first();
+      if (!membership) return json({ ok: false, error: "Üyelik bulunamadı." }, 404);
+      await env.DB.prepare("UPDATE user_memberships SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(membershipId).run();
+      await writeAdminAuditLog(env, session.user.id, membership.user_id, "user.membership.revoke", { membershipId });
+      return json({ ok: true, message: "Üyelik iptal edildi." });
     }
 
     return json({ ok: false, error: "Admin endpoint bulunamadı." }, 404);
@@ -2326,6 +2550,8 @@ async function ensureAdminSchema(env) {
     "ALTER TABLE users ADD COLUMN tc_identity_no TEXT",
     "ALTER TABLE users ADD COLUMN phone TEXT",
     "ALTER TABLE users ADD COLUMN address TEXT",
+    "ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'",
+    "ALTER TABLE users ADD COLUMN account_type TEXT NOT NULL DEFAULT 'bireysel'",
   ];
 
   for (const sql of userAlterStatements) {
@@ -2384,7 +2610,43 @@ async function ensureMarketplaceSchema(env, options: { runLegacyRepair?: boolean
       FOREIGN KEY (auction_id) REFERENCES auctions(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )`,
+    `CREATE TABLE IF NOT EXISTS membership_plans (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      price REAL NOT NULL DEFAULT 0,
+      currency TEXT NOT NULL DEFAULT 'TRY',
+      duration_days INTEGER NOT NULL,
+      features_json TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+      created_at TEXT NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS user_memberships (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      plan_id TEXT NOT NULL,
+      starts_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'expired', 'cancelled')),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (plan_id) REFERENCES membership_plans(id) ON DELETE RESTRICT
+    )`,
+    `CREATE TABLE IF NOT EXISTS accepted_legal_agreements (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      agreement_type TEXT NOT NULL,
+      agreement_version TEXT,
+      accepted_at TEXT NOT NULL,
+      ip_address TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
     "CREATE INDEX IF NOT EXISTS idx_categories_group_id ON categories(group_id)",
+    "CREATE INDEX IF NOT EXISTS idx_user_memberships_user_id ON user_memberships(user_id)",
+    "CREATE INDEX IF NOT EXISTS idx_user_memberships_status ON user_memberships(status)",
+    "CREATE INDEX IF NOT EXISTS idx_accepted_legal_agreements_user ON accepted_legal_agreements(user_id)",
   ];
 
   const alterStatements = [
@@ -2428,6 +2690,15 @@ async function ensureMarketplaceSchema(env, options: { runLegacyRepair?: boolean
     "ALTER TABLE bids ADD COLUMN is_retracted INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE bids ADD COLUMN retracted_at TEXT",
     "ALTER TABLE bids ADD COLUMN retracted_reason TEXT",
+    "ALTER TABLE membership_plans ADD COLUMN updated_at TEXT",
+    "ALTER TABLE auctions ADD COLUMN machine_brand TEXT",
+    "ALTER TABLE auctions ADD COLUMN machine_model TEXT",
+    "ALTER TABLE auctions ADD COLUMN machine_year INTEGER",
+    "ALTER TABLE auctions ADD COLUMN machine_hours INTEGER",
+    "ALTER TABLE auctions ADD COLUMN machine_type TEXT",
+    "ALTER TABLE auctions ADD COLUMN machine_weight REAL",
+    "ALTER TABLE auctions ADD COLUMN machine_power TEXT",
+    "ALTER TABLE auctions ADD COLUMN machine_attrs_json TEXT",
   ];
 
   for (const sql of baseStatements) {
@@ -2470,6 +2741,40 @@ async function ensureMarketplaceSchema(env, options: { runLegacyRepair?: boolean
       console.warn("Marketplace index statement hatasi:", error);
     }
   }
+
+  await seedDefaultMembershipPlan(env);
+}
+
+async function seedDefaultMembershipPlan(env) {
+  const existing = await env.DB.prepare("SELECT id FROM membership_plans LIMIT 1").first();
+  if (existing) return;
+  const now = new Date().toISOString();
+  const plans = [
+    {
+      id: crypto.randomUUID(),
+      name: "Premium Aylık",
+      description: "Tüm ihale detaylarına sınırsız erişim, öncelikli bildirimler.",
+      price: 99.90,
+      currency: "TRY",
+      duration_days: 30,
+      sort_order: 1,
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Premium Yıllık",
+      description: "Tüm ihale detaylarına sınırsız erişim, öncelikli bildirimler, 2 ay hediye.",
+      price: 999.00,
+      currency: "TRY",
+      duration_days: 365,
+      sort_order: 2,
+    },
+  ];
+  for (const plan of plans) {
+    await env.DB.prepare(
+      `INSERT INTO membership_plans (id, name, description, price, currency, duration_days, sort_order, is_active, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`
+    ).bind(plan.id, plan.name, plan.description, plan.price, plan.currency, plan.duration_days, plan.sort_order, now).run();
+  }
 }
 
 async function getCatalogSnapshot(env) {
@@ -2501,6 +2806,7 @@ async function getAdminAuctionsList(env) {
       a.description, a.vehicle_brand, a.vehicle_model, a.vehicle_model_detail, a.vehicle_year, a.vehicle_km,
       a.vehicle_fuel_type, a.vehicle_transmission, a.vehicle_body_type, a.vehicle_color, a.vehicle_chassis_no, a.vehicle_engine_volume,
       a.vehicle_engine_power, a.vehicle_drive_type, a.vehicle_condition_map_json, a.vehicle_expertise_meta_json,
+      a.machine_brand, a.machine_model, a.machine_year, a.machine_hours, a.machine_type, a.machine_weight, a.machine_power, a.machine_attrs_json,
       pg.name AS product_group, c.name AS category
      FROM auctions a
      LEFT JOIN product_groups pg ON pg.id = a.product_group_id
@@ -2650,6 +2956,7 @@ async function getPublicAuctionsList(env) {
       COALESCE(a.starts_at, a.created_at) AS starts_at, a.ends_at, a.status, a.created_at,
       a.product_group_id, a.category_id, a.city, a.district, a.neighborhood, a.image_url, a.gallery_json,
       a.vehicle_brand, a.vehicle_model, a.vehicle_model_detail, a.vehicle_year, a.vehicle_km,
+      a.machine_brand, a.machine_model, a.machine_year, a.machine_hours, a.machine_type, a.machine_weight, a.machine_power, a.machine_attrs_json,
       pg.name AS product_group, c.name AS category
      FROM auctions a
      LEFT JOIN product_groups pg ON pg.id = a.product_group_id
@@ -2670,6 +2977,7 @@ async function getPublicAuctionDetailByLotNo(env, lotNo: string) {
       a.vehicle_brand, a.vehicle_model, a.vehicle_model_detail, a.vehicle_year, a.vehicle_km,
       a.vehicle_fuel_type, a.vehicle_transmission, a.vehicle_body_type, a.vehicle_color, a.vehicle_chassis_no, a.vehicle_engine_volume,
       a.vehicle_engine_power, a.vehicle_drive_type, a.vehicle_condition_map_json, a.vehicle_expertise_meta_json,
+      a.machine_brand, a.machine_model, a.machine_year, a.machine_hours, a.machine_type, a.machine_weight, a.machine_power, a.machine_attrs_json,
       pg.name AS product_group, c.name AS category
      FROM auctions a
      LEFT JOIN product_groups pg ON pg.id = a.product_group_id
@@ -2694,6 +3002,28 @@ async function getPublicAuctionDetailByLotNo(env, lotNo: string) {
     expertise_files: expertiseFiles,
     document_files: documentFiles,
   };
+}
+
+async function getUserActiveMembership(env, userId: string) {
+  const row = await env.DB.prepare(
+    `SELECT m.id, m.starts_at, m.expires_at, p.name AS plan_name, p.duration_days
+     FROM user_memberships m
+     JOIN membership_plans p ON p.id = m.plan_id
+     WHERE m.user_id = ? AND m.status = 'active' AND m.expires_at > datetime('now')
+     ORDER BY m.expires_at DESC LIMIT 1`
+  )
+    .bind(userId)
+    .first();
+  return row || null;
+}
+
+async function getUserActiveMembershipSafe(env, userId: string) {
+  try {
+    return await getUserActiveMembership(env, userId);
+  } catch (error) {
+    console.warn("Aktif uyelik sorgusu hatasi:", error);
+    return null;
+  }
 }
 
 async function getUserFavoriteLotNoSet(env, userId: string) {
@@ -2987,7 +3317,7 @@ async function runAutoBidEngine(env, auctionId: string, maxSteps = 200) {
 async function getAdminUsersList(env) {
   const usersResult = await env.DB.prepare(
     `SELECT
-      u.id, u.email, u.name, u.email_verified_at, u.disabled_at, u.created_at,
+      u.id, u.email, u.name, u.email_verified_at, u.disabled_at, u.status, u.account_type, u.created_at,
       COALESCE(r.role, ?) AS role
      FROM users u
      LEFT JOIN user_roles r ON r.user_id = u.id
@@ -3015,7 +3345,9 @@ async function getAdminUsersList(env) {
       id: row.id,
       email: row.email,
       name: row.name,
+      accountType: row.account_type || "bireysel",
       role,
+      status: row.status || "active",
       emailVerified: !!row.email_verified_at,
       isDisabled: !!row.disabled_at,
       createdAt: row.created_at,
@@ -3115,15 +3447,27 @@ async function getPublicFilterOptionsSafe(env) {
   }
 }
 
-async function getPublicFilterOptions(env) {
-  const [catalog, auctions, order] = await Promise.all([
+async function getPublicFilterOptions(env, auctions?) {
+  if (!auctions) auctions = await getPublicAuctionsListSafe(env);
+  const [catalog, order] = await Promise.all([
     getCatalogSnapshotSafe(env),
-    getPublicAuctionsListSafe(env),
     getAppSettingJsonSafe(env, FILTER_ORDER_SETTING_KEY, emptyFilterOrderOption()),
   ]);
 
   const productGroups = uniqueTextList(catalog.groups.map((row: any) => row.name));
   const categories = uniqueTextList(catalog.categories.map((row: any) => row.name));
+  const categoriesByGroup: Record<string, string[]> = {};
+  for (const group of catalog.groups) {
+    const groupName = String(group.name || "");
+    if (!groupName) continue;
+    const groupCategories = catalog.categories
+      .filter((cat: any) => String(cat.group_id || "") === String(group.id || ""))
+      .map((cat: any) => String(cat.name || ""))
+      .filter(Boolean);
+    if (groupCategories.length > 0) {
+      categoriesByGroup[groupName] = groupCategories;
+    }
+  }
   const normalizedOrder = normalizeFilterOptionOrder(order || {});
 
   const cityValues = uniqueTextList([
@@ -3142,6 +3486,7 @@ async function getPublicFilterOptions(env) {
       // Urun grubu ve kategori sirasi katalogdaki sort_order alanindan gelir.
       productGroups,
       categories,
+      categoriesByGroup,
       cities: sortedCities,
       districts: sortTextListByOrder(districtValues, normalizedOrder.districts),
       neighborhoods: sortTextListByOrder(neighborhoodValues, normalizedOrder.neighborhoods),
@@ -3770,6 +4115,14 @@ async function validateAuctionPayload(env, body) {
   const vehicleEngineVolume = String(body.vehicleEngineVolume || "").trim().slice(0, 80);
   const vehicleEnginePower = String(body.vehicleEnginePower || "").trim().slice(0, 80);
   const vehicleDriveType = String(body.vehicleDriveType || "").trim().slice(0, 80);
+  const machineBrand = String(body.machineBrand || "").trim().slice(0, 120);
+  const machineModel = String(body.machineModel || "").trim().slice(0, 120);
+  const machineYear = Number(body.machineYear || 0);
+  const machineHours = Number(body.machineHours || 0);
+  const machineType = String(body.machineType || "").trim().slice(0, 40);
+  const machineWeight = Number(body.machineWeight || 0);
+  const machinePower = String(body.machinePower || "").trim().slice(0, 80);
+  const machineAttrsJson = String(body.machineAttrsJson || "").trim();
   const vehicleConditionMap = normalizeVehicleConditionMapInput(
     body.vehicleConditionMap || body.vehicle_condition_map || body.vehicle_condition_map_json || {}
   );
@@ -3896,6 +4249,14 @@ async function validateAuctionPayload(env, body) {
     vehicleDriveType,
     vehicleConditionMapJson,
     vehicleExpertiseMetaJson,
+    machineBrand,
+    machineModel,
+    machineYear,
+    machineHours,
+    machineType,
+    machineWeight,
+    machinePower,
+    machineAttrsJson,
     imageUrl,
     galleryJson: JSON.stringify(imageList),
     expertiseFilesJson: JSON.stringify(expertiseFiles),
@@ -3917,13 +4278,14 @@ async function findAuctionIdByLotNo(env, lotNo: string) {
 
 async function updateAuctionRecord(env, auctionId: string, validation: any) {
   return await env.DB.prepare(
-    `UPDATE auctions
+     `UPDATE auctions
      SET lot_no = ?, title = ?, start_price = ?, min_increment = ?, starts_at = ?, ends_at = ?, status = ?,
          product_group_id = ?, category_id = ?, city = ?, district = ?, neighborhood = ?, image_url = ?, gallery_json = ?,
          description = ?, extra_equipment = ?, expertise_files_json = ?, document_files_json = ?,
          vehicle_brand = ?, vehicle_model = ?, vehicle_model_detail = ?, vehicle_year = ?, vehicle_km = ?, vehicle_fuel_type = ?,
         vehicle_transmission = ?, vehicle_body_type = ?, vehicle_color = ?, vehicle_chassis_no = ?, vehicle_engine_volume = ?, vehicle_engine_power = ?, vehicle_drive_type = ?,
         vehicle_condition_map_json = ?, vehicle_expertise_meta_json = ?,
+        machine_brand = ?, machine_model = ?, machine_year = ?, machine_hours = ?, machine_type = ?, machine_weight = ?, machine_power = ?, machine_attrs_json = ?,
         updated_at = CURRENT_TIMESTAMP
      WHERE id = ?`
   )
@@ -3961,6 +4323,14 @@ async function updateAuctionRecord(env, auctionId: string, validation: any) {
       validation.vehicleDriveType,
       validation.vehicleConditionMapJson,
       validation.vehicleExpertiseMetaJson,
+      validation.machineBrand || "",
+      validation.machineModel || "",
+      validation.machineYear || 0,
+      validation.machineHours || 0,
+      validation.machineType || "",
+      validation.machineWeight || 0,
+      validation.machinePower || "",
+      validation.machineAttrsJson || "",
       auctionId
     )
     .run();

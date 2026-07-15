@@ -1073,6 +1073,16 @@ th {
   border-color: #f7caca;
 }
 
+.badge.warn {
+  color: #b8860b;
+  background: #fff8e1;
+  border-color: #f0d87a;
+}
+
+.pending {
+  color: #b8860b;
+}
+
 .actionBar {
   display: flex;
   gap: 8px;
@@ -1536,3 +1546,29 @@ th {
     padding: 8px 9px;
   }
 }
+
+.membershipPlanRow { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.membershipPlanRow:last-child { border-bottom: 0; }
+.planInfo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.planInfo strong { font-size: 14px; }
+.planMeta { font-size: 12px; color: var(--muted); }
+.planActions { display: flex; gap: 6px; }
+.membershipRow { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.membershipRow.active { background: #f0f9f4; margin: 0 -8px; padding: 8px; border-radius: 6px; }
+.planBadge { font-weight: 700; font-size: 13px; color: var(--accent); }
+.planDate { font-size: 12px; color: var(--muted); }
+.noMembership { font-size: 13px; color: var(--muted); padding: 8px 0; }
+.assignMembershipForm { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+.assignMembershipForm select { font-size: 13px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+
+.planFeaturesList { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.planFeatureTag { font-size: 11px; background: #e8f2ff; color: #1c4c7a; padding: 2px 8px; border-radius: 999px; border: 1px solid #c5d9f2; }
+
+.membershipPlansStandalone { display: grid; gap: 16px; }
+.planEditorForm { border: 1px solid var(--line); border-radius: 12px; background: #fafcff; overflow: hidden; }
+.planEditorHead { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); background: #f2f6fe; font-size: 14px; }
+.planEditorBody { padding: 14px; display: grid; gap: 10px; }
+.planEditorBody .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.planEditorBody .priceHint { font-size: 12px; color: var(--muted); text-align: center; font-weight: 600; }
+.newPlanForm { border-color: var(--primary); border-style: dashed; }
+.checkboxWrap { display: flex; align-items: center; gap: 8px; font-size: 13px; }

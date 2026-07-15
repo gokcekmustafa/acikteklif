@@ -80,11 +80,20 @@
           <form id="registerForm" class="registerForm">
             <input id="registerName" type="text" placeholder="İsim Soyisim" required>
             <input id="registerIdentityNo" type="text" inputmode="numeric" maxlength="11" placeholder="TC Kimlik No (11 hane)" required>
-            <input id="registerPhone" type="tel" placeholder="Telefon Numarası" required>
+            <input id="registerPhone" type="tel" placeholder="0 (5xx) xxx xx xx" maxlength="17" required>
+            <div class="accountTypeGroup">
+              <label class="accountTypeLabel">Hesap Türü</label>
+              <label class="accountTypeRadio"><input type="radio" name="accountType" value="bireysel" required> Bireysel</label>
+              <label class="accountTypeRadio"><input type="radio" name="accountType" value="ticari" required> Ticari</label>
+            </div>
             <textarea id="registerAddress" rows="3" placeholder="Adres" required></textarea>
             <input id="registerEmail" type="email" placeholder="E-posta" required>
             <input id="registerPassword" type="password" placeholder="Şifre (min 8 karakter)" minlength="8" required>
             <div id="registerTurnstile" class="turnstileSlot"></div>
+            <label class="agreementCheckbox">
+              <input type="checkbox" id="registerAgreement" required>
+              <a href="/uyelik-sozlesmesi.html" target="_blank">Üyelik Sözleşmesi</a>'ni okudum ve kabul ediyorum.
+            </label>
             <button class="naBtn" type="submit">Kayıt Oluştur</button>
             <a href="#" class="linkBtn" id="openSignInModalFromRegister"><i class="fas fa-arrow-left"></i> Giriş penceresine dön</a>
           </form>
@@ -106,7 +115,7 @@
           <form id="profileForm" class="registerForm profileForm">
             <input id="profileName" type="text" placeholder="İsim Soyisim" required>
             <input id="profileIdentityNo" type="text" inputmode="numeric" maxlength="11" placeholder="TC Kimlik No (11 hane)" required>
-            <input id="profilePhone" type="tel" placeholder="Telefon Numarası" required>
+            <input id="profilePhone" type="tel" placeholder="Telefon Numarası" maxlength="17" required>
             <textarea id="profileAddress" rows="3" placeholder="Adres" required></textarea>
             <input id="profileEmail" type="email" placeholder="E-posta" readonly>
             <button class="naBtn" type="submit">Profili Kaydet</button>

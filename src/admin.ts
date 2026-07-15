@@ -270,6 +270,7 @@ const elements = {
   panelCatalog: byId("panelCatalog"),
   panelAuctions: byId("panelAuctions"),
   panelReports: byId("panelReports"),
+  panelMembershipPlans: byId("panelMembershipPlans"),
   panelSettings: byId("panelSettings"),
   panelLogs: byId("panelLogs"),
   catalogSearchInput: byId("catalogSearchInput"),
@@ -289,6 +290,7 @@ const elements = {
   statTotalUsers: byId("statTotalUsers"),
   statManagers: byId("statManagers"),
   statDisabledUsers: byId("statDisabledUsers"),
+  statPendingUsers: byId("statPendingUsers"),
   statGroups: byId("statGroups"),
   statCategories: byId("statCategories"),
   statAuctions: byId("statAuctions"),
@@ -333,6 +335,15 @@ const elements = {
   auctionDocumentMeta: byId("auctionDocumentMeta"),
   auctionDocumentList: byId("auctionDocumentList"),
   auctionVehicleSection: byId("auctionVehicleSection"),
+  auctionMachineSection: byId("auctionMachineSection"),
+  auctionMachineBrandInput: byId("auctionMachineBrandInput"),
+  auctionMachineModelInput: byId("auctionMachineModelInput"),
+  auctionMachineYearInput: byId("auctionMachineYearInput"),
+  auctionMachineHoursInput: byId("auctionMachineHoursInput"),
+  auctionMachineTypeInput: byId("auctionMachineTypeInput"),
+  auctionMachineWeightInput: byId("auctionMachineWeightInput"),
+  auctionMachinePowerInput: byId("auctionMachinePowerInput"),
+  auctionMachineExtraFields: byId("auctionMachineExtraFields"),
   auctionCityInput: byId("auctionCityInput"),
   auctionDistrictInput: byId("auctionDistrictInput"),
   auctionNeighborhoodInput: byId("auctionNeighborhoodInput"),
@@ -397,6 +408,9 @@ const elements = {
   filterOrderDistricts: byId("filterOrderDistricts"),
   filterOrderNeighborhoods: byId("filterOrderNeighborhoods"),
   filterOrderResetBtn: byId("filterOrderResetBtn"),
+  membershipPlansSection: byId("membershipPlansSection"),
+  membershipPlansList: byId("membershipPlansList"),
+  addMembershipPlanBtn: byId("addMembershipPlanBtn"),
 };
 
 const VEHICLE_EXPERTISE_STRUCTURE_INPUTS: Record<VehicleExpertiseStructureKey, HTMLSelectElement> = {
@@ -595,6 +609,9 @@ function bindEvents() {
     state.catalogQuery = String(elements.catalogSearchInput.value || "").trim().toLowerCase();
     renderCatalog();
   });
+  elements.categoryGroupSelect.addEventListener("change", () => {
+    renderCatalog();
+  });
   elements.auctionSearchInput.addEventListener("input", () => {
     state.auctionQuery = String(elements.auctionSearchInput.value || "").trim().toLowerCase();
     renderAuctions();
@@ -622,6 +639,7 @@ function bindUserEvents() {
     if (!userId) return;
     state.selectedUserId = userId;
     renderUsers();
+    loadUserMembershipInfo(userId);
   });
 
   elements.userList.addEventListener("keydown", (event: any) => {
@@ -634,6 +652,7 @@ function bindUserEvents() {
     if (!userId) return;
     state.selectedUserId = userId;
     renderUsers();
+    loadUserMembershipInfo(userId);
   });
 
   elements.userDetail.addEventListener("click", async (event: any) => {
@@ -666,6 +685,41 @@ function bindUserEvents() {
           body: {},
         });
         setStatus("Kullanici oturumlari sonlandirildi.", "ok");
+      });
+      return;
+    }
+
+    if (action === "approve-user") {
+      await safeAction(actionBtn, async () => {
+        await apiFetch(`/api/admin/users/${encodeURIComponent(userId)}/approve`, { method: "PUT", body: {} });
+        await loadUsers();
+        renderUsers();
+        renderStats();
+        setStatus("Kullanici onaylandi.", "ok");
+      });
+      return;
+    }
+
+    if (action === "reject-user") {
+      await safeAction(actionBtn, async () => {
+        await apiFetch(`/api/admin/users/${encodeURIComponent(userId)}/reject`, { method: "PUT", body: {} });
+        await loadUsers();
+        renderUsers();
+        renderStats();
+        setStatus("Kullanici reddedildi.", "ok");
+      });
+      return;
+    }
+
+    if (action === "delete-user") {
+      if (!confirm("Bu kullaniciyi silmek istediginize emin misiniz? Bu islem geri alinamaz.")) return;
+      await safeAction(actionBtn, async () => {
+        await apiFetch(`/api/admin/users/${encodeURIComponent(userId)}`, { method: "DELETE" });
+        state.selectedUserId = "";
+        await loadUsers();
+        renderUsers();
+        renderStats();
+        setStatus("Kullanici silindi.", "ok");
       });
       return;
     }
@@ -959,6 +1013,8 @@ function bindSettingsEvents() {
     fillFilterOrderEditorWithOptions(normalized.options);
     setStatus("Varsayilan liste duzenleme alanina getirildi. Kaydetmek icin butona basin.", "warn");
   });
+
+  loadMembershipPlans();
 }
 
 function bindAuctionEvents() {
@@ -1002,6 +1058,10 @@ function bindAuctionEvents() {
   elements.auctionGroupSelect.addEventListener("change", () => {
     fillAuctionCategorySelect();
     renderAuctionVehicleSection();
+    renderAuctionMachineSection();
+  });
+  elements.auctionCategorySelect.addEventListener("change", () => {
+    renderAuctionMachineSection();
   });
 
   elements.auctionCityInput.addEventListener("change", () => {
@@ -1374,6 +1434,7 @@ function renderAll() {
   renderUsers();
   renderCatalog();
   renderAuctions();
+  renderMembershipPlans();
   renderSettings();
   syncVehicleConditionLayoutControls();
   refreshAuctionLocationSelects(String(elements.auctionCityInput.value || "").trim());
@@ -1398,6 +1459,7 @@ function renderTabs() {
   elements.panelCatalog.classList.toggle("hide", state.activeTab !== "catalog");
   elements.panelAuctions.classList.toggle("hide", state.activeTab !== "auctions");
   elements.panelReports.classList.toggle("hide", state.activeTab !== "reports");
+  elements.panelMembershipPlans.classList.toggle("hide", state.activeTab !== "membership-plans");
   elements.panelSettings.classList.toggle("hide", state.activeTab !== "settings");
   elements.panelLogs.classList.toggle("hide", state.activeTab !== "logs");
   elements.searchInput.parentElement?.classList.toggle("hide", state.activeTab !== "users");
@@ -1410,9 +1472,11 @@ function renderStats() {
   const totalUsers = state.users.length;
   const managerCount = state.users.filter((x: any) => x.role === ROLE_ADMIN || x.role === ROLE_MANAGER).length;
   const disabledUsers = state.users.filter((x: any) => x.isDisabled === true).length;
+  const pendingUsers = state.users.filter((x: any) => x.status === "pending").length;
   elements.statTotalUsers.textContent = String(totalUsers);
   elements.statManagers.textContent = String(managerCount);
   elements.statDisabledUsers.textContent = String(disabledUsers);
+  if (elements.statPendingUsers) elements.statPendingUsers.textContent = String(pendingUsers);
   elements.statGroups.textContent = String(state.groups.length);
   elements.statCategories.textContent = String(state.categories.length);
   elements.statAuctions.textContent = String(state.auctions.length);
@@ -1440,12 +1504,13 @@ function renderUsers() {
 }
 
 function renderUserListItem(user: any, isSelected: boolean) {
-  const status = user.isDisabled ? "Pasif" : "Aktif";
+  const statusText = user.status === "pending" ? "Onay Bekliyor" : user.isDisabled ? "Pasif" : "Aktif";
+  const statusClass = user.status === "pending" ? "pending" : user.isDisabled ? "" : "";
   return `
     <div class="userListItem ${isSelected ? "active" : ""}" data-action="select-user" data-user-id="${escapeHtml(user.id || "")}" role="button" tabindex="0">
       <div class="userLineTop">${escapeHtml(user.name || "Isimsiz")}</div>
       <div class="userLineMeta">${escapeHtml(user.email || "-")}</div>
-      <div class="userLineMeta">${escapeHtml(normalizeRole(user.role).toUpperCase())} | ${status}</div>
+      <div class="userLineMeta">${escapeHtml(normalizeRole(user.role).toUpperCase())} | <span class="${statusClass}">${statusText}</span></div>
     </div>
   `;
 }
@@ -1455,13 +1520,16 @@ function renderUserDetail(user: any) {
   const role = normalizeRole(user.role);
   const isAdminUser = role === ROLE_ADMIN;
   const roleBadgeClass = `role-${role}`;
-  const statusBadge = user.isDisabled
-    ? '<span class="badge danger">Pasif</span>'
-    : '<span class="badge ok">Aktif</span>';
+  const isPending = user.status === "pending";
+  const statusBadge = isPending
+    ? '<span class="badge warn">Onay Bekliyor</span>'
+    : user.isDisabled
+      ? '<span class="badge danger">Pasif</span>'
+      : '<span class="badge ok">Aktif</span>';
   const verifiedBadge = user.emailVerified
     ? '<span class="badge ok">E-posta Onayli</span>'
     : '<span class="badge danger">E-posta Onaysiz</span>';
-  const statusBtnClass = user.isDisabled ? "miniBtn success" : "miniBtn danger";
+  const statusBtnClass = user.isDisabled ? "miniBtn success" : user.status === "pending" ? "" : "miniBtn danger";
   const statusBtnText = user.isDisabled ? "Aktif Et" : "Pasife Al";
 
   const permissionRows = state.permissionDefs
@@ -1494,6 +1562,7 @@ function renderUserDetail(user: any) {
       </div>
       <div class="badges">
         <span class="badge ${roleBadgeClass}">${role.toUpperCase()}</span>
+        <span class="badge">${user.accountType === "ticari" ? "Ticari" : "Bireysel"}</span>
         <select class="roleSelect" data-action="change-role" data-user-id="${escapeHtml(user.id)}" ${
           isAdminUser ? "disabled" : ""
         }>
@@ -1504,16 +1573,27 @@ function renderUserDetail(user: any) {
       </div>
     </div>
     <div class="actionBar">
+      ${
+        isPending
+          ? `<button class="miniBtn success" data-action="approve-user" data-user-id="${escapeHtml(user.id)}">Onayla</button>
+             <button class="miniBtn danger" data-action="reject-user" data-user-id="${escapeHtml(user.id)}">Reddet</button>`
+          : ""
+      }
       <button class="${statusBtnClass}" data-action="toggle-status" data-user-id="${escapeHtml(user.id)}" data-disabled="${
         user.isDisabled ? "true" : "false"
-      }">${statusBtnText}</button>
+      }" ${isPending ? 'style="display:none"' : ""}>${statusBtnText}</button>
       <button class="miniBtn" data-action="revoke-sessions" data-user-id="${escapeHtml(
         user.id
       )}">Oturumlari Sonlandir</button>
+      ${state.currentUser?.role === ROLE_ADMIN && !isAdminUser ? `<button class="miniBtn danger" data-action="delete-user" data-user-id="${escapeHtml(user.id)}">Kullanici Sil</button>` : ""}
     </div>
     <div class="userSection">
       <h4 class="sectionTitle">Yetkiler</h4>
       <div class="permissionList">${permissionRows}</div>
+    </div>
+    <div class="userSection">
+      <h4 class="sectionTitle">Üyelik Bilgisi</h4>
+      <div id="userMembershipInfo" data-user-id="${escapeHtml(user.id)}">Yükleniyor...</div>
     </div>
     <div class="userSection">
       <h4 class="sectionTitle">Sifre Islemleri</h4>
@@ -1529,6 +1609,99 @@ function renderUserDetail(user: any) {
       </form>
     </div>
   `;
+}
+
+async function loadUserMembershipInfo(userId: string) {
+  const container = document.getElementById("userMembershipInfo");
+  if (!container || container.dataset.userId !== userId) return;
+  if (stateMembershipPlans.length < 1) {
+    await loadMembershipPlans();
+  }
+  try {
+    const data = await apiFetch(`/api/admin/users/${encodeURIComponent(userId)}/memberships`);
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (items.length < 1) {
+      container.innerHTML = `
+        <div class="noMembership">Üyelik bulunmuyor.</div>
+        <div class="assignMembershipForm">
+          <select id="assignPlanSelect">
+            <option value="">Paket seçin</option>
+            ${stateMembershipPlans.filter((p: any) => p.is_active === 1).map((p: any) =>
+              `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`
+            ).join("")}
+          </select>
+          <button class="miniBtn success" id="assignMembershipBtn" data-user-id="${escapeHtml(userId)}">Üyelik Ata</button>
+        </div>
+      `;
+    const assignBtn2 = document.getElementById("assignMembershipBtn");
+    if (assignBtn2) {
+      assignBtn2.addEventListener("click", async () => {
+        const select = document.getElementById("assignPlanSelect") as HTMLSelectElement | null;
+        if (!select || !select.value) { setStatus("Lütfen bir paket seçin.", "error"); return; }
+        await safeAction(assignBtn2, async () => {
+          const result = await apiFetch(`/api/admin/users/${encodeURIComponent(userId)}/memberships`, {
+            method: "POST",
+            body: { planId: select.value },
+          });
+          setStatus(result.message || "Üyelik atandı.", "ok");
+          await loadUserMembershipInfo(userId);
+        });
+      });
+    }
+      return;
+    }
+    const activeItem = items.find((m: any) => m.status === "active");
+    container.innerHTML = `
+      ${items.map((m: any) => `
+        <div class="membershipRow ${m.status === "active" ? "active" : ""}">
+          <span class="planBadge">${escapeHtml(m.plan_name)}</span>
+          <span class="planDate">${formatDate(m.starts_at)} - ${formatDate(m.expires_at)}</span>
+          <span class="badge ${m.status === "active" ? "ok" : "danger"}">${m.status === "active" ? "Aktif" : m.status === "expired" ? "Süresi Dolmuş" : "İptal"}</span>
+          ${m.status === "active" ? `<button class="miniBtn danger" data-action="revoke-membership" data-membership-id="${escapeHtml(m.id)}">İptal Et</button>` : ""}
+        </div>
+      `).join("")}
+      ${!activeItem ? `
+        <div class="assignMembershipForm">
+          <select id="assignPlanSelect">
+            <option value="">Paket seçin</option>
+            ${stateMembershipPlans.filter((p: any) => p.is_active === 1).map((p: any) =>
+              `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`
+            ).join("")}
+          </select>
+          <button class="miniBtn success" id="assignMembershipBtn" data-user-id="${escapeHtml(userId)}">Üyelik Ata</button>
+        </div>
+      ` : ""}
+    `;
+    const assignBtn2 = document.getElementById("assignMembershipBtn");
+    if (assignBtn2) {
+      assignBtn2.addEventListener("click", async () => {
+        const select = document.getElementById("assignPlanSelect") as HTMLSelectElement | null;
+        if (!select || !select.value) { setStatus("Lütfen bir paket seçin.", "error"); return; }
+        await safeAction(assignBtn2, async () => {
+          const result = await apiFetch(`/api/admin/users/${encodeURIComponent(userId)}/memberships`, {
+            method: "POST",
+            body: { planId: select.value },
+          });
+          setStatus(result.message || "Üyelik atandı.", "ok");
+          await loadUserMembershipInfo(userId);
+        });
+      });
+    }
+    const revokeBtns = container.querySelectorAll("button[data-action='revoke-membership']");
+    revokeBtns.forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const membershipId = String((btn as HTMLElement).dataset.membershipId || "");
+        if (!confirm("Üyeliği iptal etmek istediğinize emin misiniz?")) return;
+        await safeAction(btn as HTMLElement, async () => {
+          const result = await apiFetch(`/api/admin/memberships/${encodeURIComponent(membershipId)}/revoke`, { method: "POST" });
+          setStatus(result.message || "Üyelik iptal edildi.", "ok");
+          await loadUserMembershipInfo(userId);
+        });
+      });
+    });
+  } catch (error: any) {
+    container.innerHTML = `<div class="emptyState">${escapeHtml(error.message || "Yüklenemedi.")}</div>`;
+  }
 }
 
 function renderCatalog() {
@@ -1555,7 +1728,9 @@ function renderCatalog() {
     if (!q) return true;
     return String(group.name || "").toLowerCase().includes(q);
   });
+  const selectedGroupId = String(elements.categoryGroupSelect.value || "").trim();
   const categories = state.categories.filter((category: any) => {
+    if (selectedGroupId && String(category.group_id || "") !== selectedGroupId) return false;
     if (!q) return true;
     const categoryName = String(category.name || "").toLowerCase();
     const groupName = String(groupNameById.get(category.group_id) || "").toLowerCase();
@@ -1651,6 +1826,195 @@ function renderSettings() {
     elements.filterOrderNeighborhoods,
     formatOrderListForEditor(selected.neighborhoods?.length > 0 ? selected.neighborhoods : options.neighborhoods)
   );
+  renderMembershipPlans();
+}
+
+let stateMembershipPlans: any[] = [];
+
+async function loadMembershipPlans() {
+  try {
+    const data = await apiFetch("/api/admin/membership-plans");
+    stateMembershipPlans = Array.isArray(data.items) ? data.items : [];
+  } catch {
+    stateMembershipPlans = [];
+  }
+  renderMembershipPlans();
+  renderMembershipPlansStandalone();
+}
+
+function renderMembershipPlans() {
+  const target = elements.membershipPlansList;
+  if (!target) return;
+  if (stateMembershipPlans.length < 1) {
+    target.innerHTML = '<div class="emptyState">Henüz paket eklenmemiş.</div>';
+    return;
+  }
+  target.innerHTML = stateMembershipPlans
+    .map((plan: any) => {
+      const isActive = plan.is_active === 1;
+      const features = parsePlanFeatures(plan.features_json);
+      const yearlyPrice = plan.duration_days >= 365 ? Number(plan.price) : 0;
+      const monthlyPrice = yearlyPrice > 0 ? (yearlyPrice / 12) : 0;
+      return `
+        <div class="membershipPlanRow" data-plan-id="${escapeHtml(plan.id)}">
+          <div class="planInfo">
+            <strong>${escapeHtml(plan.name)}</strong>
+            <span class="planMeta">${plan.duration_days >= 365 ? `Aylık ${formatMoney(monthlyPrice)} TL / Yıllık ${formatMoney(yearlyPrice)} TL` : `${formatMoney(plan.price)} TL / ${plan.duration_days} gün`}</span>
+            <span class="badge ${isActive ? "ok" : "danger"}">${isActive ? "Aktif" : "Pasif"}</span>
+            ${features.length > 0 ? `<div class="planFeaturesList">${features.map((f: string) => `<span class="planFeatureTag">${escapeHtml(f)}</span>`).join("")}</div>` : ""}
+          </div>
+          <div class="planActions">
+            <button class="miniBtn" data-action="edit-plan" data-plan-id="${escapeHtml(plan.id)}">Düzenle</button>
+            <button class="miniBtn danger" data-action="delete-plan" data-plan-id="${escapeHtml(plan.id)}">Sil</button>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function parsePlanFeatures(json: any): string[] {
+  if (Array.isArray(json)) return json;
+  if (typeof json === "string") { try { const p = JSON.parse(json); return Array.isArray(p) ? p : []; } catch { return []; } }
+  return [];
+}
+
+function renderMembershipPlansStandalone() {
+  const target = document.getElementById("membershipPlansEditor");
+  if (!target) return;
+  const plans = stateMembershipPlans;
+  target.innerHTML = `
+    <div class="membershipPlansStandalone">
+      ${plans.length < 1 ? '<div class="emptyState">Henüz paket eklenmemiş.</div>' : plans.map((plan: any) => {
+        const features = parsePlanFeatures(plan.features_json);
+        const isActive = plan.is_active === 1;
+        const yearlyPrice = plan.duration_days >= 365 ? Number(plan.price) : 0;
+        const monthlyPrice = yearlyPrice > 0 ? (yearlyPrice / 12) : 0;
+        const priceDisplay = plan.duration_days >= 365
+          ? `Aylık ${formatMoney(monthlyPrice)} TL / Yıllık ${formatMoney(yearlyPrice)} TL`
+          : `${formatMoney(plan.price)} TL / ${plan.duration_days} gün`;
+        return `
+          <form class="planEditorForm" data-plan-id="${escapeHtml(plan.id)}">
+            <div class="planEditorHead">
+              <strong>${escapeHtml(plan.name)}</strong>
+              <span class="badge ${isActive ? "ok" : "danger"}">${isActive ? "Aktif" : "Pasif"}</span>
+            </div>
+            <div class="planEditorBody">
+              <div class="row2">
+                <label class="fieldWrap"><span>Paket Adı</span><input type="text" name="name" value="${escapeHtml(plan.name)}" required></label>
+                <label class="fieldWrap">
+                  <span>Fiyat (TL)</span>
+                  <input type="number" name="price" min="0" step="0.01" value="${escapeHtml(String(plan.price))}" required>
+                </label>
+              </div>
+              <div class="row2">
+                <label class="fieldWrap"><span>Süre (gün)</span><input type="number" name="durationDays" min="1" value="${escapeHtml(String(plan.duration_days))}" required></label>
+                <label class="fieldWrap"><span>Sıralama</span><input type="number" name="sortOrder" value="${escapeHtml(String(plan.sort_order || 0))}"></label>
+              </div>
+              <label class="fieldWrap"><span>Açıklama</span><input type="text" name="description" value="${escapeHtml(plan.description || "")}"></label>
+              <label class="fieldWrap">
+                <span>Paket İçeriği (her satıra bir özellik)</span>
+                <textarea name="features" rows="4">${escapeHtml(features.join("\n"))}</textarea>
+              </label>
+              <label class="fieldWrap checkboxWrap">
+                <input type="checkbox" name="isActive" ${isActive ? "checked" : ""}> Paket aktif
+              </label>
+              <div class="row2">
+                <button class="miniBtn success" type="submit">Kaydet</button>
+                <button class="miniBtn danger" type="button" data-action="delete-plan-standalone" data-plan-id="${escapeHtml(plan.id)}">Paketi Sil</button>
+              </div>
+              <div class="priceHint">${priceDisplay}</div>
+            </div>
+          </form>
+        `;
+      }).join("")}
+      <form id="newPlanForm" class="planEditorForm newPlanForm">
+        <div class="planEditorHead"><strong>Yeni Paket Ekle</strong></div>
+        <div class="planEditorBody">
+          <div class="row2">
+            <label class="fieldWrap"><span>Paket Adı</span><input type="text" name="name" placeholder="Premium Aylık" required></label>
+            <label class="fieldWrap"><span>Fiyat (TL)</span><input type="number" name="price" min="0" step="0.01" placeholder="99.90" required></label>
+          </div>
+          <div class="row2">
+            <label class="fieldWrap"><span>Süre (gün)</span><input type="number" name="durationDays" min="1" placeholder="30" required></label>
+            <label class="fieldWrap"><span>Sıralama</span><input type="number" name="sortOrder" placeholder="0"></label>
+          </div>
+          <label class="fieldWrap"><span>Açıklama</span><input type="text" name="description" placeholder="Kısa açıklama"></label>
+          <label class="fieldWrap">
+            <span>Paket İçeriği (her satıra bir özellik)</span>
+            <textarea name="features" rows="4" placeholder="İhale detay sayfası tam erişim&#10;Ekspertiz raporu görüntüleme"></textarea>
+          </label>
+          <label class="fieldWrap checkboxWrap">
+            <input type="checkbox" name="isActive" checked> Paket aktif
+          </label>
+          <button class="miniBtn success" type="submit">Paket Ekle</button>
+        </div>
+      </form>
+    </div>
+  `;
+  target.querySelectorAll(".planEditorForm[data-plan-id]").forEach((form) => {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const f = e.currentTarget as HTMLFormElement;
+      const planId = String(f.dataset.planId || "");
+      const fd = new FormData(f);
+      const featuresRaw = String(fd.get("features") || "");
+      const featuresArr = featuresRaw.split("\n").map((s: string) => s.trim()).filter(Boolean);
+      const btn = f.querySelector("button[type='submit']") as HTMLButtonElement;
+      await safeAction(btn, async () => {
+        const data = await apiFetch(`/api/admin/membership-plans/${encodeURIComponent(planId)}`, {
+          method: "PUT",
+          body: {
+            name: String(fd.get("name") || "").trim(),
+            price: Number(fd.get("price")) || 0,
+            durationDays: Number(fd.get("durationDays")) || 0,
+            description: String(fd.get("description") || "").trim(),
+            features: featuresArr,
+            sortOrder: Number(fd.get("sortOrder")) || 0,
+            isActive: fd.get("isActive") === "on",
+          },
+        });
+        setStatus(data.message || "Paket güncellendi.", "ok");
+        await loadMembershipPlans();
+      });
+    });
+  });
+  target.querySelectorAll("button[data-action='delete-plan-standalone']").forEach((btn) => {
+    (btn as HTMLElement).addEventListener("click", async () => {
+      const planId = String((btn as HTMLElement).dataset.planId || "");
+      if (!confirm("Bu paketi silmek istediğinize emin misiniz?")) return;
+      await safeAction(btn as HTMLElement, async () => {
+        const data = await apiFetch(`/api/admin/membership-plans/${encodeURIComponent(planId)}`, { method: "DELETE" });
+        setStatus(data.message || "Paket silindi.", "ok");
+        await loadMembershipPlans();
+      });
+    });
+  });
+  const newForm = document.getElementById("newPlanForm") as HTMLFormElement | null;
+  if (newForm) {
+    newForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(newForm);
+      const featuresRaw = String(fd.get("features") || "");
+      const featuresArr = featuresRaw.split("\n").map((s: string) => s.trim()).filter(Boolean);
+      const btn = newForm.querySelector("button[type='submit']") as HTMLButtonElement;
+      await safeAction(btn, async () => {
+        const data = await apiFetch("/api/admin/membership-plans", {
+          method: "POST",
+          body: {
+            name: String(fd.get("name") || "").trim(),
+            price: Number(fd.get("price")) || 0,
+            durationDays: Number(fd.get("durationDays")) || 0,
+            description: String(fd.get("description") || "").trim(),
+            features: featuresArr,
+            sortOrder: Number(fd.get("sortOrder")) || 0,
+          },
+        });
+        setStatus(data.message || "Paket eklendi.", "ok");
+        await loadMembershipPlans();
+      });
+    });
+  }
 }
 
 function fillFilterOrderEditorWithOptions(options: any) {
@@ -2067,6 +2431,15 @@ function fillAuctionForm(auction: any) {
   fillAuctionCategorySelect();
   elements.auctionCategorySelect.value = String(auction.category_id || "");
   renderAuctionVehicleSection();
+  renderAuctionMachineSection();
+  elements.auctionMachineBrandInput.value = String(auction.machine_brand || "");
+  elements.auctionMachineModelInput.value = String(auction.machine_model || "");
+  elements.auctionMachineYearInput.value = String(auction.machine_year || "");
+  elements.auctionMachineHoursInput.value = String(auction.machine_hours || "");
+  elements.auctionMachineTypeInput.value = String(auction.machine_type || "");
+  elements.auctionMachineWeightInput.value = String(auction.machine_weight || "");
+  elements.auctionMachinePowerInput.value = String(auction.machine_power || "");
+  fillMachineExtraFieldsInputs(auction.machine_attrs_json);
   elements.auctionStartPriceInput.value = String(Number(auction.start_price || 0));
   elements.auctionMinIncrementInput.value = String(Number(auction.min_increment || 1000));
   elements.auctionStatusInput.value = String(auction.status || "ACTIVE");
@@ -2131,6 +2504,14 @@ function readAuctionFormPayload() {
     neighborhood: "",
     description: String(elements.auctionDescriptionInput.value || "").trim(),
     extraEquipment: "",
+    machineBrand: String(elements.auctionMachineBrandInput.value || "").trim(),
+    machineModel: String(elements.auctionMachineModelInput.value || "").trim(),
+    machineYear: Number(elements.auctionMachineYearInput.value || 0),
+    machineHours: Number(elements.auctionMachineHoursInput.value || 0),
+    machineType: String(elements.auctionMachineTypeInput.value || "").trim(),
+    machineWeight: Number(elements.auctionMachineWeightInput.value || 0),
+    machinePower: String(elements.auctionMachinePowerInput.value || "").trim(),
+    machineAttrsJson: collectMachineExtraFields(),
     vehicleBrand: String(elements.auctionVehicleBrandInput.value || "").trim(),
     vehicleModel: String(elements.auctionVehicleModelInput.value || "").trim(),
     vehicleModelDetail: String(elements.auctionVehicleModelDetailInput.value || "").trim(),
@@ -2473,11 +2854,151 @@ function ensureAuctionSelectionDefaults() {
   }
 }
 
+const MACHINE_EXTRA_FIELDS: Record<string, Array<{key: string; label: string; unit: string}>> = {
+  "Ekskavatör (Kepçe)": [
+    {key: "bucket_capacity", label: "Kova Kapasitesi", unit: "m³"},
+    {key: "dig_depth", label: "Kazı Derinliği", unit: "m"},
+    {key: "reach", label: "Kazı Erişimi", unit: "m"},
+    {key: "breakout_force", label: "Koparma Kuvveti", unit: "kN"},
+  ],
+  "Beko Loder (Kazıcı-Yükleyici)": [
+    {key: "dig_depth", label: "Kazıcı Kol Derinliği", unit: "m"},
+    {key: "bucket_capacity", label: "Ön Kepçe Kapasitesi", unit: "m³"},
+    {key: "tipping_load", label: "Devirme Yükü", unit: "kg"},
+  ],
+  "Loder (Yükleyici)": [
+    {key: "bucket_capacity", label: "Kepçe Kapasitesi", unit: "m³"},
+    {key: "tipping_load", label: "Devirme Yükü", unit: "kg"},
+  ],
+  "Greyder": [
+    {key: "blade_width", label: "Bıçak Boyu", unit: "m"},
+  ],
+  "Silindir": [
+    {key: "drum_width", label: "Bant (Tambur) Genişliği", unit: "mm"},
+    {key: "drum_type", label: "Tambur Tipi", unit: ""},
+  ],
+  "Mobil Vinç": [
+    {key: "lifting_capacity", label: "Kaldırma Kapasitesi", unit: "ton"},
+    {key: "boom_length", label: "Bom Boyu", unit: "m"},
+  ],
+  "Teleskopik Yükleyici": [
+    {key: "lifting_capacity", label: "Kaldırma Kapasitesi", unit: "kg"},
+    {key: "lift_height", label: "Kaldırma Yüksekliği", unit: "m"},
+  ],
+  "Fore Kazık Makinesi": [
+    {key: "max_depth", label: "Maks. Kazık Derinliği", unit: "m"},
+    {key: "max_diameter", label: "Maks. Kazık Çapı", unit: "mm"},
+    {key: "torque", label: "Tork", unit: "kNm"},
+  ],
+  "Sondaj Makinesi": [
+    {key: "drill_depth", label: "Delme Derinliği", unit: "m"},
+    {key: "drill_diameter", label: "Delme Çapı", unit: "mm"},
+    {key: "torque", label: "Tork", unit: "kNm"},
+  ],
+  "Kaya Delici (Ankraj)": [
+    {key: "drill_diameter", label: "Delme Çapı", unit: "mm"},
+    {key: "drill_depth", label: "Delme Derinliği", unit: "m"},
+    {key: "torque", label: "Tork", unit: "kNm"},
+  ],
+  "Kaya Kamyonu": [
+    {key: "capacity_tons", label: "Kapasite", unit: "ton"},
+    {key: "body_volume", label: "Kasa Hacmi", unit: "m³"},
+  ],
+  "Transmikser": [
+    {key: "drum_capacity", label: "Mikser Hacmi", unit: "m³"},
+    {key: "chassis_brand", label: "Şasi Markası", unit: ""},
+  ],
+  "Beton Pompası": [
+    {key: "boom_length", label: "Bom Uzunluğu", unit: "m"},
+    {key: "pump_capacity", label: "Pompalama Kapasitesi", unit: "m³/saat"},
+  ],
+  "Asfalt Makinesi": [
+    {key: "paving_width", label: "Serim Genişliği", unit: "m"},
+    {key: "capacity_tons", label: "Kapasite", unit: "ton/saat"},
+  ],
+  "Finişer": [
+    {key: "paving_width", label: "Serim Genişliği", unit: "m"},
+  ],
+  "Beton Dağıtıcı": [
+    {key: "boom_length", label: "Bom Uzunluğu", unit: "m"},
+  ],
+  "Dizel Çekiç": [
+    {key: "hammer_weight", label: "Çekiç Ağırlığı", unit: "kg"},
+  ],
+};
+
+const MACHINE_BRANDS = [
+  "Akerman", "Atlas Copco", "Bomag", "Case", "Caterpillar (CAT)", "CNH", "Daewoo", "Doosan",
+  "Dynapac", "Fiat-Allis", "Furukawa", "Hidromek", "Hitachi", "Holland", "Honda Power",
+  "Hyoung", "Hyundai", "JCB", "Kawasaki", "Kobelco", "Komatsu", "Kubota", "Liebherr",
+  "LiuGong", "MAN", "Mecalac", "New Holland", "Paletli", "Putmevister", "Randon",
+  "Sany", "SDLG", "Sennebogen", "Sumitomo", "Takeuchi", "Terex", "Toyota", "Vermeer",
+  "Volvo CE", "Wacker Neuson", "XCMG", "Yanmar", "Zoomlion",
+];
+
+function refreshMachineBrandInput() {
+  const current = String(elements.auctionMachineBrandInput.value || "");
+  elements.auctionMachineBrandInput.innerHTML = '<option value="">Marka seçiniz</option>';
+  for (const brand of MACHINE_BRANDS) {
+    const opt = document.createElement("option");
+    opt.value = brand;
+    opt.textContent = brand;
+    elements.auctionMachineBrandInput.appendChild(opt);
+  }
+  if (current) elements.auctionMachineBrandInput.value = current;
+}
+
+function renderAuctionMachineSection() {
+  const selectedGroupId = String(elements.auctionGroupSelect.value || "");
+  const selectedGroup = state.groups.find((x: any) => String(x.id || "") === selectedGroupId);
+  const groupName = String(selectedGroup?.name || "").toLowerCase();
+  const isMachineGroup = groupName.includes("iş makinesi") || groupName.includes("is makinesi") || groupName.includes("iş makina") || groupName.includes("is makina");
+  if (!isMachineGroup) {
+    elements.auctionMachineSection.classList.add("hide");
+    return;
+  }
+  elements.auctionMachineSection.classList.remove("hide");
+  refreshMachineBrandInput();
+
+  const selectedCategoryName = elements.auctionCategorySelect.selectedOptions[0]?.textContent || "";
+  const extraFields = MACHINE_EXTRA_FIELDS[selectedCategoryName] || null;
+  const container = elements.auctionMachineExtraFields;
+  if (!extraFields || extraFields.length < 1) {
+    container.innerHTML = "";
+    return;
+  }
+  container.innerHTML = `<h5>${escapeHtml(selectedCategoryName)} Özellikleri</h5><div class="row3">${extraFields.map((f) =>
+    `<label class="fieldWrap"><span>${escapeHtml(f.label)}${f.unit ? ` (${escapeHtml(f.unit)})` : ""}</span><input type="text" class="machineExtraInput" data-key="${escapeHtml(f.key)}" placeholder="${escapeHtml(f.label)}"></label>`
+  ).join("")}</div>`;
+}
+
+function collectMachineExtraFields(): string {
+  const inputs = elements.auctionMachineExtraFields.querySelectorAll(".machineExtraInput");
+  const out: Record<string, string> = {};
+  inputs.forEach((el: any) => {
+    const key = String(el.dataset.key || "").trim();
+    const val = String(el.value || "").trim();
+    if (key && val) out[key] = val;
+  });
+  return Object.keys(out).length > 0 ? JSON.stringify(out) : "";
+}
+
+function fillMachineExtraFieldsInputs(json: any) {
+  const extra: Record<string, string> = {};
+  if (typeof json === "string") { try { const p = JSON.parse(json); Object.assign(extra, p); } catch {} }
+  else if (json && typeof json === "object") { Object.assign(extra, json); }
+  elements.auctionMachineExtraFields.querySelectorAll(".machineExtraInput").forEach((el: any) => {
+    const key = String(el.dataset.key || "").trim();
+    if (key && extra[key] !== undefined) el.value = extra[key];
+  });
+}
+
 function renderAuctionVehicleSection() {
   const selectedGroupId = String(elements.auctionGroupSelect.value || "");
   const selectedGroup = state.groups.find((x: any) => String(x.id || "") === selectedGroupId);
   const groupName = String(selectedGroup?.name || "").toLowerCase();
-  const isVehicleGroup = groupName.includes("vasita") || groupName.includes("otomotiv");
+  const isMachineGroup = groupName.includes("iş makinesi") || groupName.includes("is makinesi") || groupName.includes("iş makina") || groupName.includes("is makina");
+  const isVehicleGroup = (groupName.includes("vasita") || groupName.includes("otomotiv")) && !isMachineGroup;
   elements.auctionVehicleSection.classList.toggle("hide", !isVehicleGroup);
 }
 

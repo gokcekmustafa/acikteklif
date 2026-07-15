@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Üyelik Paketleri | Kamutas</title>
+  <meta name="robots" content="noindex, follow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <style>
+    :root {
+      --bg: #eef2f7;
+      --card: #ffffff;
+      --line: #d6deea;
+      --text: #1f2c3a;
+      --muted: #5f7288;
+      --primary: #0e69c2;
+      --primary-hover: #0b57a5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top, #f8fbff 0%, var(--bg) 55%);
+      min-height: 100vh;
+    }
+    .topBar {
+      width: min(900px, calc(100% - 28px));
+      margin: 16px auto 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand { font-weight: 800; color: #1c3550; text-decoration: none; font-size: 18px; }
+    .backBtn {
+      display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+      color: #1f3e61; font-weight: 700; background: #fff;
+      border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font-size: 13px;
+    }
+    .contentWrap {
+      width: min(900px, calc(100% - 28px));
+      margin: 30px auto 50px;
+    }
+    h1 { text-align: center; font-size: 26px; margin-bottom: 8px; }
+    .subtitle { text-align: center; color: var(--muted); margin-bottom: 36px; }
+    .planGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+    }
+    .planCard {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(24,45,71,0.08);
+      padding: 28px 22px;
+      display: flex;
+      flex-direction: column;
+    }
+    .planCard.featured {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--primary), 0 10px 30px rgba(24,45,71,0.12);
+    }
+    .planName { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+    .planDesc { font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.5; }
+    .planPrice { font-size: 32px; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+    .planPrice small { font-size: 14px; font-weight: 600; color: var(--muted); }
+    .planDuration { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+    .planFeatures { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; flex: 1; margin-bottom: 20px; }
+    .planFeatures li { font-size: 13px; display: flex; align-items: center; gap: 8px; }
+    .planFeatures li i { color: #0f8f57; font-size: 14px; width: 16px; }
+    .buyBtn {
+      display: block; text-align: center; padding: 12px; border-radius: 10px;
+      background: var(--primary); color: #fff; font-weight: 700; text-decoration: none;
+      border: none; cursor: pointer; font-size: 14px;
+    }
+    .buyBtn:hover { filter: brightness(1.1); }
+    .loading { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .error { text-align: center; padding: 60px 20px; color: #b02a2a; }
+  </style>
+</head>
+<body>
+  <div class="topBar">
+    <a href="/" class="brand">Kamutas</a>
+    <a href="javascript:history.back()" class="backBtn"><i class="fas fa-arrow-left"></i> Geri</a>
+  </div>
+  <div class="contentWrap">
+    <h1>Üyelik Paketleri</h1>
+    <p class="subtitle">İhale detaylarına tam erişim için size uygun paketi seçin.</p>
+    <div id="planList" class="planGrid">
+      <div class="loading"><i class="fas fa-spinner fa-spin"></i> Yükleniyor...</div>
+    </div>
+  </div>
+  <script>
+    async function loadPlans() {
+      try {
+        const res = await fetch("/api/membership-plans");
+        const data = await res.json().catch(() => ({}));
+        const items = Array.isArray(data.items) ? data.items : [];
+        const container = document.getElementById("planList");
+        if (items.length < 1) {
+          container.innerHTML = '<div class="error">Henüz üyelik paketi bulunmamaktadır.</div>';
+          return;
+        }
+        container.innerHTML = items.map((plan, i) => {
+          let rawFeatures = [];
+          try { rawFeatures = Array.isArray(plan.features_json) ? plan.features_json : JSON.parse(plan.features_json || "[]"); } catch {}
+          const features = rawFeatures.length > 0 ? rawFeatures : [
+            "İhale detay sayfası tam erişim",
+            "Ekspertiz raporu görüntüleme",
+            "Galeri görsellerini inceleme",
+            "Tüm belgelere erişim",
+          ];
+          const isYearly = plan.duration_days >= 365;
+          const yearlyTotal = isYearly ? Number(plan.price) : 0;
+          const monthlyPrice = isYearly ? (yearlyTotal / 12) : 0;
+          const priceHtml = isYearly
+            ? '<div class="planPrice">' + fmt(monthlyPrice) + ' <small>TL / ay</small></div><div class="planDuration">Yıllık ' + fmt(yearlyTotal) + ' TL (peşin)</div>'
+            : '<div class="planPrice">' + fmt(plan.price) + ' <small>' + esc(plan.currency || "TL") + '</small></div><div class="planDuration">' + plan.duration_days + ' gün</div>';
+          return '<div class="planCard' + (i === 0 ? ' featured' : '') + '">' +
+            '<div class="planName">' + esc(plan.name || "Paket") + '</div>' +
+            (plan.description ? '<div class="planDesc">' + esc(plan.description) + '</div>' : '') +
+            priceHtml +
+            '<ul class="planFeatures">' + features.map(function(f) { return '<li><i class="fas fa-check"></i> ' + esc(f) + '</li>'; }).join("") + '</ul>' +
+            '<button class="buyBtn" onclick="alert(\'Ödeme altyapısı hazırlanıyor.\\nYakında aktif olacaktır.\')">Satın Al</button>' +
+            '</div>';
+        }).join("");
+      } catch (e) {
+        document.getElementById("planList").innerHTML = '<div class="error">Paketler yüklenemedi.</div>';
+      }
+    }
+    function esc(v) { return String(v ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;"); }
+    function fmt(v) { return new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(v || 0)); }
+    loadPlans();
+  </script>
+</body>
+</html>
