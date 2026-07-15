@@ -1202,31 +1202,7 @@ function bindEvents() {
         event.preventDefault();
         closeModalElement(elements.favoritesModal);
     });
-    elements.signInModal.addEventListener("click", (event) => {
-        if (event.target === elements.signInModal) {
-            closeModalElement(elements.signInModal);
-        }
-    });
-    elements.registerModal.addEventListener("click", (event) => {
-        if (event.target === elements.registerModal) {
-            closeModalElement(elements.registerModal);
-        }
-    });
-    elements.profileModal.addEventListener("click", (event) => {
-        if (event.target === elements.profileModal) {
-            closeModalElement(elements.profileModal);
-        }
-    });
-    elements.myBidsModal.addEventListener("click", (event) => {
-        if (event.target === elements.myBidsModal) {
-            closeModalElement(elements.myBidsModal);
-        }
-    });
-    elements.favoritesModal.addEventListener("click", (event) => {
-        if (event.target === elements.favoritesModal) {
-            closeModalElement(elements.favoritesModal);
-        }
-    });
+    // modaller yalnızca X butonu ile kapanır (arka plana tıklayınca kapanmaz)
     elements.loginForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         await handleLogin();
