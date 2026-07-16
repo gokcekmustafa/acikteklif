@@ -105,21 +105,16 @@
       const container = document.getElementById('pageContent');
       if (container && content['sss']) {
         container.innerHTML = content['sss'];
+        container.querySelectorAll(".faqQ").forEach(function(q) {
+          q.addEventListener("click", function() {
+            var item = this.parentElement;
+            item.querySelector(".faqA")?.classList.toggle("open");
+            this.classList.toggle("open");
+          });
+        });
       }
     } catch(e) {}
   })();
-  </script>
-  <script>
-  document.getElementById("menuOpenBtn")?.addEventListener("click", function(e) { e.preventDefault(); document.getElementById("mainMenu")?.classList.add("open"); });
-  document.getElementById("menuCloseBtn")?.addEventListener("click", function(e) { e.preventDefault(); document.getElementById("mainMenu")?.classList.remove("open"); });
-
-  document.querySelectorAll(".faqQ").forEach(function(q) {
-    q.addEventListener("click", function() {
-      var item = this.parentElement;
-      item.querySelector(".faqA")?.classList.toggle("open");
-      this.classList.toggle("open");
-    });
-  });
   </script>
 </body>
 </html>
