@@ -1839,77 +1839,77 @@ let stateContentSettings: Record<string, string> = {};
 let statePageContent: Record<string, string> = {};
 let stateContentSelectedGroup: string | null = null;
 
-const CONTENT_TREE: { key: string; label: string; fields: { key: string; label: string; type?: string; rows?: number; placeholder?: string }[] }[] = [
+const CONTENT_TREE: { key: string; label: string; fields: { key: string; label: string; type?: string; rows?: number }[] }[] = [
   { key: "seo", label: "SEO", fields: [
-    { key: "meta_title", label: "Sayfa Başlığı", placeholder: "Kamutas | Online İhale Platformu" },
-    { key: "meta_description", label: "Meta Açıklaması", placeholder: "Kamutas ile online açık artırma..." },
+    { key: "meta_title", label: "Sayfa Başlığı" },
+    { key: "meta_description", label: "Meta Açıklaması" },
   ]},
   { key: "hero", label: "Hero Bölümü", fields: [
-    { key: "hero_title", label: "Başlık", placeholder: "Online Açık Artırma ile Güvenli Alışveriş" },
-    { key: "hero_desc", label: "Alt Metin", type: "textarea", rows: 2, placeholder: "Araç, ekipman ve gayrimenkul ihalelerine katılın..." },
-    { key: "hero_btn", label: "Buton Metni", placeholder: "Tüm İlanları Gör" },
-    { key: "stat1_label", label: "İstatistik 1", placeholder: "İlan" },
-    { key: "stat2_label", label: "İstatistik 2", placeholder: "Teklif" },
-    { key: "stat3_label", label: "İstatistik 3", placeholder: "Üye" },
+    { key: "hero_title", label: "Başlık" },
+    { key: "hero_desc", label: "Alt Metin", type: "textarea", rows: 2 },
+    { key: "hero_btn", label: "Buton Metni" },
+    { key: "stat1_label", label: "İstatistik 1" },
+    { key: "stat2_label", label: "İstatistik 2" },
+    { key: "stat3_label", label: "İstatistik 3" },
   ]},
   { key: "auctions", label: "Açık Artırmalar", fields: [
-    { key: "auctions_title", label: "Başlık", placeholder: "Açık Artırmalarımız" },
-    { key: "auctions_desc", label: "Açıklama", type: "textarea", rows: 2, placeholder: "Hafta içi her gün canlı açık artırma..." },
-    { key: "auctions_schedule", label: "Takvim Metni", placeholder: "Pazartesi - Cuma | 11:00" },
+    { key: "auctions_title", label: "Başlık" },
+    { key: "auctions_desc", label: "Açıklama", type: "textarea", rows: 2 },
+    { key: "auctions_schedule", label: "Takvim Metni" },
   ]},
   { key: "how", label: "Nasıl Çalışır?", fields: [
-    { key: "how_title", label: "Başlık", placeholder: "Nasıl Çalışır?" },
-    { key: "how_desc", label: "Açıklama", placeholder: "Tek bir hedefimiz var..." },
-    { key: "step1_title", label: "Adım 1 Başlık", placeholder: "İlanları İnceleyin" },
-    { key: "step1_desc", label: "Adım 1 Açıklama", placeholder: "Beğendiğiniz aracın detaylarına bakın..." },
-    { key: "step2_title", label: "Adım 2 Başlık", placeholder: "Ücretsiz Kaydolun" },
-    { key: "step2_desc", label: "Adım 2 Açıklama", placeholder: "Hemen üye olun, ihalelere katılmaya başlayın" },
-    { key: "step3_title", label: "Adım 3 Başlık", placeholder: "Teklif Verin" },
-    { key: "step3_desc", label: "Adım 3 Açıklama", placeholder: "Canlı açık artırmada tek teklifle aracı satın alın" },
-    { key: "step4_title", label: "Adım 4 Başlık", placeholder: "Güvenle Satın Alın" },
-    { key: "step4_desc", label: "Adım 4 Açıklama", placeholder: "Noter satışı ve güvenli ödeme..." },
+    { key: "how_title", label: "Başlık" },
+    { key: "how_desc", label: "Açıklama" },
+    { key: "step1_title", label: "Adım 1 Başlık" },
+    { key: "step1_desc", label: "Adım 1 Açıklama" },
+    { key: "step2_title", label: "Adım 2 Başlık" },
+    { key: "step2_desc", label: "Adım 2 Açıklama" },
+    { key: "step3_title", label: "Adım 3 Başlık" },
+    { key: "step3_desc", label: "Adım 3 Açıklama" },
+    { key: "step4_title", label: "Adım 4 Başlık" },
+    { key: "step4_desc", label: "Adım 4 Açıklama" },
   ]},
   { key: "listings", label: "Yeni Eklenen Araçlar", fields: [
-    { key: "listings_title", label: "Başlık", placeholder: "Yeni Eklenen Araçlar" },
-    { key: "listings_desc", label: "Açıklama", placeholder: "Güncel ihale listesini inceleyin..." },
+    { key: "listings_title", label: "Başlık" },
+    { key: "listings_desc", label: "Açıklama" },
   ]},
   { key: "logo", label: "Logo", fields: [
-    { key: "logo_title", label: "Logo Başlık", placeholder: "Kamutas" },
-    { key: "logo_subtitle", label: "Logo Alt Başlık", placeholder: "İhale Pazarı" },
+    { key: "logo_title", label: "Logo Başlık" },
+    { key: "logo_subtitle", label: "Logo Alt Başlık" },
   ]},
   { key: "footer_company", label: "Footer - Şirket", fields: [
-    { key: "footer_desc", label: "Şirket Açıklaması", type: "textarea", rows: 2, placeholder: "Kamutas platformu ile..." },
-    { key: "footer_email", label: "E-posta", placeholder: "info@kamutas.com" },
-    { key: "footer_phone", label: "Telefon", placeholder: "0850 XXX XXXX" },
-    { key: "footer_address", label: "Adres", placeholder: "İstanbul, Türkiye" },
-    { key: "footer_copyright", label: "Telif Metni", placeholder: "© 2026 Kamutas | Tüm hakları saklıdır." },
-    { key: "footer_tagline", label: "Alt Etiket", placeholder: "Güvenli teklif platformu" },
+    { key: "footer_desc", label: "Şirket Açıklaması", type: "textarea", rows: 2 },
+    { key: "footer_email", label: "E-posta" },
+    { key: "footer_phone", label: "Telefon" },
+    { key: "footer_address", label: "Adres" },
+    { key: "footer_copyright", label: "Telif Metni" },
+    { key: "footer_tagline", label: "Alt Etiket" },
   ]},
   { key: "footer_social", label: "Footer - Sosyal Medya", fields: [
-    { key: "social_instagram_url", label: "Instagram URL", placeholder: "https://instagram.com/..." },
-    { key: "social_linkedin_url", label: "LinkedIn URL", placeholder: "https://linkedin.com/..." },
-    { key: "social_facebook_url", label: "Facebook URL", placeholder: "https://facebook.com/..." },
-    { key: "social_twitter_url", label: "Twitter/X URL", placeholder: "https://twitter.com/..." },
+    { key: "social_instagram_url", label: "Instagram URL" },
+    { key: "social_linkedin_url", label: "LinkedIn URL" },
+    { key: "social_facebook_url", label: "Facebook URL" },
+    { key: "social_twitter_url", label: "Twitter/X URL" },
   ]},
   { key: "footer_corporate", label: "Footer - Kurumsal", fields: [
-    { key: "footer_corporate_title", label: "Başlık", placeholder: "Kurumsal" },
-    { key: "footer_link_about_text", label: "Hakkımızda Metin", placeholder: "Hakkımızda" },
-    { key: "footer_link_about_url", label: "Hakkımızda URL", placeholder: "/hakkimizda.html" },
-    { key: "footer_link_contact_text", label: "İletişim Metin", placeholder: "İletişim" },
-    { key: "footer_link_contact_url", label: "İletişim URL", placeholder: "/iletisim.html" },
-    { key: "footer_link_faq_text", label: "SSS Metin", placeholder: "Sıkça Sorulan Sorular" },
-    { key: "footer_link_faq_url", label: "SSS URL", placeholder: "/sss.html" },
+    { key: "footer_corporate_title", label: "Başlık" },
+    { key: "footer_link_about_text", label: "Hakkımızda Metin" },
+    { key: "footer_link_about_url", label: "Hakkımızda URL" },
+    { key: "footer_link_contact_text", label: "İletişim Metin" },
+    { key: "footer_link_contact_url", label: "İletişim URL" },
+    { key: "footer_link_faq_text", label: "SSS Metin" },
+    { key: "footer_link_faq_url", label: "SSS URL" },
   ]},
   { key: "footer_legal", label: "Footer - Yasal", fields: [
-    { key: "footer_legal_title", label: "Başlık", placeholder: "Yasal" },
-    { key: "footer_link_kvkk_text", label: "KVKK Metin", placeholder: "KVKK Aydınlatma Metni" },
-    { key: "footer_link_kvkk_url", label: "KVKK URL", placeholder: "/kvkk.html" },
-    { key: "footer_link_cookie_text", label: "Çerez Metin", placeholder: "Çerez Politikası" },
-    { key: "footer_link_cookie_url", label: "Çerez URL", placeholder: "/cerez-politikasi.html" },
-    { key: "footer_link_distance_text", label: "Mesafeli Satış Metin", placeholder: "Mesafeli Satış Sözleşmesi" },
-    { key: "footer_link_distance_url", label: "Mesafeli Satış URL", placeholder: "/mesafeli-satis.html" },
-    { key: "footer_link_terms_text", label: "Kullanım Koşulları Metin", placeholder: "Kullanım Koşulları" },
-    { key: "footer_link_terms_url", label: "Kullanım Koşulları URL", placeholder: "/kullanim-kosullari.html" },
+    { key: "footer_legal_title", label: "Başlık" },
+    { key: "footer_link_kvkk_text", label: "KVKK Metin" },
+    { key: "footer_link_kvkk_url", label: "KVKK URL" },
+    { key: "footer_link_cookie_text", label: "Çerez Metin" },
+    { key: "footer_link_cookie_url", label: "Çerez URL" },
+    { key: "footer_link_distance_text", label: "Mesafeli Satış Metin" },
+    { key: "footer_link_distance_url", label: "Mesafeli Satış URL" },
+    { key: "footer_link_terms_text", label: "Kullanım Koşulları Metin" },
+    { key: "footer_link_terms_url", label: "Kullanım Koşulları URL" },
   ]},
 ];
 
@@ -2032,9 +2032,9 @@ function renderContentEditor(selected: string | null) {
   for (const field of group.fields) {
     const val = stateContentSettings[field.key] || "";
     if (field.type === "textarea") {
-      fieldsHtml += `<label class="fieldWrap"><span>${field.label}</span><textarea rows="${field.rows || 3}" id="ce_${field.key}" placeholder="${escapeHtml(field.placeholder || "")}">${escapeHtml(val)}</textarea></label>`;
+      fieldsHtml += `<label class="fieldWrap"><span>${field.label}</span><textarea rows="${field.rows || 3}" id="ce_${field.key}">${escapeHtml(val)}</textarea></label>`;
     } else {
-      fieldsHtml += `<label class="fieldWrap"><span>${field.label}</span><input type="text" id="ce_${field.key}" value="${escapeHtml(val)}" placeholder="${escapeHtml(field.placeholder || "")}"></label>`;
+      fieldsHtml += `<label class="fieldWrap"><span>${field.label}</span><input type="text" id="ce_${field.key}" value="${escapeHtml(val)}"></label>`;
     }
   }
   editor.innerHTML = `
