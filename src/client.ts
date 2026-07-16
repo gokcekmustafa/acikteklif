@@ -479,6 +479,7 @@ async function init() {
   await Promise.all([
     loadInitialData(),
     hydrateAuth(),
+    loadHomepageContent(),
   ]);
   hydrateFilterOptions();
   applyInitialFilters();
@@ -2802,6 +2803,22 @@ function resetTurnstile(kind) {
   if (kind === "register" && state.turnstile.registerWidgetId !== null) {
     state.turnstile.registerToken = "";
     window.turnstile.reset(state.turnstile.registerWidgetId);
+  }
+}
+
+async function loadHomepageContent() {
+  try {
+    const res = await fetch("/api/content-settings");
+    if (!res.ok) return;
+    const data = await res.json();
+    const content = data?.items || {};
+    const els = document.querySelectorAll<HTMLElement>("[data-content-key]");
+    for (const el of els) {
+      const key = el.getAttribute("data-content-key") || "";
+      if (content[key]) el.textContent = content[key];
+    }
+  } catch {
+    // ignore on homepage
   }
 }
 

@@ -214,6 +214,7 @@ const elements = {
     panelCatalog: byId("panelCatalog"),
     panelAuctions: byId("panelAuctions"),
     panelReports: byId("panelReports"),
+    panelContent: byId("panelContent"),
     panelMembershipPlans: byId("panelMembershipPlans"),
     panelSettings: byId("panelSettings"),
     panelLogs: byId("panelLogs"),
@@ -558,6 +559,7 @@ function bindEvents() {
     bindCatalogEvents();
     bindAuctionEvents();
     bindSettingsEvents();
+    bindContentEvents();
 }
 function bindUserEvents() {
     elements.userList.addEventListener("click", async (event) => {
@@ -1332,6 +1334,10 @@ function renderTabs() {
     elements.panelCatalog.classList.toggle("hide", state.activeTab !== "catalog");
     elements.panelAuctions.classList.toggle("hide", state.activeTab !== "auctions");
     elements.panelReports.classList.toggle("hide", state.activeTab !== "reports");
+    const showingContent = state.activeTab === "content";
+    elements.panelContent.classList.toggle("hide", !showingContent);
+    if (showingContent)
+        loadContentSettings();
     elements.panelMembershipPlans.classList.toggle("hide", state.activeTab !== "membership-plans");
     elements.panelSettings.classList.toggle("hide", state.activeTab !== "settings");
     elements.panelLogs.classList.toggle("hide", state.activeTab !== "logs");
@@ -1668,6 +1674,55 @@ function renderSettings() {
     renderMembershipPlans();
 }
 let stateMembershipPlans = [];
+function bindContentEvents() {
+    const form = document.getElementById("contentForm");
+    if (!form)
+        return;
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const content = {};
+        const inputs = form.querySelectorAll("[data-content-key]");
+        for (const el of inputs) {
+            const key = el.getAttribute("data-content-key") || "";
+            if (key)
+                content[key] = el.value.trim();
+        }
+        const hint = document.getElementById("contentFormHint");
+        await safeAction(form, async () => {
+            const res = await apiFetch("/api/admin/content-settings", {
+                method: "PUT",
+                body: { content },
+            });
+            if (res.ok) {
+                if (hint) {
+                    hint.textContent = "İçerik kaydedildi.";
+                    hint.className = "formHint success";
+                }
+            }
+            else {
+                if (hint) {
+                    hint.textContent = res.error || "Kaydetme başarısız.";
+                    hint.className = "formHint error";
+                }
+            }
+        });
+    });
+}
+async function loadContentSettings() {
+    try {
+        const data = await apiFetch("/api/admin/content-settings");
+        const content = data?.items || {};
+        const inputs = document.querySelectorAll("[data-content-key]");
+        for (const el of inputs) {
+            const key = el.getAttribute("data-content-key") || "";
+            if (content[key])
+                el.value = content[key];
+        }
+    }
+    catch {
+        // ignore
+    }
+}
 async function loadMembershipPlans() {
     try {
         const data = await apiFetch("/api/admin/membership-plans");

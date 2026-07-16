@@ -209,23 +209,23 @@
       <div class="container">
         <div class="heroInner">
           <div class="heroContent">
-            <h1 class="heroTitle">Online Açık Artırma ile <span class="textHighlight">Güvenli Alışveriş</span></h1>
-            <p class="heroDesc">Araç, ekipman ve gayrimenkul ihalelerine katılın, en iyi fiyata alın veya satın.</p>
+            <h1 class="heroTitle" data-content-key="hero_title">Online Açık Artırma ile <span class="textHighlight">Güvenli Alışveriş</span></h1>
+            <p class="heroDesc" data-content-key="hero_desc">Araç, ekipman ve gayrimenkul ihalelerine katılın, en iyi fiyata alın veya satın.</p>
             <div class="heroStats">
               <div class="heroStat">
                 <span class="statValue" id="statVehicles">0+</span>
-                <span class="statLabel">İlan</span>
+                <span class="statLabel" data-content-key="stat1_label">İlan</span>
               </div>
               <div class="heroStat">
                 <span class="statValue" id="statBids">0+</span>
-                <span class="statLabel">Teklif</span>
+                <span class="statLabel" data-content-key="stat2_label">Teklif</span>
               </div>
               <div class="heroStat">
                 <span class="statValue" id="statUsers">0+</span>
-                <span class="statLabel">Üye</span>
+                <span class="statLabel" data-content-key="stat3_label">Üye</span>
               </div>
             </div>
-            <a href="#listingsSection" class="heroBtn"><i class="fas fa-arrow-right"></i> Tüm İlanları Gör</a>
+            <a href="#listingsSection" class="heroBtn" data-content-key="hero_btn"><i class="fas fa-arrow-right"></i> Tüm İlanları Gör</a>
           </div>
           <div class="heroAuctions" id="heroAuctions">
             <!-- Auction cards rendered by heroCards() call below -->
@@ -239,11 +239,11 @@
       <div class="container">
         <div class="sectionHead">
           <div class="sectionHeadLeft">
-            <h2 class="sectionTitle"><i class="fas fa-gavel"></i> Açık Artırmalarımız</h2>
-            <p class="sectionDesc">Hafta içi her gün canlı açık artırma ile araçlar sizi bekliyor</p>
+            <h2 class="sectionTitle" data-content-key="auctions_title"><i class="fas fa-gavel"></i> Açık Artırmalarımız</h2>
+            <p class="sectionDesc" data-content-key="auctions_desc">Hafta içi her gün canlı açık artırma ile araçlar sizi bekliyor</p>
           </div>
           <div class="sectionHeadRight">
-            <span class="auctionSchedule"><i class="far fa-calendar-alt"></i> Pazartesi - Cuma | 11:00</span>
+            <span class="auctionSchedule" data-content-key="auctions_schedule"><i class="far fa-calendar-alt"></i> Pazartesi - Cuma | 11:00</span>
           </div>
         </div>
         <div class="auctionCards" id="auctionCards">
@@ -257,30 +257,30 @@
       <div class="container">
         <div class="sectionHead">
           <div class="sectionHeadLeft">
-            <h2 class="sectionTitle"><i class="fas fa-info-circle"></i> Nasıl Çalışır?</h2>
-            <p class="sectionDesc">Tek bir hedefimiz var: Aracınızı doğru fiyata alıp satabilmek</p>
+            <h2 class="sectionTitle" data-content-key="how_title"><i class="fas fa-info-circle"></i> Nasıl Çalışır?</h2>
+            <p class="sectionDesc" data-content-key="how_desc">Tek bir hedefimiz var: Aracınızı doğru fiyata alıp satabilmek</p>
           </div>
         </div>
         <div class="stepsGrid">
           <div class="stepCard">
             <div class="stepIcon"><i class="fas fa-search"></i></div>
-            <h3>İlanları İnceleyin</h3>
-            <p>Beğendiğiniz aracın detaylarına bakın, geçmişini görün</p>
+            <h3 data-content-key="step1_title">İlanları İnceleyin</h3>
+            <p data-content-key="step1_desc">Beğendiğiniz aracın detaylarına bakın, geçmişini görün</p>
           </div>
           <div class="stepCard">
             <div class="stepIcon"><i class="fas fa-user-plus"></i></div>
-            <h3>Ücretsiz Kaydolun</h3>
-            <p>Hemen üye olun, ihalelere katılmaya başlayın</p>
+            <h3 data-content-key="step2_title">Ücretsiz Kaydolun</h3>
+            <p data-content-key="step2_desc">Hemen üye olun, ihalelere katılmaya başlayın</p>
           </div>
           <div class="stepCard">
             <div class="stepIcon"><i class="fas fa-gavel"></i></div>
-            <h3>Teklif Verin</h3>
-            <p>Canlı açık artırmada tek teklifle aracı satın alın</p>
+            <h3 data-content-key="step3_title">Teklif Verin</h3>
+            <p data-content-key="step3_desc">Canlı açık artırmada tek teklifle aracı satın alın</p>
           </div>
           <div class="stepCard">
             <div class="stepIcon"><i class="fas fa-check-circle"></i></div>
-            <h3>Güvenle Satın Alın</h3>
-            <p>Noter satışı ve güvenli ödeme ile aracınızı teslim alın</p>
+            <h3 data-content-key="step4_title">Güvenle Satın Alın</h3>
+            <p data-content-key="step4_desc">Noter satışı ve güvenli ödeme ile aracınızı teslim alın</p>
           </div>
         </div>
       </div>
@@ -291,8 +291,8 @@
       <div class="container">
         <div class="sectionHead">
           <div class="sectionHeadLeft">
-            <h2 class="sectionTitle"><i class="fas fa-car"></i> Yeni Eklenen Araçlar</h2>
-            <p class="sectionDesc">Güncel ihale listesini inceleyin, size uygun aracı bulun</p>
+            <h2 class="sectionTitle" data-content-key="listings_title"><i class="fas fa-car"></i> Yeni Eklenen Araçlar</h2>
+            <p class="sectionDesc" data-content-key="listings_desc">Güncel ihale listesini inceleyin, size uygun aracı bulun</p>
           </div>
           <div class="sectionHeadRight desktopOnly">
             <div class="switchView">
@@ -428,7 +428,7 @@
                   <span class="logoSub">İhale Pazarı</span>
                 </span>
               </a>
-              <p>Kamutas platformu ile online açık artırma yöntemiyle araç, ekipman ve gayrimenkul alım satımı yapın. Güvenli, hızlı ve kolay.</p>
+              <p data-content-key="footer_desc">Kamutas platformu ile online açık artırma yöntemiyle araç, ekipman ve gayrimenkul alım satımı yapın. Güvenli, hızlı ve kolay.</p>
               <div class="footerSocial">
                 <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
                 <a href="#" aria-label="Linkedin"><i class="fab fa-linkedin-in"></i></a>
@@ -456,9 +456,9 @@
             <div class="footerCol">
               <h4>İletişim</h4>
               <ul class="footerContact">
-                <li><i class="fas fa-envelope"></i> info@kamutas.com</li>
-                <li><i class="fas fa-phone"></i> 0850 XXX XXXX</li>
-                <li><i class="fas fa-map-marker-alt"></i> İstanbul, Türkiye</li>
+                <li data-content-key="footer_email"><i class="fas fa-envelope"></i> info@kamutas.com</li>
+                <li data-content-key="footer_phone"><i class="fas fa-phone"></i> 0850 XXX XXXX</li>
+                <li data-content-key="footer_address"><i class="fas fa-map-marker-alt"></i> İstanbul, Türkiye</li>
               </ul>
             </div>
           </div>
@@ -467,8 +467,8 @@
       <div class="footerBottom">
         <div class="container">
           <div class="footerBottomInner">
-            <span>&copy; 2026 Kamutas | Tüm hakları saklıdır.</span>
-            <span>Güvenli teklif platformu</span>
+            <span data-content-key="footer_copyright">&copy; 2026 Kamutas | Tüm hakları saklıdır.</span>
+            <span data-content-key="footer_tagline">Güvenli teklif platformu</span>
           </div>
         </div>
       </div>

@@ -674,6 +674,11 @@ async function handleApi(request, env, url) {
     return json({ ok: true, items: plans.results || [] });
   }
 
+  if (method === "GET" && path === "/api/content-settings") {
+    const data = await getAppSettingJson(env, "homepage_content", {});
+    return json({ ok: true, items: data });
+  }
+
   if (method === "POST" && path === "/api/bids") {
     const cfgError = requireSessionPepper(env);
     if (cfgError) return cfgError;
@@ -1976,6 +1981,25 @@ async function handleApi(request, env, url) {
         await env.DB.prepare("DELETE FROM membership_plans WHERE id = ?").bind(planId).run();
         return json({ ok: true, message: "Paket silindi." });
       }
+    }
+
+    if (method === "GET" && path === "/api/admin/content-settings") {
+      if (!actorAccess.permissions[PERMISSIONS.SETTINGS_MANAGE]) {
+        return json({ ok: false, error: "Yetkiniz yok." }, 403);
+      }
+      const data = await getAppSettingJson(env, "homepage_content", {});
+      return json({ ok: true, items: data });
+    }
+
+    if (method === "PUT" && path === "/api/admin/content-settings") {
+      if (!actorAccess.permissions[PERMISSIONS.SETTINGS_MANAGE]) {
+        return json({ ok: false, error: "Yetkiniz yok." }, 403);
+      }
+      const body = await readJson(request);
+      const content = body.content || {};
+      await setAppSettingJsonSafe(env, "homepage_content", content, session.user.id);
+      await writeAdminAuditLog(env, session.user.id, null, "content.update", {});
+      return json({ ok: true, message: "İçerik kaydedildi." });
     }
 
     if (method === "GET" && path.startsWith("/api/admin/users/") && path.endsWith("/memberships")) {

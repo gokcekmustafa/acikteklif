@@ -37,6 +37,7 @@
           <button class="tabBtn" data-tab="catalog"><i class="fas fa-layer-group"></i> Ürün Kategori</button>
           <button class="tabBtn" data-tab="auctions"><i class="fas fa-gavel"></i> İhale Yönetimi</button>
           <button class="tabBtn" data-tab="membership-plans"><i class="fas fa-crown"></i> Üyelik Paketleri</button>
+          <button class="tabBtn" data-tab="content"><i class="fas fa-edit"></i> İçerik Yönetimi</button>
           <button class="tabBtn" data-tab="reports"><i class="fas fa-chart-column"></i> Raporlar</button>
           <button class="tabBtn" data-tab="settings"><i class="fas fa-sliders"></i> Sistem Ayarları</button>
           <button class="tabBtn" data-tab="logs"><i class="fas fa-clipboard-list"></i> Denetim Kayıtları</button>
@@ -640,6 +641,107 @@
           <article class="panelCard">
             <h3>Üyelik Paketleri</h3>
             <div id="membershipPlansEditor"></div>
+          </article>
+        </section>
+
+        <section class="panel hide" id="panelContent">
+          <article class="panelCard">
+            <h3>Anasayfa İçerik Yönetimi</h3>
+            <p class="uploadHint">Aşağıdaki alanları doldurup kaydedin. HTML etiketleri kullanabilirsiniz.</p>
+            <form id="contentForm" class="stackForm">
+              <div class="formSection">
+                <h4>SEO</h4>
+                <div class="row2">
+                  <label class="fieldWrap">
+                    <span>Sayfa Başlığı (title)</span>
+                    <input type="text" id="content_meta_title" data-content-key="meta_title" placeholder="Kamutas | Online İhale Platformu">
+                  </label>
+                  <label class="fieldWrap">
+                    <span>Sayfa Açıklaması (meta description)</span>
+                    <input type="text" id="content_meta_description" data-content-key="meta_description" placeholder="Kamutas ile online açık artırma...">
+                  </label>
+                </div>
+              </div>
+
+              <div class="formSection">
+                <h4>Hero Bölümü</h4>
+                <label class="fieldWrap">
+                  <span>Hero Başlık</span>
+                  <input type="text" id="content_hero_title" data-content-key="hero_title" placeholder="Online Açık Artırma ile Güvenli Alışveriş">
+                </label>
+                <label class="fieldWrap">
+                  <span>Hero Alt Metin</span>
+                  <textarea rows="2" id="content_hero_desc" data-content-key="hero_desc" placeholder="Araç, ekipman ve gayrimenkul ihalelerine katılın..."></textarea>
+                </label>
+                <label class="fieldWrap">
+                  <span>Hero Buton Metni</span>
+                  <input type="text" id="content_hero_btn" data-content-key="hero_btn" placeholder="Tüm İlanları Gör">
+                </label>
+                <div class="row3">
+                  <label class="fieldWrap"><span>İstatistik 1 - Değer</span><input type="text" id="content_stat1_label" data-content-key="stat1_label" placeholder="İlan"></label>
+                  <label class="fieldWrap"><span>İstatistik 2 - Değer</span><input type="text" id="content_stat2_label" data-content-key="stat2_label" placeholder="Teklif"></label>
+                  <label class="fieldWrap"><span>İstatistik 3 - Değer</span><input type="text" id="content_stat3_label" data-content-key="stat3_label" placeholder="Üye"></label>
+                </div>
+              </div>
+
+              <div class="formSection">
+                <h4>Açık Artırmalar Bölümü</h4>
+                <div class="row2">
+                  <label class="fieldWrap"><span>Başlık</span><input type="text" id="content_auctions_title" data-content-key="auctions_title" placeholder="Açık Artırmalarımız"></label>
+                  <label class="fieldWrap"><span>Takvim Metni</span><input type="text" id="content_auctions_schedule" data-content-key="auctions_schedule" placeholder="Pazartesi - Cuma | 11:00"></label>
+                </div>
+                <label class="fieldWrap"><span>Açıklama</span><textarea rows="2" id="content_auctions_desc" data-content-key="auctions_desc" placeholder="Hafta içi her gün canlı açık artırma..."></textarea></label>
+              </div>
+
+              <div class="formSection">
+                <h4>Nasıl Çalışır?</h4>
+                <div class="row2">
+                  <label class="fieldWrap"><span>Başlık</span><input type="text" id="content_how_title" data-content-key="how_title" placeholder="Nasıl Çalışır?"></label>
+                  <label class="fieldWrap"><span>Açıklama</span><input type="text" id="content_how_desc" data-content-key="how_desc" placeholder="Tek bir hedefimiz var..."></label>
+                </div>
+                <div class="row2">
+                  <label class="fieldWrap"><span>Adım 1 - Başlık</span><input type="text" id="content_step1_title" data-content-key="step1_title" placeholder="İlanları İnceleyin"></label>
+                  <label class="fieldWrap"><span>Adım 1 - Açıklama</span><input type="text" id="content_step1_desc" data-content-key="step1_desc" placeholder="Beğendiğiniz aracın detaylarına bakın..."></label>
+                </div>
+                <div class="row2">
+                  <label class="fieldWrap"><span>Adım 2 - Başlık</span><input type="text" id="content_step2_title" data-content-key="step2_title" placeholder="Ücretsiz Kaydolun"></label>
+                  <label class="fieldWrap"><span>Adım 2 - Açıklama</span><input type="text" id="content_step2_desc" data-content-key="step2_desc" placeholder="Hemen üye olun, ihalelere katılmaya başlayın"></label>
+                </div>
+                <div class="row2">
+                  <label class="fieldWrap"><span>Adım 3 - Başlık</span><input type="text" id="content_step3_title" data-content-key="step3_title" placeholder="Teklif Verin"></label>
+                  <label class="fieldWrap"><span>Adım 3 - Açıklama</span><input type="text" id="content_step3_desc" data-content-key="step3_desc" placeholder="Canlı açık artırmada tek teklifle aracı satın alın"></label>
+                </div>
+                <div class="row2">
+                  <label class="fieldWrap"><span>Adım 4 - Başlık</span><input type="text" id="content_step4_title" data-content-key="step4_title" placeholder="Güvenle Satın Alın"></label>
+                  <label class="fieldWrap"><span>Adım 4 - Açıklama</span><input type="text" id="content_step4_desc" data-content-key="step4_desc" placeholder="Noter satışı ve güvenli ödeme..."></label>
+                </div>
+              </div>
+
+              <div class="formSection">
+                <h4>Yeni Eklenen Araçlar Bölümü</h4>
+                <div class="row2">
+                  <label class="fieldWrap"><span>Başlık</span><input type="text" id="content_listings_title" data-content-key="listings_title" placeholder="Yeni Eklenen Araçlar"></label>
+                  <label class="fieldWrap"><span>Açıklama</span><input type="text" id="content_listings_desc" data-content-key="listings_desc" placeholder="Güncel ihale listesini inceleyin..."></label>
+                </div>
+              </div>
+
+              <div class="formSection">
+                <h4>Footer</h4>
+                <label class="fieldWrap"><span>Şirket Açıklaması</span><textarea rows="2" id="content_footer_desc" data-content-key="footer_desc" placeholder="Kamutas platformu ile online açık artırma..."></textarea></label>
+                <div class="row3">
+                  <label class="fieldWrap"><span>E-posta</span><input type="text" id="content_footer_email" data-content-key="footer_email" placeholder="info@kamutas.com"></label>
+                  <label class="fieldWrap"><span>Telefon</span><input type="text" id="content_footer_phone" data-content-key="footer_phone" placeholder="0850 XXX XXXX"></label>
+                  <label class="fieldWrap"><span>Adres</span><input type="text" id="content_footer_address" data-content-key="footer_address" placeholder="İstanbul, Türkiye"></label>
+                </div>
+                <div class="row2">
+                  <label class="fieldWrap"><span>Telif Metni</span><input type="text" id="content_footer_copyright" data-content-key="footer_copyright" placeholder="© 2026 Kamutas | Tüm hakları saklıdır."></label>
+                  <label class="fieldWrap"><span>Alt Etiket</span><input type="text" id="content_footer_tagline" data-content-key="footer_tagline" placeholder="Güvenli teklif platformu"></label>
+                </div>
+              </div>
+
+              <button class="miniBtn success" type="submit"><i class="fas fa-save"></i> İçerikleri Kaydet</button>
+              <div class="formHint" id="contentFormHint"></div>
+            </form>
           </article>
         </section>
 
