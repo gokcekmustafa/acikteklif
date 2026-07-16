@@ -1585,19 +1585,6 @@ th {
 .contentTreeItem:hover { background: #e2e8f0; color: var(--text); }
 .contentTreeItem.active { background: var(--accent); color: #fff; border-radius: 0; }
 .contentTreeLeaf { display: block; }
-.pageContentEditor { border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-height: 200px; background: #fff; outline: none; overflow-y: auto; line-height: 1.6; font-size: 14px; }
-.pageContentEditor:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(11,76,196,.12); }
-.pageContentEditor h1, .pageContentEditor h2, .pageContentEditor h3 { margin: 16px 0 8px; color: var(--text); }
-.pageContentEditor p { margin: 0 0 10px; }
-.pageContentEditor ul, .pageContentEditor ol { margin: 0 0 10px; padding-left: 20px; }
-.pageContentEditor .highlightBox { background: #f0f6ff; border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 6px; margin: 12px 0; }
-.pageContentEditor .contactGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 16px 0; }
-.pageContentEditor .contactInfoItem { display: flex; gap: 10px; margin-bottom: 14px; align-items: flex-start; }
-.pageContentEditor .contactInfoItem i { font-size: 18px; color: var(--accent); margin-top: 2px; width: 22px; }
-.pageContentEditor .faqItem { margin-bottom: 0; }
-.pageContentEditor .faqQ { font-weight: 600; padding: 10px 0 4px; cursor: pointer; color: var(--text); }
-.pageContentEditor .faqA { padding: 0 0 8px; color: var(--muted); display: block; }
-.pageContentEditor .faqA.open { display: block; }
 .contentEditor { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; overflow-y: auto; max-height: 70vh; }
 .contentEditor h3 { font-size: 15px; margin: 0 0 16px; color: var(--text); border-bottom: 1px solid var(--line); padding-bottom: 10px; }
 .contentEditor .fieldWrap { margin-bottom: 12px; }

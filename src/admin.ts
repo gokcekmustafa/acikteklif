@@ -1989,8 +1989,8 @@ function renderContentEditor(selected: string | null) {
       <h3>${page.label}</h3>
       <form id="pageContentForm">
         <label class="fieldWrap">
-          <span>İçerik</span>
-          <div class="pageContentEditor" id="pageEditor_${pageKey}" contenteditable="true">${statePageContent[pageKey] || ""}</div>
+          <span>İçerik (HTML)</span>
+          <textarea rows="20" id="pageEditor_${pageKey}" style="min-height:300px;font-family:monospace;font-size:13px;line-height:1.5">${escapeHtml(statePageContent[pageKey] || "")}</textarea>
         </label>
         <button class="miniBtn success" type="submit"><i class="fas fa-save"></i> Kaydet</button>
         <div class="formHint" id="pageContentHint"></div>
@@ -2000,15 +2000,15 @@ function renderContentEditor(selected: string | null) {
     if (form) {
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const editorDiv = document.getElementById("pageEditor_" + pageKey);
+        const textarea = document.getElementById("pageEditor_" + pageKey) as HTMLTextAreaElement | null;
         const hint = document.getElementById("pageContentHint");
-        if (!editorDiv || !btn) return;
+        if (!textarea || !btn) return;
         await safeAction(btn, async () => {
           const payload: Record<string, string> = {};
-          payload[pageKey] = editorDiv.innerHTML;
+          payload[pageKey] = textarea.value;
           const res = await apiFetch("/api/admin/page-content", { method: "PUT", body: { content: payload } });
           if (res.ok) {
-            statePageContent[pageKey] = editorDiv.innerHTML;
+            statePageContent[pageKey] = textarea.value;
             if (hint) { hint.textContent = "Kaydedildi."; hint.className = "formHint success"; }
           } else {
             if (hint) { hint.textContent = res.error || "Hata."; hint.className = "formHint error"; }
