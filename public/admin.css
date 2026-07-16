@@ -835,6 +835,14 @@ body.modalOpen {
 .miniBtn.busy {
   opacity: 0.68;
   cursor: wait;
+  pointer-events: none;
+}
+.miniBtn.busy i {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .tableWrap {

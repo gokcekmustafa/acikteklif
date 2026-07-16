@@ -1996,13 +1996,14 @@ function renderContentEditor(selected: string | null) {
         <div class="formHint" id="pageContentHint"></div>
       </form>`;
     const form = editor.querySelector("form");
+    const btn = form?.querySelector('button[type="submit"]') as HTMLElement | null;
     if (form) {
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
         const editorDiv = document.getElementById("pageEditor_" + pageKey);
         const hint = document.getElementById("pageContentHint");
-        if (!editorDiv) return;
-        await safeAction(form, async () => {
+        if (!editorDiv || !btn) return;
+        await safeAction(btn, async () => {
           const payload: Record<string, string> = {};
           payload[pageKey] = editorDiv.innerHTML;
           const res = await apiFetch("/api/admin/page-content", { method: "PUT", body: { content: payload } });
@@ -2036,6 +2037,7 @@ function renderContentEditor(selected: string | null) {
       <div class="formHint" id="contentGroupHint"></div>
     </form>`;
   const form = editor.querySelector("form");
+  const btn = form?.querySelector('button[type="submit"]') as HTMLElement | null;
   if (form) {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -2045,7 +2047,8 @@ function renderContentEditor(selected: string | null) {
         const el = document.getElementById("ce_" + field.key) as HTMLInputElement | HTMLTextAreaElement | null;
         if (el) payload[field.key] = el.value.trim();
       }
-      await safeAction(form, async () => {
+      if (!btn) return;
+      await safeAction(btn, async () => {
         const res = await apiFetch("/api/admin/content-settings", { method: "PUT", body: { content: payload } });
         if (res.ok) {
           for (const field of group.fields) {

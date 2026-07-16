@@ -297,13 +297,11 @@ button { cursor: pointer; border: 0; background: none; }
 .faqItem:first-child { padding-top: 0; }
 .faqQ {
   font-size: 17px; font-weight: 700; color: var(--text);
-  cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+  display: flex; justify-content: space-between; align-items: center;
   user-select: none; padding: 4px 0;
 }
-.faqQ i { font-size: 14px; color: var(--primary); transition: transform 0.2s; }
-.faqQ.open i { transform: rotate(180deg); }
-.faqA { font-size: 16px; line-height: 1.85; color: var(--text); margin-top: 14px; display: none; padding-right: 20px; }
-.faqA.open { display: block; }
+.faqQ i { font-size: 14px; color: var(--primary); }
+.faqA { font-size: 16px; line-height: 1.85; color: var(--text); margin-top: 14px; padding-right: 20px; }
 
 @media (max-width: 768px) {
   .contactGrid { grid-template-columns: 1fr; gap: 24px; }

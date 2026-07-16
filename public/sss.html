@@ -105,13 +105,6 @@
       const container = document.getElementById('pageContent');
       if (container && content['sss']) {
         container.innerHTML = content['sss'];
-        container.querySelectorAll(".faqQ").forEach(function(q) {
-          q.addEventListener("click", function() {
-            var item = this.parentElement;
-            item.querySelector(".faqA")?.classList.toggle("open");
-            this.classList.toggle("open");
-          });
-        });
       }
     } catch(e) {}
   })();
