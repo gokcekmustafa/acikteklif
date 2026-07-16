@@ -1572,3 +1572,26 @@ th {
 .planEditorBody .priceHint { font-size: 12px; color: var(--muted); text-align: center; font-weight: 600; }
 .newPlanForm { border-color: var(--primary); border-style: dashed; }
 .checkboxWrap { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+
+.contentManager { display: flex; gap: 16px; min-height: 400px; }
+.contentTree { width: 220px; flex-shrink: 0; background: #f4f7fb; border: 1px solid var(--line); border-radius: 10px; padding: 8px 0; overflow-y: auto; max-height: 70vh; }
+.contentTreeGroup { border-bottom: 1px solid var(--line); }
+.contentTreeGroup > .contentTreeGroupTitle { display: flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; user-select: none; }
+.contentTreeGroup > .contentTreeGroupTitle:hover { background: #e2e8f0; }
+.contentTreeGroup > .contentTreeGroupTitle i { font-size: 10px; color: var(--muted); transition: transform .15s; }
+.contentTreeGroup.open > .contentTreeGroupTitle i { transform: rotate(90deg); }
+.contentTreeGroup > .contentTreeGroupTitle .badge { margin-left: auto; font-size: 10px; background: var(--line); color: var(--muted); padding: 1px 6px; border-radius: 999px; }
+.contentTreeItem { display: block; width: 100%; text-align: left; padding: 6px 12px 6px 28px; font-size: 13px; color: var(--muted); border: none; background: none; cursor: pointer; }
+.contentTreeItem:hover { background: #e2e8f0; color: var(--text); }
+.contentTreeItem.active { background: var(--accent); color: #fff; border-radius: 0; }
+.contentTreeLeaf { display: none; }
+.contentTreeGroup.open > .contentTreeLeaf { display: block; }
+.contentEditor { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; overflow-y: auto; max-height: 70vh; }
+.contentEditor h3 { font-size: 15px; margin: 0 0 16px; color: var(--text); border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+.contentEditor .fieldWrap { margin-bottom: 12px; }
+.contentEditor .fieldWrap span { font-size: 12px; }
+.contentEditor .row2, .contentEditor .row3 { display: grid; gap: 12px; margin-bottom: 12px; }
+.contentEditor .row2 { grid-template-columns: 1fr 1fr; }
+.contentEditor .row3 { grid-template-columns: 1fr 1fr 1fr; }
+.contentEditor textarea { min-height: 60px; resize: vertical; font-family: inherit; }
+.contentEditor .editorPlaceholder { color: var(--muted); text-align: center; padding: 60px 20px; font-size: 14px; }

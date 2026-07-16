@@ -1835,51 +1835,234 @@ function renderSettings() {
 }
 
 let stateMembershipPlans: any[] = [];
+let stateContentSettings: Record<string, string> = {};
+let statePageContent: Record<string, string> = {};
+let stateContentSelectedGroup: string | null = null;
+
+const CONTENT_TREE: { key: string; label: string; fields: { key: string; label: string; type?: string; rows?: number; placeholder?: string }[] }[] = [
+  { key: "seo", label: "SEO", fields: [
+    { key: "meta_title", label: "Sayfa Başlığı", placeholder: "Kamutas | Online İhale Platformu" },
+    { key: "meta_description", label: "Meta Açıklaması", placeholder: "Kamutas ile online açık artırma..." },
+  ]},
+  { key: "hero", label: "Hero Bölümü", fields: [
+    { key: "hero_title", label: "Başlık", placeholder: "Online Açık Artırma ile Güvenli Alışveriş" },
+    { key: "hero_desc", label: "Alt Metin", type: "textarea", rows: 2, placeholder: "Araç, ekipman ve gayrimenkul ihalelerine katılın..." },
+    { key: "hero_btn", label: "Buton Metni", placeholder: "Tüm İlanları Gör" },
+    { key: "stat1_label", label: "İstatistik 1", placeholder: "İlan" },
+    { key: "stat2_label", label: "İstatistik 2", placeholder: "Teklif" },
+    { key: "stat3_label", label: "İstatistik 3", placeholder: "Üye" },
+  ]},
+  { key: "auctions", label: "Açık Artırmalar", fields: [
+    { key: "auctions_title", label: "Başlık", placeholder: "Açık Artırmalarımız" },
+    { key: "auctions_desc", label: "Açıklama", type: "textarea", rows: 2, placeholder: "Hafta içi her gün canlı açık artırma..." },
+    { key: "auctions_schedule", label: "Takvim Metni", placeholder: "Pazartesi - Cuma | 11:00" },
+  ]},
+  { key: "how", label: "Nasıl Çalışır?", fields: [
+    { key: "how_title", label: "Başlık", placeholder: "Nasıl Çalışır?" },
+    { key: "how_desc", label: "Açıklama", placeholder: "Tek bir hedefimiz var..." },
+    { key: "step1_title", label: "Adım 1 Başlık", placeholder: "İlanları İnceleyin" },
+    { key: "step1_desc", label: "Adım 1 Açıklama", placeholder: "Beğendiğiniz aracın detaylarına bakın..." },
+    { key: "step2_title", label: "Adım 2 Başlık", placeholder: "Ücretsiz Kaydolun" },
+    { key: "step2_desc", label: "Adım 2 Açıklama", placeholder: "Hemen üye olun, ihalelere katılmaya başlayın" },
+    { key: "step3_title", label: "Adım 3 Başlık", placeholder: "Teklif Verin" },
+    { key: "step3_desc", label: "Adım 3 Açıklama", placeholder: "Canlı açık artırmada tek teklifle aracı satın alın" },
+    { key: "step4_title", label: "Adım 4 Başlık", placeholder: "Güvenle Satın Alın" },
+    { key: "step4_desc", label: "Adım 4 Açıklama", placeholder: "Noter satışı ve güvenli ödeme..." },
+  ]},
+  { key: "listings", label: "Yeni Eklenen Araçlar", fields: [
+    { key: "listings_title", label: "Başlık", placeholder: "Yeni Eklenen Araçlar" },
+    { key: "listings_desc", label: "Açıklama", placeholder: "Güncel ihale listesini inceleyin..." },
+  ]},
+  { key: "logo", label: "Logo", fields: [
+    { key: "logo_title", label: "Logo Başlık", placeholder: "Kamutas" },
+    { key: "logo_subtitle", label: "Logo Alt Başlık", placeholder: "İhale Pazarı" },
+  ]},
+  { key: "footer_company", label: "Footer - Şirket", fields: [
+    { key: "footer_desc", label: "Şirket Açıklaması", type: "textarea", rows: 2, placeholder: "Kamutas platformu ile..." },
+    { key: "footer_email", label: "E-posta", placeholder: "info@kamutas.com" },
+    { key: "footer_phone", label: "Telefon", placeholder: "0850 XXX XXXX" },
+    { key: "footer_address", label: "Adres", placeholder: "İstanbul, Türkiye" },
+    { key: "footer_copyright", label: "Telif Metni", placeholder: "© 2026 Kamutas | Tüm hakları saklıdır." },
+    { key: "footer_tagline", label: "Alt Etiket", placeholder: "Güvenli teklif platformu" },
+  ]},
+  { key: "footer_social", label: "Footer - Sosyal Medya", fields: [
+    { key: "social_instagram_url", label: "Instagram URL", placeholder: "https://instagram.com/..." },
+    { key: "social_linkedin_url", label: "LinkedIn URL", placeholder: "https://linkedin.com/..." },
+    { key: "social_facebook_url", label: "Facebook URL", placeholder: "https://facebook.com/..." },
+    { key: "social_twitter_url", label: "Twitter/X URL", placeholder: "https://twitter.com/..." },
+  ]},
+  { key: "footer_corporate", label: "Footer - Kurumsal", fields: [
+    { key: "footer_corporate_title", label: "Başlık", placeholder: "Kurumsal" },
+    { key: "footer_link_about_text", label: "Hakkımızda Metin", placeholder: "Hakkımızda" },
+    { key: "footer_link_about_url", label: "Hakkımızda URL", placeholder: "/hakkimizda.html" },
+    { key: "footer_link_contact_text", label: "İletişim Metin", placeholder: "İletişim" },
+    { key: "footer_link_contact_url", label: "İletişim URL", placeholder: "/iletisim.html" },
+    { key: "footer_link_faq_text", label: "SSS Metin", placeholder: "Sıkça Sorulan Sorular" },
+    { key: "footer_link_faq_url", label: "SSS URL", placeholder: "/sss.html" },
+  ]},
+  { key: "footer_legal", label: "Footer - Yasal", fields: [
+    { key: "footer_legal_title", label: "Başlık", placeholder: "Yasal" },
+    { key: "footer_link_kvkk_text", label: "KVKK Metin", placeholder: "KVKK Aydınlatma Metni" },
+    { key: "footer_link_kvkk_url", label: "KVKK URL", placeholder: "/kvkk.html" },
+    { key: "footer_link_cookie_text", label: "Çerez Metin", placeholder: "Çerez Politikası" },
+    { key: "footer_link_cookie_url", label: "Çerez URL", placeholder: "/cerez-politikasi.html" },
+    { key: "footer_link_distance_text", label: "Mesafeli Satış Metin", placeholder: "Mesafeli Satış Sözleşmesi" },
+    { key: "footer_link_distance_url", label: "Mesafeli Satış URL", placeholder: "/mesafeli-satis.html" },
+    { key: "footer_link_terms_text", label: "Kullanım Koşulları Metin", placeholder: "Kullanım Koşulları" },
+    { key: "footer_link_terms_url", label: "Kullanım Koşulları URL", placeholder: "/kullanim-kosullari.html" },
+  ]},
+];
+
+const PAGE_TREE_ITEMS: { key: string; label: string }[] = [
+  { key: "hakkimizda", label: "Hakkımızda" },
+  { key: "iletisim", label: "İletişim" },
+  { key: "sss", label: "SSS" },
+  { key: "kvkk", label: "KVKK" },
+  { key: "cerez", label: "Çerez Politikası" },
+  { key: "mesafelisatis", label: "Mesafeli Satış" },
+  { key: "kullanimkosullari", label: "Kullanım Koşulları" },
+];
 
 function bindContentEvents() {
-  const form = document.getElementById("contentForm") as HTMLFormElement | null;
-  if (!form) return;
-  form.addEventListener("submit", async (event: any) => {
-    event.preventDefault();
-    const content: Record<string, string> = {};
-    const inputs = form.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("[data-content-key]");
-    for (const el of inputs) {
-      const key = el.getAttribute("data-content-key") || "";
-      if (key) content[key] = el.value.trim();
-    }
-    const hint = document.getElementById("contentFormHint");
-    await safeAction(form, async () => {
-      const res = await apiFetch("/api/admin/content-settings", {
-        method: "PUT",
-        body: { content },
-      });
-      if (res.ok) {
-        if (hint) { hint.textContent = "İçerik kaydedildi."; hint.className = "formHint success"; }
-      } else {
-        if (hint) { hint.textContent = res.error || "Kaydetme başarısız."; hint.className = "formHint error"; }
-      }
+  const tree = document.getElementById("contentTree");
+  const editor = document.getElementById("contentEditor");
+  if (!tree || !editor) return;
+  renderContentTree();
+  if (stateContentSelectedGroup) {
+    renderContentEditor(stateContentSelectedGroup);
+  }
+}
+
+function renderContentTree() {
+  const tree = document.getElementById("contentTree");
+  if (!tree) return;
+  let html = "";
+  for (const group of CONTENT_TREE) {
+    html += `<div class="contentTreeGroup${stateContentSelectedGroup === group.key ? " open" : ""}">`;
+    html += `<div class="contentTreeGroupTitle" data-action="toggle-group" data-group="${group.key}">`;
+    html += `<i class="fas fa-chevron-right"></i> ${group.label}`;
+    html += `<span class="badge">${group.fields.length}</span>`;
+    html += `</div>`;
+    html += `<div class="contentTreeLeaf">`;
+    html += `<button class="contentTreeItem${stateContentSelectedGroup === group.key ? " active" : ""}" data-action="select-group" data-group="${group.key}">Tümünü Düzenle</button>`;
+    html += `</div>`;
+    html += `</div>`;
+  }
+  html += `<div class="contentTreeGroup${stateContentSelectedGroup === "pages" ? " open" : ""}">`;
+  html += `<div class="contentTreeGroupTitle" data-action="toggle-group" data-group="pages">`;
+  html += `<i class="fas fa-chevron-right"></i> Sayfa İçerikleri`;
+  html += `<span class="badge">${PAGE_TREE_ITEMS.length}</span>`;
+  html += `</div>`;
+  html += `<div class="contentTreeLeaf">`;
+  for (const page of PAGE_TREE_ITEMS) {
+    html += `<button class="contentTreeItem${stateContentSelectedGroup === "pages-" + page.key ? " active" : ""}" data-action="select-page" data-page="${page.key}">${page.label}</button>`;
+  }
+  html += `</div>`;
+  html += `</div>`;
+  tree.innerHTML = html;
+  tree.querySelectorAll("[data-action='toggle-group']").forEach(el => {
+    el.addEventListener("click", () => {
+      const parent = el.closest(".contentTreeGroup");
+      if (parent) parent.classList.toggle("open");
     });
   });
-  const pageForm = document.getElementById("pageContentForm") as HTMLFormElement | null;
-  if (pageForm) {
-    pageForm.addEventListener("submit", async (event: any) => {
-      event.preventDefault();
-      const content: Record<string, string> = {};
-      const inputs = pageForm.querySelectorAll<HTMLTextAreaElement>("[data-page-key]");
-      for (const el of inputs) {
-        const key = el.getAttribute("data-page-key") || "";
-        if (key) content[key] = el.value.trim();
-      }
-      const hint = document.getElementById("pageContentFormHint");
-      await safeAction(pageForm, async () => {
-        const res = await apiFetch("/api/admin/page-content", {
-          method: "PUT",
-          body: { content },
+  tree.querySelectorAll("[data-action='select-group']").forEach(el => {
+    el.addEventListener("click", () => {
+      stateContentSelectedGroup = el.getAttribute("data-group");
+      renderContentTree();
+      renderContentEditor(stateContentSelectedGroup);
+    });
+  });
+  tree.querySelectorAll("[data-action='select-page']").forEach(el => {
+    el.addEventListener("click", () => {
+      stateContentSelectedGroup = "pages-" + el.getAttribute("data-page");
+      renderContentTree();
+      renderContentEditor(stateContentSelectedGroup);
+    });
+  });
+}
+
+function renderContentEditor(selected: string | null) {
+  const editor = document.getElementById("contentEditor");
+  if (!editor) return;
+  if (!selected) {
+    editor.innerHTML = '<div class="editorPlaceholder">Sol taraftan düzenlemek istediğiniz bölümü seçin.</div>';
+    return;
+  }
+  if (selected.startsWith("pages-")) {
+    const pageKey = selected.replace("pages-", "");
+    const page = PAGE_TREE_ITEMS.find(p => p.key === pageKey);
+    if (!page) { editor.innerHTML = ""; return; }
+    editor.innerHTML = `
+      <h3>${page.label}</h3>
+      <p class="uploadHint">HTML içeriğini düzenleyin. Sayfa başlığı ve layout otomatik gelir.</p>
+      <form id="pageContentForm">
+        <label class="fieldWrap">
+          <span>İçerik</span>
+          <textarea rows="16" id="pageEditor_${pageKey}" style="min-height:200px">${escapeHtml(statePageContent[pageKey] || "")}</textarea>
+        </label>
+        <button class="miniBtn success" type="submit"><i class="fas fa-save"></i> Kaydet</button>
+        <div class="formHint" id="pageContentHint"></div>
+      </form>`;
+    const form = editor.querySelector("form");
+    if (form) {
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const textarea = document.getElementById("pageEditor_" + pageKey) as HTMLTextAreaElement | null;
+        const hint = document.getElementById("pageContentHint");
+        if (!textarea) return;
+        await safeAction(form, async () => {
+          const payload: Record<string, string> = {};
+          payload[pageKey] = textarea.value;
+          const res = await apiFetch("/api/admin/page-content", { method: "PUT", body: { content: payload } });
+          if (res.ok) {
+            statePageContent[pageKey] = textarea.value;
+            if (hint) { hint.textContent = "Kaydedildi."; hint.className = "formHint success"; }
+          } else {
+            if (hint) { hint.textContent = res.error || "Hata."; hint.className = "formHint error"; }
+          }
         });
+      });
+    }
+    return;
+  }
+  const group = CONTENT_TREE.find(g => g.key === selected);
+  if (!group) { editor.innerHTML = ""; return; }
+  let fieldsHtml = "";
+  for (const field of group.fields) {
+    const val = stateContentSettings[field.key] || "";
+    if (field.type === "textarea") {
+      fieldsHtml += `<label class="fieldWrap"><span>${field.label}</span><textarea rows="${field.rows || 3}" id="ce_${field.key}" placeholder="${escapeHtml(field.placeholder || "")}">${escapeHtml(val)}</textarea></label>`;
+    } else {
+      fieldsHtml += `<label class="fieldWrap"><span>${field.label}</span><input type="text" id="ce_${field.key}" value="${escapeHtml(val)}" placeholder="${escapeHtml(field.placeholder || "")}"></label>`;
+    }
+  }
+  editor.innerHTML = `
+    <h3>${group.label}</h3>
+    <form id="contentGroupForm">
+      ${fieldsHtml}
+      <button class="miniBtn success" type="submit"><i class="fas fa-save"></i> Kaydet</button>
+      <div class="formHint" id="contentGroupHint"></div>
+    </form>`;
+  const form = editor.querySelector("form");
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const hint = document.getElementById("contentGroupHint");
+      const payload: Record<string, string> = {};
+      for (const field of group.fields) {
+        const el = document.getElementById("ce_" + field.key) as HTMLInputElement | HTMLTextAreaElement | null;
+        if (el) payload[field.key] = el.value.trim();
+      }
+      await safeAction(form, async () => {
+        const res = await apiFetch("/api/admin/content-settings", { method: "PUT", body: { content: payload } });
         if (res.ok) {
-          if (hint) { hint.textContent = "Sayfa içerikleri kaydedildi."; hint.className = "formHint success"; }
+          for (const field of group.fields) {
+            if (payload[field.key] !== undefined) stateContentSettings[field.key] = payload[field.key];
+          }
+          if (hint) { hint.textContent = "Kaydedildi."; hint.className = "formHint success"; }
         } else {
-          if (hint) { hint.textContent = res.error || "Kaydetme başarısız."; hint.className = "formHint error"; }
+          if (hint) { hint.textContent = res.error || "Hata."; hint.className = "formHint error"; }
         }
       });
     });
@@ -1888,20 +2071,12 @@ function bindContentEvents() {
 
 async function loadContentSettings() {
   try {
-    const data = await apiFetch("/api/admin/content-settings");
-    const content = data?.items || {};
-    const inputs = document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("[data-content-key]");
-    for (const el of inputs) {
-      const key = el.getAttribute("data-content-key") || "";
-      if (content[key]) el.value = content[key];
-    }
-    const pageData = await apiFetch("/api/admin/page-content");
-    const pages = pageData?.items || {};
-    const pageInputs = document.querySelectorAll<HTMLTextAreaElement>("[data-page-key]");
-    for (const el of pageInputs) {
-      const key = el.getAttribute("data-page-key") || "";
-      if (pages[key]) el.value = pages[key];
-    }
+    const [contentRes, pageRes] = await Promise.all([
+      apiFetch("/api/admin/content-settings"),
+      apiFetch("/api/admin/page-content"),
+    ]);
+    stateContentSettings = contentRes?.items || {};
+    statePageContent = pageRes?.items || {};
   } catch {
     // ignore
   }

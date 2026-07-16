@@ -2001,7 +2001,8 @@ async function handleApi(request, env, url) {
         return json({ ok: false, error: "Yetkiniz yok." }, 403);
       }
       const body = await readJson(request);
-      const content = body.content || {};
+      const existing = await getAppSettingJson(env, "homepage_content", {});
+      const content = { ...existing, ...(body.content || {}) };
       await setAppSettingJsonSafe(env, "homepage_content", content, session.user.id);
       await writeAdminAuditLog(env, session.user.id, null, "content.update", {});
       return json({ ok: true, message: "İçerik kaydedildi." });
@@ -2020,7 +2021,8 @@ async function handleApi(request, env, url) {
         return json({ ok: false, error: "Yetkiniz yok." }, 403);
       }
       const body = await readJson(request);
-      const content = body.content || {};
+      const existing = await getAppSettingJson(env, "page_content", {});
+      const content = { ...existing, ...(body.content || {}) };
       await setAppSettingJsonSafe(env, "page_content", content, session.user.id);
       await writeAdminAuditLog(env, session.user.id, null, "pagecontent.update", {});
       return json({ ok: true, message: "Sayfa içeriği kaydedildi." });
