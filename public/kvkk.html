@@ -34,51 +34,7 @@
     </header>
 
     <section class="contentPage">
-      <div class="container">
-        <h1>KVKK Aydınlatma Metni</h1>
-        <div class="pageMeta">6698 Sayılı Kişisel Verilerin Korunması Kanunu Kapsamında Aydınlatma Metni</div>
-
-        <h2>Veri Sorumlusu</h2>
-        <p>Kamutas (info@kamutas.com) veri sorumlusudur. Kişisel verileriniz, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") uyarınca veri sorumlusu sıfatıyla Kamutas tarafından aşağıda belirtilen kapsamda işlenebilecektir.</p>
-
-        <h2>Kişisel Verilerin İşlenme Amacı</h2>
-        <p>Kişisel verileriniz; üyelik kaydı oluşturma ve yönetimi, ihale katılım süreçlerinin yürütülmesi, ödeme işlemlerinin gerçekleştirilmesi, müşteri hizmetleri taleplerinin karşılanması, hizmet kalitesinin artırılması, kullanıcı deneyiminin kişiselleştirilmesi ve yasal yükümlülüklerin yerine getirilmesi amaçlarıyla işlenmektedir.</p>
-
-        <div class="highlightBox">
-          <p>Kişisel verileriniz, açık rızanız olmaksızın üçüncü kişilerle paylaşılmaz. Ancak yasal düzenlemeler gereği resmi kurumlarla bilgi paylaşımı yapılabilir.</p>
-        </div>
-
-        <h2>İşlenen Kişisel Veriler</h2>
-        <p>Platformumuzda aşağıdaki kişisel verileriniz işlenmektedir:</p>
-        <ul>
-          <li>Ad-soyad</li>
-          <li>TC kimlik numarası</li>
-          <li>E-posta adresi</li>
-          <li>Telefon numarası</li>
-          <li>Adres bilgisi</li>
-          <li>IP adresi ve internet trafik bilgileri</li>
-          <li>Kullanıcı işlem kayıtları</li>
-        </ul>
-
-        <h2>Verilerin Aktarılması</h2>
-        <p>Kişisel verileriniz, yasal yükümlülükler gereği resmi kurum ve kuruluşlarla, noterlerle ve yetkili kamu mercileriyle paylaşılabilir. Ayrıca, hizmet sağlayıcılarımız ve iş ortaklarımızla sınırlı ölçüde ve sözleşme kapsamında paylaşılabilmektedir. Verileriniz yurt dışına aktarılmamaktadır.</p>
-
-        <h2>Veri Sahibinin Hakları</h2>
-        <p>KVKK madde 11 kapsamında aşağıdaki haklara sahipsiniz:</p>
-        <ul>
-          <li>Kişisel verilerinizin işlenip işlenmediğini öğrenme</li>
-          <li>İşlenmişse buna ilişkin bilgi talep etme</li>
-          <li>İşlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme</li>
-          <li>Yurt içinde veya yurt dışında aktarıldığı üçüncü kişileri bilme</li>
-          <li>Eksik veya yanlış işlenmişse düzeltilmesini isteme</li>
-          <li>KVKK şartları çerçevesinde silinmesini veya yok edilmesini isteme</li>
-          <li>İtiraz etme ve zararın giderilmesini talep etme</li>
-        </ul>
-        <p>Bu haklarınızı kullanmak için info@kamutas.com adresine e-posta gönderebilirsiniz.</p>
-
-        <h2>İletişim</h2>
-        <p>Kişisel verilerinizle ilgili her türlü talep ve sorularınız için <strong>info@kamutas.com</strong> adresinden bizimle iletişime geçebilirsiniz.</p>
-      </div>
+      <div class="container" id="pageContent"></div>
     </section>
 
     <footer class="siteFooter">
@@ -140,6 +96,19 @@
     </footer>
   </div>
 
+  <script>
+  (async function() {
+    try {
+      const res = await fetch('/api/page-content');
+      const data = await res.json();
+      const content = data?.items || {};
+      const container = document.getElementById('pageContent');
+      if (container && content['kvkk']) {
+        container.innerHTML = content['kvkk'];
+      }
+    } catch(e) {}
+  })();
+  </script>
   <script>
   document.getElementById("menuOpenBtn")?.addEventListener("click", function(e) { e.preventDefault(); document.getElementById("mainMenu")?.classList.add("open"); });
   document.getElementById("menuCloseBtn")?.addEventListener("click", function(e) { e.preventDefault(); document.getElementById("mainMenu")?.classList.remove("open"); });

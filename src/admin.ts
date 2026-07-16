@@ -1860,6 +1860,30 @@ function bindContentEvents() {
       }
     });
   });
+  const pageForm = document.getElementById("pageContentForm") as HTMLFormElement | null;
+  if (pageForm) {
+    pageForm.addEventListener("submit", async (event: any) => {
+      event.preventDefault();
+      const content: Record<string, string> = {};
+      const inputs = pageForm.querySelectorAll<HTMLTextAreaElement>("[data-page-key]");
+      for (const el of inputs) {
+        const key = el.getAttribute("data-page-key") || "";
+        if (key) content[key] = el.value.trim();
+      }
+      const hint = document.getElementById("pageContentFormHint");
+      await safeAction(pageForm, async () => {
+        const res = await apiFetch("/api/admin/page-content", {
+          method: "PUT",
+          body: { content },
+        });
+        if (res.ok) {
+          if (hint) { hint.textContent = "Sayfa içerikleri kaydedildi."; hint.className = "formHint success"; }
+        } else {
+          if (hint) { hint.textContent = res.error || "Kaydetme başarısız."; hint.className = "formHint error"; }
+        }
+      });
+    });
+  }
 }
 
 async function loadContentSettings() {
@@ -1870,6 +1894,13 @@ async function loadContentSettings() {
     for (const el of inputs) {
       const key = el.getAttribute("data-content-key") || "";
       if (content[key]) el.value = content[key];
+    }
+    const pageData = await apiFetch("/api/admin/page-content");
+    const pages = pageData?.items || {};
+    const pageInputs = document.querySelectorAll<HTMLTextAreaElement>("[data-page-key]");
+    for (const el of pageInputs) {
+      const key = el.getAttribute("data-page-key") || "";
+      if (pages[key]) el.value = pages[key];
     }
   } catch {
     // ignore

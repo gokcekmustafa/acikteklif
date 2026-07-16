@@ -34,35 +34,7 @@
     </header>
 
     <section class="contentPage">
-      <div class="container">
-        <h1>Mesafeli Satış Sözleşmesi</h1>
-        <div class="pageMeta">Ön Bilgilendirme Formu ve Mesafeli Satış Sözleşmesi</div>
-
-        <h2>Taraflar</h2>
-        <p>İşbu Mesafeli Satış Sözleşmesi ("Sözleşme"), aşağıda bilgileri yer alan ALICI ile SATICI arasında, Kamutas platformu üzerinden gerçekleştirilen online açık artırma yoluyla araç satışına ilişkin olarak 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve Mesafeli Sözleşmeler Yönetmeliği hükümleri kapsamında akdedilmiştir.</p>
-
-        <h2>Sözleşmenin Konusu</h2>
-        <p>İşbu sözleşme, Kamutas platformu üzerinden online açık artırma yöntemiyle belirlenen taşınır/taşınmaz malın satışına ilişkin tarafların hak ve yükümlülüklerini düzenler. Satışa konu malın nitelikleri, başlangıç fiyatı, güncel teklif bilgileri ve ihale şartları ilan sayfasında belirtilmiştir.</p>
-
-        <div class="highlightBox">
-          <p>Online açık artırma yoluyla yapılan satışlarda, ihale sonucunda en yüksek teklifi veren katılımcı ALICI sıfatını kazanır ve teklif bağlayıcı niteliktedir.</p>
-        </div>
-
-        <h2>Satıcı Bilgileri</h2>
-        <p><strong>Kamutas</strong><br>
-        E-posta: info@kamutas.com<br>
-        Telefon: 0850 XXX XXXX<br>
-        Adres: İstanbul, Türkiye</p>
-
-        <h2>Alıcının Beyanı</h2>
-        <p>ALICI, işbu sözleşmeyi ve ön bilgilendirme formunu okuduğunu, içeriğini anladığını ve açık artırma teklifini vermekle sözleşme hükümlerini kabul ettiğini beyan eder. ALICI, Kamutas platformunda yer alan araç bilgilerini, fotoğraflarını ve ekspertiz raporlarını inceleyerek satın alma kararını verdiğini kabul eder.</p>
-
-        <h2>Cayma Hakkı</h2>
-        <p>6502 sayılı Tüketicinin Korunması Hakkında Kanun'un 48. maddesi ve Mesafeli Sözleşmeler Yönetmeliği'nin 15. maddesi uyarınca, online açık artırma yoluyla satılan araçlarda cayma hakkı kapsam dışıdır. Zira söz konusu satışlar, tüketicinin isteğine bağlı olarak düzenlenen açık artırma yöntemiyle gerçekleştirildiğinden cayma hakkı istisnası kapsamında değerlendirilir. ALICI, bu hususu peşinen kabul eder.</p>
-
-        <h2>Uyuşmazlık</h2>
-        <p>İşbu sözleşmeden doğan veya doğabilecek her türlü uyuşmazlığın çözümünde İstanbul Adliyesi Mahkemeleri ve İcra Daireleri yetkilidir. Uyuşmazlık durumunda öncelikle Tüketici Hakem Heyetine başvurulabilir.</p>
-      </div>
+      <div class="container" id="pageContent"></div>
     </section>
 
     <footer class="siteFooter">
@@ -124,6 +96,19 @@
     </footer>
   </div>
 
+  <script>
+  (async function() {
+    try {
+      const res = await fetch('/api/page-content');
+      const data = await res.json();
+      const content = data?.items || {};
+      const container = document.getElementById('pageContent');
+      if (container && content['mesafelisatis']) {
+        container.innerHTML = content['mesafelisatis'];
+      }
+    } catch(e) {}
+  })();
+  </script>
   <script>
   document.getElementById("menuOpenBtn")?.addEventListener("click", function(e) { e.preventDefault(); document.getElementById("mainMenu")?.classList.add("open"); });
   document.getElementById("menuCloseBtn")?.addEventListener("click", function(e) { e.preventDefault(); document.getElementById("mainMenu")?.classList.remove("open"); });

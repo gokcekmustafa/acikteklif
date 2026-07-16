@@ -34,39 +34,7 @@
     </header>
 
     <section class="contentPage">
-      <div class="container">
-        <h1>Sıkça Sorulan Sorular</h1>
-        <div class="pageMeta">Merak Ettikleriniz</div>
-
-        <div class="faqItem">
-          <div class="faqQ">Kamutas nedir?</div>
-          <div class="faqA">Kamutas, ikinci el araç, ekipman ve gayrimenkul alım satımı için online açık artırma platformudur.</div>
-        </div>
-        <div class="faqItem">
-          <div class="faqQ">Nasıl üye olabilirim?</div>
-          <div class="faqA">Anasayfadaki 'Kayıt Ol' butonuna tıklayarak gerekli bilgileri doldurup ücretsiz üye olabilirsiniz.</div>
-        </div>
-        <div class="faqItem">
-          <div class="faqQ">İhalelere nasıl katılabilirim?</div>
-          <div class="faqA">Üye olduktan sonra ilan sayfasından beğendiğiniz araca 'Teklif Ver' butonuna tıklayarak teklifinizi iletebilirsiniz.</div>
-        </div>
-        <div class="faqItem">
-          <div class="faqQ">Aracı satın aldıktan sonra süreç nasıl işler?</div>
-          <div class="faqA">Satış sonrası noter devir işlemleri ve ödeme süreçleri tarafımızdan takip edilir. Alıcı ve satıcı gerekli yönlendirmeleri alır.</div>
-        </div>
-        <div class="faqItem">
-          <div class="faqQ">İhale ne zaman sona erer?</div>
-          <div class="faqA">Her ihale için belirtilen başlangıç ve bitiş tarihleri ilan sayfasında görüntülenir.</div>
-        </div>
-        <div class="faqItem">
-          <div class="faqQ">Teklifimi geri çekebilir miyim?</div>
-          <div class="faqA">Verilen teklifler bağlayıcıdır. Teklifinizi geri çekmek için müşteri hizmetlerimizle iletişime geçmelisiniz.</div>
-        </div>
-        <div class="faqItem">
-          <div class="faqQ">Araç teslimatı nasıl yapılır?</div>
-          <div class="faqA">Araç, satışın tamamlanmasının ardından belirtilen lokasyondan teslim alınır. Detaylı bilgi için müşteri hizmetlerimizle iletişime geçebilirsiniz.</div>
-        </div>
-      </div>
+      <div class="container" id="pageContent"></div>
     </section>
 
     <footer class="siteFooter">
@@ -128,6 +96,19 @@
     </footer>
   </div>
 
+  <script>
+  (async function() {
+    try {
+      const res = await fetch('/api/page-content');
+      const data = await res.json();
+      const content = data?.items || {};
+      const container = document.getElementById('pageContent');
+      if (container && content['sss']) {
+        container.innerHTML = content['sss'];
+      }
+    } catch(e) {}
+  })();
+  </script>
   <script>
   document.getElementById("menuOpenBtn")?.addEventListener("click", function(e) { e.preventDefault(); document.getElementById("mainMenu")?.classList.add("open"); });
   document.getElementById("menuCloseBtn")?.addEventListener("click", function(e) { e.preventDefault(); document.getElementById("mainMenu")?.classList.remove("open"); });

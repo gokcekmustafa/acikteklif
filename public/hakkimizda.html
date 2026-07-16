@@ -34,25 +34,7 @@
     </header>
 
     <section class="contentPage">
-      <div class="container">
-        <h1>Hakkımızda</h1>
-        <div class="pageMeta">Kamutas Online İhale Platformu</div>
-
-        <p>Kamutas, Türkiye'de ikinci el araç, ekipman ve gayrimenkul alım satımını dijital ortama taşıyan yenilikçi bir online açık artırma platformudur. Alıcı ve satıcıları bir araya getirerek güvenli, şeffaf ve rekabetçi bir ihale süreci sunuyoruz.</p>
-
-        <div class="highlightBox">
-          <p>Amacımız, ikinci el araç ticaretinde güven sorununu ortadan kaldırmak ve herkesin adil bir pazarda işlem yapmasını sağlamaktır.</p>
-        </div>
-
-        <h2>Misyonumuz</h2>
-        <p>Teknolojinin gücünü kullanarak araç alım satım süreçlerini dijitalleştirmek, kullanıcılarımıza her yerden katılabilecekleri güvenli bir açık artırma ortamı sunmak. Satıcılar için en doğru fiyata en hızlı şekilde satış imkanı, alıcılar için ise geniş ürün yelpazesi ve şeffaf fiyatlandırma sağlıyoruz.</p>
-
-        <h2>Vizyonumuz</h2>
-        <p>Türkiye'nin en güvenilir online açık artırma platformu olmak ve ikinci el araç ticaretinde dijital dönüşüme öncülük etmek. Sürekli gelişen teknolojimiz ve müşteri odaklı yaklaşımımızla sektörde standartları belirliyoruz.</p>
-
-        <h2>Nasıl Çalışırız?</h2>
-        <p>Platformumuzda araçlar, uzman ekipler tarafından detaylı şekilde incelenir ve durumları şeffaf bir şekilde raporlanır. Belirlenen ihale gün ve saatinde, canlı açık artırma yöntemiyle araçlar en yüksek teklifi veren katılımcıya satılır. Satış sonrası noter devir işlemleri ve ödeme süreçlerinde de alıcı ve satıcıya rehberlik ediyoruz.</p>
-      </div>
+      <div class="container" id="pageContent"></div>
     </section>
 
     <footer class="siteFooter">
@@ -114,6 +96,19 @@
     </footer>
   </div>
 
+  <script>
+  (async function() {
+    try {
+      const res = await fetch('/api/page-content');
+      const data = await res.json();
+      const content = data?.items || {};
+      const container = document.getElementById('pageContent');
+      if (container && content['hakkimizda']) {
+        container.innerHTML = content['hakkimizda'];
+      }
+    } catch(e) {}
+  })();
+  </script>
   <script>
   document.getElementById("menuOpenBtn")?.addEventListener("click", function(e) { e.preventDefault(); document.getElementById("mainMenu")?.classList.add("open"); });
   document.getElementById("menuCloseBtn")?.addEventListener("click", function(e) { e.preventDefault(); document.getElementById("mainMenu")?.classList.remove("open"); });

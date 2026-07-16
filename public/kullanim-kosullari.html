@@ -34,51 +34,7 @@
     </header>
 
     <section class="contentPage">
-      <div class="container">
-        <h1>Kullanım Koşulları</h1>
-        <div class="pageMeta">Üyelik Sözleşmesi ve Platform Kullanım Şartları</div>
-
-        <h2>Üyelik</h2>
-        <p>Kamutas platformuna üyelik ücretsizdir. Üyelik başvurusu yapacak kişilerin 18 yaşını doldurmuş olması zorunludur. Üyelik başvurusunda verilen bilgilerin doğru, eksiksiz ve güncel olması kullanıcının sorumluluğundadır. Kamutas, üyelik başvurularını onaylama veya reddetme hakkını saklı tutar. Her kullanıcı yalnızca bir hesaba sahip olabilir.</p>
-
-        <div class="highlightBox">
-          <p>Hesap güvenliği tamamen kullanıcıya aittir. Şifrenizin üçüncü kişilerle paylaşılması durumunda oluşabilecek zararlardan Kamutas sorumlu değildir.</p>
-        </div>
-
-        <h2>Kullanıcı Sorumlulukları</h2>
-        <ul>
-          <li>Üyelik sırasında verilen bilgilerin doğru, eksiksiz ve güncel olmasını sağlamak.</li>
-          <li>Hesap şifresinin gizliliğini korumak ve hesap güvenliğini sağlamak.</li>
-          <li>Platformu kullanırken yürürlükteki tüm yasalara ve düzenlemelere uymak.</li>
-          <li>Başka kullanıcıların haklarına saygı göstermek, taciz edici veya yanıltıcı davranışlardan kaçınmak.</li>
-          <li>Platform üzerinden yasa dışı, sahte veya yanıltıcı işlemler gerçekleştirmemek.</li>
-        </ul>
-
-        <h2>İhale Kuralları</h2>
-        <p>Kullanıcılar, platformda yer alan ihalelere teklif vererek bağlayıcı bir taahhüt altına girer. İhale sürecinde aşağıdaki kurallar geçerlidir:</p>
-        <ul>
-          <li>Verilen teklifler geri alınamaz ve bağlayıcıdır.</li>
-          <li>Her ihale için belirlenmiş minimum artırma miktarı bulunur.</li>
-          <li>İhale bitiş saatinden sonra yapılan teklifler geçersiz sayılır.</li>
-          <li>Kamutas, ihale sürecinde hile veya kötü niyet tespit edilmesi halinde ihaleyi iptal etme hakkına sahiptir.</li>
-          <li>Kazanan teklif sahibi, ihale sonucunda belirtilen süre içinde ödeme yükümlülüğünü yerine getirmelidir.</li>
-        </ul>
-
-        <h2>Ödeme ve Teslimat</h2>
-        <p>İhale sonucunda belirlenen satış bedeli, kazanan teklif sahibi tarafından Kamutas tarafından belirtilen süre ve yöntemlerle ödenmelidir. Ödeme tamamlandıktan sonra araç teslimat süreci başlatılır. Teslimat, ilan sayfasında belirtilen lokasyondan yapılır. Teslimat sırasında aracın durumu alıcı tarafından kontrol edilir ve teslimat tutanağı imzalanır.</p>
-
-        <h2>Fikri Mülkiyet</h2>
-        <p>Kamutas platformunda yer alan tüm içerik, tasarım, logo, yazılım, grafik ve diğer materyaller Kamutas'a ait olup fikri mülkiyet hakları kapsamında korunmaktadır. Kullanıcılar, bu içerikleri önceden yazılı izin almaksızın kopyalayamaz, dağıtamaz, değiştiremez veya ticari amaçla kullanamaz.</p>
-
-        <h2>Sorumluluğun Sınırlandırılması</h2>
-        <p>Kamutas, platformun kesintisiz ve hatasız çalışacağını garanti etmez. Platformda yer alan araç bilgileri, satıcı tarafından sağlanan bilgilere dayanmaktadır. Kamutas, araçların durumu, ekspertiz raporları ve diğer teknik özellikler konusunda mümkün olan en doğru bilgiyi sunmaya çalışmakla birlikte, satıcı kaynaklı yanlış veya eksik bilgilerden sorumlu tutulamaz. Kamutas'ın sorumluluğu, platformun sağladığı hizmetlerin ifasıyla sınırlıdır.</p>
-
-        <h2>Değişiklikler</h2>
-        <p>Kamutas, işbu kullanım koşullarını önceden bildirimde bulunmaksızın değiştirme hakkını saklı tutar. Değişiklikler, platformda yayımlandığı tarihte yürürlüğe girer. Kullanıcıların güncel koşulları takip etmesi kullanıcının sorumluluğundadır. Değişikliklerin ardından platformu kullanmaya devam edilmesi, güncellenmiş koşulların kabul edildiği anlamına gelir.</p>
-
-        <h2>Yürürlülük</h2>
-        <p>İşbu kullanım koşulları, kullanıcının platforma üye olmasıyla birlikte yürürlüğe girer ve süresiz olarak geçerlidir. Kullanıcı, üyeliğini sonlandırarak sözleşmeyi feshedebilir. Kamutas, kullanım koşullarına aykırı davranışlarda bulunan kullanıcıların üyeliğini tek taraflı olarak sonlandırma hakkına sahiptir.</p>
-      </div>
+      <div class="container" id="pageContent"></div>
     </section>
 
     <footer class="siteFooter">
@@ -140,6 +96,19 @@
     </footer>
   </div>
 
+  <script>
+  (async function() {
+    try {
+      const res = await fetch('/api/page-content');
+      const data = await res.json();
+      const content = data?.items || {};
+      const container = document.getElementById('pageContent');
+      if (container && content['kullanimkosullari']) {
+        container.innerHTML = content['kullanimkosullari'];
+      }
+    } catch(e) {}
+  })();
+  </script>
   <script>
   document.getElementById("menuOpenBtn")?.addEventListener("click", function(e) { e.preventDefault(); document.getElementById("mainMenu")?.classList.add("open"); });
   document.getElementById("menuCloseBtn")?.addEventListener("click", function(e) { e.preventDefault(); document.getElementById("mainMenu")?.classList.remove("open"); });

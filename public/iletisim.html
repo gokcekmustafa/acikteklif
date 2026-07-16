@@ -34,57 +34,7 @@
     </header>
 
     <section class="contentPage">
-      <div class="container">
-        <h1>İletişim</h1>
-        <div class="pageMeta">Bizimle İletişime Geçin</div>
-
-        <div class="contactGrid">
-          <div class="contactInfo">
-            <div class="contactInfoItem">
-              <i class="fas fa-envelope"></i>
-              <div>
-                <strong>E-posta</strong>
-                <span>info@kamutas.com</span>
-              </div>
-            </div>
-            <div class="contactInfoItem">
-              <i class="fas fa-phone"></i>
-              <div>
-                <strong>Telefon</strong>
-                <span>0850 XXX XXXX</span>
-              </div>
-            </div>
-            <div class="contactInfoItem">
-              <i class="fas fa-map-marker-alt"></i>
-              <div>
-                <strong>Adres</strong>
-                <span>İstanbul, Türkiye</span>
-              </div>
-            </div>
-          </div>
-          <div class="contactForm">
-            <form action="#" method="post">
-              <div class="formGroup">
-                <label for="name">Adınız Soyadınız</label>
-                <input type="text" id="name" name="name" placeholder="Adınız Soyadınız" required>
-              </div>
-              <div class="formGroup">
-                <label for="email">E-posta Adresiniz</label>
-                <input type="email" id="email" name="email" placeholder="ornek@email.com" required>
-              </div>
-              <div class="formGroup">
-                <label for="phone">Telefon Numaranız</label>
-                <input type="tel" id="phone" name="phone" placeholder="05XX XXX XX XX">
-              </div>
-              <div class="formGroup">
-                <label for="message">Mesajınız</label>
-                <textarea id="message" name="message" rows="5" placeholder="Mesajınızı buraya yazın..." required></textarea>
-              </div>
-              <button type="submit" class="btn btnPrimary">Gönder</button>
-            </form>
-          </div>
-        </div>
-      </div>
+      <div class="container" id="pageContent"></div>
     </section>
 
     <footer class="siteFooter">
@@ -146,6 +96,19 @@
     </footer>
   </div>
 
+  <script>
+  (async function() {
+    try {
+      const res = await fetch('/api/page-content');
+      const data = await res.json();
+      const content = data?.items || {};
+      const container = document.getElementById('pageContent');
+      if (container && content['iletisim']) {
+        container.innerHTML = content['iletisim'];
+      }
+    } catch(e) {}
+  })();
+  </script>
   <script>
   document.getElementById("menuOpenBtn")?.addEventListener("click", function(e) { e.preventDefault(); document.getElementById("mainMenu")?.classList.add("open"); });
   document.getElementById("menuCloseBtn")?.addEventListener("click", function(e) { e.preventDefault(); document.getElementById("mainMenu")?.classList.remove("open"); });

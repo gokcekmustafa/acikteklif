@@ -34,47 +34,7 @@
     </header>
 
     <section class="contentPage">
-      <div class="container">
-        <h1>Çerez Politikası</h1>
-        <div class="pageMeta">Çerez Kullanımına İlişkin Bilgilendirme</div>
-
-        <h2>Çerez Nedir?</h2>
-        <p>Çerezler, bir web sitesini ziyaret ettiğinizde tarayıcınız aracılığıyla cihazınıza kaydedilen küçük metin dosyalarıdır. Bu dosyalar, siteyi tekrar ziyaret ettiğinizde sizi tanımamıza ve tercihlerinizi hatırlamamıza olanak tanır. Çerezler, web sitesinin daha verimli çalışmasını sağlamak ve kullanıcı deneyimini iyileştirmek amacıyla kullanılmaktadır.</p>
-
-        <div class="highlightBox">
-          <p>Çerezler kişisel kimlik bilgilerinizi içermez ve sizi doğrudan tanımlamaz. Çerezler aracılığıyla toplanan bilgiler anonimdir.</p>
-        </div>
-
-        <h2>Kullanılan Çerez Türleri</h2>
-        <p>Platformumuzda aşağıdaki çerez türleri kullanılmaktadır:</p>
-        <h3>Zorunlu Çerezler</h3>
-        <p>Bu çerezler, web sitesinin düzgün çalışabilmesi için gereklidir. Site üzerinde gezinmenizi ve güvenli alanlara erişmenizi sağlar. Bu çerezler olmadan site işlevselliğini tam olarak yerine getiremez.</p>
-        <h3>İşlevsel Çerezler</h3>
-        <p>Bu çerezler, siteye yaptığınız ziyaret sırasında tercihlerinizi (dil seçimi, oturum bilgileri gibi) hatırlayarak daha kişisel bir deneyim sunmanızı sağlar.</p>
-        <h3>Analitik Çerezler</h3>
-        <p>Bu çerezler, ziyaretçilerin siteyi nasıl kullandığına dair anonim istatistiksel bilgiler toplar. Hangi sayfaların en çok ziyaret edildiği, kullanıcıların sitede ne kadar vakit geçirdiği gibi verileri analiz ederek hizmet kalitemizi artırmamıza yardımcı olur.</p>
-
-        <h2>Çerezlerin Amacı</h2>
-        <ul>
-          <li><strong>Site Performansı:</strong> Web sitemizin hızlı ve güvenilir şekilde çalışmasını sağlamak.</li>
-          <li><strong>Kullanıcı Deneyimi:</strong> Tercihlerinizi hatırlayarak size daha iyi bir gezinti deneyimi sunmak.</li>
-          <li><strong>Güvenlik:</strong> Hesap güvenliğinizi sağlamak ve yetkisiz erişimleri engellemek.</li>
-          <li><strong>Analiz ve İyileştirme:</strong> Site trafiğini analiz ederek hizmetlerimizi sürekli geliştirmek.</li>
-        </ul>
-
-        <h2>Çerez Tercihlerinin Yönetilmesi</h2>
-        <p>Çerez tercihlerinizi tarayıcı ayarlarınızdan yönetebilirsiniz. Çoğu tarayıcı, çerezleri otomatik olarak kabul eder ancak siz dilerseniz tarayıcı ayarlarınızı değiştirerek çerezleri engelleyebilir veya belirli çerez türlerine izin verebilirsiniz. Çerezleri devre dışı bırakmanız durumunda web sitemizin bazı özelliklerinin tam olarak çalışmayabileceğini unutmayın.</p>
-        <p>Popüler tarayıcılarda çerez ayarlarını yönetmek için aşağıdaki bağlantıları kullanabilirsiniz:</p>
-        <ul>
-          <li>Google Chrome: Ayarlar &gt; Gizlilik ve Güvenlik &gt; Çerezler</li>
-          <li>Mozilla Firefox: Seçenekler &gt; Gizlilik &amp; Güvenlik &gt; Çerezler</li>
-          <li>Safari: Tercihler &gt; Gizlilik &gt; Çerezler</li>
-          <li>Microsoft Edge: Ayarlar &gt; Site İzinleri &gt; Çerezler</li>
-        </ul>
-
-        <h2>İletişim</h2>
-        <p>Çerez politikamız hakkında sorularınız için <strong>info@kamutas.com</strong> adresinden bizimle iletişime geçebilirsiniz.</p>
-      </div>
+      <div class="container" id="pageContent"></div>
     </section>
 
     <footer class="siteFooter">
@@ -136,6 +96,19 @@
     </footer>
   </div>
 
+  <script>
+  (async function() {
+    try {
+      const res = await fetch('/api/page-content');
+      const data = await res.json();
+      const content = data?.items || {};
+      const container = document.getElementById('pageContent');
+      if (container && content['cerez']) {
+        container.innerHTML = content['cerez'];
+      }
+    } catch(e) {}
+  })();
+  </script>
   <script>
   document.getElementById("menuOpenBtn")?.addEventListener("click", function(e) { e.preventDefault(); document.getElementById("mainMenu")?.classList.add("open"); });
   document.getElementById("menuCloseBtn")?.addEventListener("click", function(e) { e.preventDefault(); document.getElementById("mainMenu")?.classList.remove("open"); });

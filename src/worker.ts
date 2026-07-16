@@ -679,6 +679,11 @@ async function handleApi(request, env, url) {
     return json({ ok: true, items: data });
   }
 
+  if (method === "GET" && path === "/api/page-content") {
+    const data = await getAppSettingJson(env, "page_content", {});
+    return json({ ok: true, items: data });
+  }
+
   if (method === "POST" && path === "/api/bids") {
     const cfgError = requireSessionPepper(env);
     if (cfgError) return cfgError;
@@ -2000,6 +2005,25 @@ async function handleApi(request, env, url) {
       await setAppSettingJsonSafe(env, "homepage_content", content, session.user.id);
       await writeAdminAuditLog(env, session.user.id, null, "content.update", {});
       return json({ ok: true, message: "İçerik kaydedildi." });
+    }
+
+    if (method === "GET" && path === "/api/admin/page-content") {
+      if (!actorAccess.permissions[PERMISSIONS.SETTINGS_MANAGE]) {
+        return json({ ok: false, error: "Yetkiniz yok." }, 403);
+      }
+      const data = await getAppSettingJson(env, "page_content", {});
+      return json({ ok: true, items: data });
+    }
+
+    if (method === "PUT" && path === "/api/admin/page-content") {
+      if (!actorAccess.permissions[PERMISSIONS.SETTINGS_MANAGE]) {
+        return json({ ok: false, error: "Yetkiniz yok." }, 403);
+      }
+      const body = await readJson(request);
+      const content = body.content || {};
+      await setAppSettingJsonSafe(env, "page_content", content, session.user.id);
+      await writeAdminAuditLog(env, session.user.id, null, "pagecontent.update", {});
+      return json({ ok: true, message: "Sayfa içeriği kaydedildi." });
     }
 
     if (method === "GET" && path.startsWith("/api/admin/users/") && path.endsWith("/memberships")) {

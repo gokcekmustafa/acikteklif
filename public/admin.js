@@ -1707,6 +1707,38 @@ function bindContentEvents() {
             }
         });
     });
+    const pageForm = document.getElementById("pageContentForm");
+    if (pageForm) {
+        pageForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const content = {};
+            const inputs = pageForm.querySelectorAll("[data-page-key]");
+            for (const el of inputs) {
+                const key = el.getAttribute("data-page-key") || "";
+                if (key)
+                    content[key] = el.value.trim();
+            }
+            const hint = document.getElementById("pageContentFormHint");
+            await safeAction(pageForm, async () => {
+                const res = await apiFetch("/api/admin/page-content", {
+                    method: "PUT",
+                    body: { content },
+                });
+                if (res.ok) {
+                    if (hint) {
+                        hint.textContent = "Sayfa içerikleri kaydedildi.";
+                        hint.className = "formHint success";
+                    }
+                }
+                else {
+                    if (hint) {
+                        hint.textContent = res.error || "Kaydetme başarısız.";
+                        hint.className = "formHint error";
+                    }
+                }
+            });
+        });
+    }
 }
 async function loadContentSettings() {
     try {
@@ -1717,6 +1749,14 @@ async function loadContentSettings() {
             const key = el.getAttribute("data-content-key") || "";
             if (content[key])
                 el.value = content[key];
+        }
+        const pageData = await apiFetch("/api/admin/page-content");
+        const pages = pageData?.items || {};
+        const pageInputs = document.querySelectorAll("[data-page-key]");
+        for (const el of pageInputs) {
+            const key = el.getAttribute("data-page-key") || "";
+            if (pages[key])
+                el.value = pages[key];
         }
     }
     catch {
