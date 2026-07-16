@@ -2619,6 +2619,12 @@ async function loadHomepageContent() {
             if (content[key])
                 el.textContent = content[key];
         }
+        const linkEls = document.querySelectorAll("[data-content-href]");
+        for (const el of linkEls) {
+            const key = el.getAttribute("data-content-href") || "";
+            if (content[key])
+                el.href = content[key];
+        }
     }
     catch {
         // ignore on homepage
