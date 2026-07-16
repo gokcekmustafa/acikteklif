@@ -1938,18 +1938,16 @@ function renderContentTree() {
   if (!tree) return;
   let html = "";
   for (const group of CONTENT_TREE) {
-    html += `<div class="contentTreeGroup${stateContentSelectedGroup === group.key ? " open" : ""}">`;
-    html += `<div class="contentTreeGroupTitle" data-action="toggle-group" data-group="${group.key}">`;
+    const active = stateContentSelectedGroup === group.key;
+    html += `<div class="contentTreeGroup${active ? " open" : ""}">`;
+    html += `<div class="contentTreeGroupTitle${active ? " active" : ""}" data-action="select-group" data-group="${group.key}">`;
     html += `<i class="fas fa-chevron-right"></i> ${group.label}`;
     html += `<span class="badge">${group.fields.length}</span>`;
     html += `</div>`;
-    html += `<div class="contentTreeLeaf">`;
-    html += `<button class="contentTreeItem${stateContentSelectedGroup === group.key ? " active" : ""}" data-action="select-group" data-group="${group.key}">Tümünü Düzenle</button>`;
-    html += `</div>`;
     html += `</div>`;
   }
-  html += `<div class="contentTreeGroup${stateContentSelectedGroup === "pages" ? " open" : ""}">`;
-  html += `<div class="contentTreeGroupTitle" data-action="toggle-group" data-group="pages">`;
+  html += `<div class="contentTreeGroup">`;
+  html += `<div class="contentTreeGroupTitle">`;
   html += `<i class="fas fa-chevron-right"></i> Sayfa İçerikleri`;
   html += `<span class="badge">${PAGE_TREE_ITEMS.length}</span>`;
   html += `</div>`;
@@ -1960,12 +1958,6 @@ function renderContentTree() {
   html += `</div>`;
   html += `</div>`;
   tree.innerHTML = html;
-  tree.querySelectorAll("[data-action='toggle-group']").forEach(el => {
-    el.addEventListener("click", () => {
-      const parent = el.closest(".contentTreeGroup");
-      if (parent) parent.classList.toggle("open");
-    });
-  });
   tree.querySelectorAll("[data-action='select-group']").forEach(el => {
     el.addEventListener("click", () => {
       stateContentSelectedGroup = el.getAttribute("data-group");
@@ -1995,11 +1987,10 @@ function renderContentEditor(selected: string | null) {
     if (!page) { editor.innerHTML = ""; return; }
     editor.innerHTML = `
       <h3>${page.label}</h3>
-      <p class="uploadHint">HTML içeriğini düzenleyin. Sayfa başlığı ve layout otomatik gelir.</p>
       <form id="pageContentForm">
         <label class="fieldWrap">
           <span>İçerik</span>
-          <textarea rows="16" id="pageEditor_${pageKey}" style="min-height:200px">${escapeHtml(statePageContent[pageKey] || "")}</textarea>
+          <div class="pageContentEditor" id="pageEditor_${pageKey}" contenteditable="true">${statePageContent[pageKey] || ""}</div>
         </label>
         <button class="miniBtn success" type="submit"><i class="fas fa-save"></i> Kaydet</button>
         <div class="formHint" id="pageContentHint"></div>
@@ -2008,15 +1999,15 @@ function renderContentEditor(selected: string | null) {
     if (form) {
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const textarea = document.getElementById("pageEditor_" + pageKey) as HTMLTextAreaElement | null;
+        const editorDiv = document.getElementById("pageEditor_" + pageKey);
         const hint = document.getElementById("pageContentHint");
-        if (!textarea) return;
+        if (!editorDiv) return;
         await safeAction(form, async () => {
           const payload: Record<string, string> = {};
-          payload[pageKey] = textarea.value;
+          payload[pageKey] = editorDiv.innerHTML;
           const res = await apiFetch("/api/admin/page-content", { method: "PUT", body: { content: payload } });
           if (res.ok) {
-            statePageContent[pageKey] = textarea.value;
+            statePageContent[pageKey] = editorDiv.innerHTML;
             if (hint) { hint.textContent = "Kaydedildi."; hint.className = "formHint success"; }
           } else {
             if (hint) { hint.textContent = res.error || "Hata."; hint.className = "formHint error"; }
