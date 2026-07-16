@@ -214,7 +214,6 @@ const elements = {
     panelCatalog: byId("panelCatalog"),
     panelAuctions: byId("panelAuctions"),
     panelReports: byId("panelReports"),
-    panelMembershipPlans: byId("panelMembershipPlans"),
     panelSettings: byId("panelSettings"),
     panelLogs: byId("panelLogs"),
     catalogSearchInput: byId("catalogSearchInput"),
@@ -1332,7 +1331,6 @@ function renderTabs() {
     elements.panelCatalog.classList.toggle("hide", state.activeTab !== "catalog");
     elements.panelAuctions.classList.toggle("hide", state.activeTab !== "auctions");
     elements.panelReports.classList.toggle("hide", state.activeTab !== "reports");
-    elements.panelMembershipPlans.classList.toggle("hide", state.activeTab !== "membership-plans");
     elements.panelSettings.classList.toggle("hide", state.activeTab !== "settings");
     elements.panelLogs.classList.toggle("hide", state.activeTab !== "logs");
     elements.searchInput.parentElement?.classList.toggle("hide", state.activeTab !== "users");
