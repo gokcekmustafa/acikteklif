@@ -1585,7 +1585,7 @@ th {
 .contentTreeItem:hover { background: #e2e8f0; color: var(--text); }
 .contentTreeItem.active { background: var(--accent); color: #fff; border-radius: 0; }
 .contentTreeLeaf { display: block; }
-.contentEditor { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; overflow-y: auto; max-height: 70vh; }
+.contentEditor { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; overflow-y: auto; max-height: 85vh; }
 .contentEditor h3 { font-size: 15px; margin: 0 0 16px; color: var(--text); border-bottom: 1px solid var(--line); padding-bottom: 10px; }
 .contentEditor .fieldWrap { margin-bottom: 12px; }
 .contentEditor .fieldWrap span { font-size: 12px; }

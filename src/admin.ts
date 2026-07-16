@@ -1990,17 +1990,18 @@ function renderContentEditor(selected: string | null) {
       <form id="pageContentForm">
         <label class="fieldWrap">
           <span>İçerik (HTML)</span>
-          <textarea rows="20" id="pageEditor_${pageKey}" style="min-height:300px;font-family:monospace;font-size:13px;line-height:1.5">${escapeHtml(statePageContent[pageKey] || "")}</textarea>
+          <textarea rows="20" id="pageEditor_${pageKey}" style="min-height:300px;font-family:monospace;font-size:13px;line-height:1.5"></textarea>
         </label>
         <button class="miniBtn success" type="submit"><i class="fas fa-save"></i> Kaydet</button>
         <div class="formHint" id="pageContentHint"></div>
       </form>`;
+    const textarea = document.getElementById("pageEditor_" + pageKey) as HTMLTextAreaElement;
+    if (textarea) textarea.value = statePageContent[pageKey] || "";
     const form = editor.querySelector("form");
     const btn = form?.querySelector('button[type="submit"]') as HTMLElement | null;
     if (form) {
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const textarea = document.getElementById("pageEditor_" + pageKey) as HTMLTextAreaElement | null;
         const hint = document.getElementById("pageContentHint");
         if (!textarea || !btn) return;
         await safeAction(btn, async () => {
